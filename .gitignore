@@ -1,3 +1,14 @@
+# DEPLOYMENT SETUP: Only frontend/ and backend/ folders will be pushed to Git
+# All root-level files and directories are ignored except frontend/ and backend/
+
+# Ignore all root-level files and directories
+/*
+
+# Allow only frontend and backend directories
+!/frontend/
+!/backend/
+!/.gitignore
+
 # Environment files
 .env
 .env.local
