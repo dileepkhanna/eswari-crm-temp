@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContextDjango";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DataProvider } from "@/contexts/DataContextDjango";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 // Pages
@@ -23,6 +24,7 @@ import AdminActivity from "@/pages/admin/AdminActivity";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminReports from "@/pages/admin/AdminReports";
 import AdminBranding from "@/pages/admin/AdminBranding";
+import AdminHolidays from "@/pages/admin/AdminHolidays";
 
 // Manager Pages
 import ManagerDashboard from "@/pages/manager/ManagerDashboard";
@@ -31,6 +33,7 @@ import ManagerTasks from "@/pages/manager/ManagerTasks";
 import ManagerLeaves from "@/pages/manager/ManagerLeaves";
 import ManagerProjects from "@/pages/manager/ManagerProjects";
 import ManagerAnnouncements from "@/pages/manager/ManagerAnnouncements";
+import ManagerHolidays from "@/pages/manager/ManagerHolidays";
 
 // Staff Pages
 import StaffDashboard from "@/pages/staff/StaffDashboard";
@@ -39,6 +42,7 @@ import StaffTasks from "@/pages/staff/StaffTasks";
 import StaffLeaves from "@/pages/staff/StaffLeaves";
 import StaffProjects from "@/pages/staff/StaffProjects";
 import StaffAnnouncements from "@/pages/staff/StaffAnnouncements";
+import StaffHolidays from "@/pages/staff/StaffHolidays";
 
 // Shared Pages
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -49,14 +53,15 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <AppSettingsProvider>
-        <NotificationProvider>
-          <DataProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-            <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppSettingsProvider>
+          <NotificationProvider>
+            <DataProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+              <BrowserRouter>
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Navigate to="/login" replace />} />
@@ -69,6 +74,7 @@ const App = () => (
                   <Route path="tasks" element={<AdminTasks />} />
                   <Route path="projects" element={<AdminProjects />} />
                   <Route path="leaves" element={<AdminLeaves />} />
+                  <Route path="holidays" element={<AdminHolidays />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="announcements" element={<AdminAnnouncements />} />
                   <Route path="branding" element={<AdminBranding />} />
@@ -84,6 +90,7 @@ const App = () => (
                   <Route path="tasks" element={<ManagerTasks />} />
                   <Route path="projects" element={<ManagerProjects />} />
                   <Route path="leaves" element={<ManagerLeaves />} />
+                  <Route path="holidays" element={<ManagerHolidays />} />
                   <Route path="announcements" element={<ManagerAnnouncements />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
@@ -95,6 +102,7 @@ const App = () => (
                   <Route path="tasks" element={<StaffTasks />} />
                   <Route path="projects" element={<StaffProjects />} />
                   <Route path="leaves" element={<StaffLeaves />} />
+                  <Route path="holidays" element={<StaffHolidays />} />
                   <Route path="announcements" element={<StaffAnnouncements />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
@@ -111,6 +119,7 @@ const App = () => (
       </NotificationProvider>
     </AppSettingsProvider>
   </AuthProvider>
+</ThemeProvider>
 </QueryClientProvider>
 );
 

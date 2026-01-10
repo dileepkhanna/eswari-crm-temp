@@ -9,7 +9,6 @@ import { Building2, User, Lock, Eye, EyeOff, ArrowRight, Mail, Phone, MapPin } f
 import { toast } from "sonner";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ApiTest } from "@/components/ApiTest";
 
 const adminLoginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -416,11 +415,6 @@ export default function Login() {
               </p>
             </div>
           )}
-
-          {/* API Test Component - Remove this in production */}
-          <div className="mt-8">
-            <ApiTest />
-          </div>
         </div>
       </div>
     </div>

@@ -303,3 +303,40 @@
     box-shadow: 0 0 15px hsla(190, 70%, 45%, 0.5);
   }
 }
+
+/* Compact View Styles */
+.compact-view .stat-card {
+  @apply p-4;
+}
+
+.compact-view .nav-link {
+  @apply py-2;
+}
+
+.compact-view .glass-card {
+  @apply p-4;
+}
+
+.compact-view .table-row-hover td {
+  @apply py-2;
+}
+
+.compact-view h1 {
+  @apply text-2xl;
+}
+
+.compact-view h2 {
+  @apply text-xl;
+}
+
+.compact-view h3 {
+  @apply text-lg;
+}
+
+.compact-view .space-y-6 > * + * {
+  margin-top: 1rem !important;
+}
+
+.compact-view .space-y-4 > * + * {
+  margin-top: 0.75rem !important;
+}

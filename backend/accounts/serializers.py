@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
     manager = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='manager'), 
         required=False, 
@@ -53,6 +54,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         elif role in ['admin', 'manager'] and manager:
             # Admins and managers shouldn't have managers
             raise serializers.ValidationError("Admins and managers cannot have managers assigned")
+        
+        # Handle empty email
+        email = attrs.get('email', '').strip()
+        if not email:
+            attrs['email'] = None
         
         return attrs
 

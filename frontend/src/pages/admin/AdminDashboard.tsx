@@ -10,6 +10,7 @@ import CalendarView from '@/components/dashboard/CalendarView';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import { useData } from '@/contexts/DataContextDjango';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { apiClient } from '@/lib/api';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { ActivityLog } from '@/types';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
@@ -23,33 +24,30 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      // TODO: Implement leaves and activity APIs in Django backend
-      // Fetch pending leaves count
-      // const { data: leavesData } = await supabase
-      //   .from('leaves')
-      //   .select('id')
-      //   .eq('status', 'pending');
-      
+      try {
+        // Fetch team members count (staff + managers)
+        const response = await apiClient.getUsers();
+        
+        // Handle paginated response from Django REST framework
+        const usersData = Array.isArray(response) ? response : (response as any).results || [];
+        
+        // Filter out admin users to get only team members (managers + employees)
+        // Note: Backend uses 'employee' role, not 'staff'
+        const teamMembers = usersData.filter((user: any) => 
+          user.role === 'manager' || user.role === 'employee'
+        );
+        
+        setTeamCount(teamMembers.length);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        setTeamCount(0); // Set to 0 if there's an error
+      }
+
+      // TODO: Implement leaves API in Django backend
       setPendingLeaves(0); // Placeholder
 
-      // Fetch team members count (staff + managers)
-      // const { data: profilesData } = await supabase
-      //   .from('profiles')
-      //   .select('id');
-      
-      setTeamCount(3); // Placeholder - we have 3 test users
-
-      // Fetch recent activities - exclude current admin user
-      // const { data: activityData } = await supabase
-      //   .from('activity_logs')
-      //   .select('*')
-      //   .order('created_at', { ascending: false })
-      //   .limit(20);
-
-      // Placeholder activities
-      const activities: ActivityLog[] = [
-        // Mock data for now
-      ];
+      // TODO: Implement activity logs API
+      const activities: ActivityLog[] = [];
       setRecentActivities(activities);
     };
 

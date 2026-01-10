@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import { User, Bell, Shield, Palette, Save, Camera, Loader2, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Check if user is admin
@@ -36,8 +38,19 @@ export default function SettingsPage() {
   const [leaveUpdates, setLeaveUpdates] = useState(true);
   
   // Appearance settings
-  const [darkMode, setDarkMode] = useState(false);
-  const [compactView, setCompactView] = useState(false);
+  const [compactView, setCompactView] = useState(() => {
+    return localStorage.getItem('compactView') === 'true';
+  });
+
+  // Apply compact view on component mount
+  useEffect(() => {
+    const root = document.documentElement;
+    if (compactView) {
+      root.classList.add('compact-view');
+    } else {
+      root.classList.remove('compact-view');
+    }
+  }, [compactView]);
   
   // Security settings (only for admin)
   const [currentPassword, setCurrentPassword] = useState('');
@@ -123,7 +136,26 @@ export default function SettingsPage() {
   };
 
   const handleSaveAppearance = () => {
+    // Save compact view to localStorage
+    localStorage.setItem('compactView', compactView.toString());
+    
+    // Apply compact view styles
+    const root = document.documentElement;
+    if (compactView) {
+      root.classList.add('compact-view');
+    } else {
+      root.classList.remove('compact-view');
+    }
+    
     toast.success('Appearance settings saved!');
+  };
+
+  const handleToggleDarkMode = (checked: boolean) => {
+    setTheme(checked ? 'dark' : 'light');
+  };
+
+  const handleToggleCompactView = (checked: boolean) => {
+    setCompactView(checked);
   };
 
   const handleChangePassword = async () => {
@@ -434,8 +466,8 @@ export default function SettingsPage() {
                     </div>
                     <Switch 
                       id="dark-mode"
-                      checked={darkMode} 
-                      onCheckedChange={setDarkMode}
+                      checked={theme === 'dark'} 
+                      onCheckedChange={handleToggleDarkMode}
                     />
                   </div>
                   
@@ -447,7 +479,7 @@ export default function SettingsPage() {
                     <Switch 
                       id="compact-view"
                       checked={compactView} 
-                      onCheckedChange={setCompactView}
+                      onCheckedChange={handleToggleCompactView}
                     />
                   </div>
                 </div>

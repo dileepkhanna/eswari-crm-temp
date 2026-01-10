@@ -22,18 +22,18 @@ def login_view(request):
     
     user = None
     
-    # Try to authenticate with email first
+    # Try to authenticate with email first (if provided and contains @)
     if '@' in email_or_username:
-        # It's an email
-        user = authenticate(request, username=email_or_username, password=password)
-    else:
-        # It's a username, find the user by username and get their email
+        # It's an email, find user by email
         try:
-            user_obj = User.objects.get(username=email_or_username)
-            # Authenticate using the email (since USERNAME_FIELD is email)
-            user = authenticate(request, username=user_obj.email, password=password)
+            user_obj = User.objects.get(email=email_or_username)
+            # Authenticate using the username (since USERNAME_FIELD is username)
+            user = authenticate(request, username=user_obj.username, password=password)
         except User.DoesNotExist:
             pass
+    else:
+        # It's a username, authenticate directly
+        user = authenticate(request, username=email_or_username, password=password)
     
     if user is not None:
         refresh = RefreshToken.for_user(user)
@@ -88,6 +88,7 @@ def profile_view(request):
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for user list
 
     def get_queryset(self):
         """Filter users based on role and manager relationship"""
@@ -122,3 +123,46 @@ def managers_list_view(request):
     managers = User.objects.filter(role='manager').order_by('first_name', 'last_name')
     serializer = UserSerializer(managers, many=True)
     return Response(serializer.data)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user_view(request, user_id):
+    """Delete a user - only admins can delete users"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can delete users'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user_to_delete = User.objects.get(id=user_id)
+        
+        # Prevent admin from deleting themselves
+        if user_to_delete.id == request.user.id:
+            return Response({
+                'error': 'You cannot delete your own account'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prevent deleting the last admin
+        if user_to_delete.role == 'admin':
+            admin_count = User.objects.filter(role='admin').count()
+            if admin_count <= 1:
+                return Response({
+                    'error': 'Cannot delete the last admin user'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_name = f"{user_to_delete.first_name} {user_to_delete.last_name}".strip() or user_to_delete.username
+        user_to_delete.delete()
+        
+        return Response({
+            'message': f'User "{user_name}" has been deleted successfully'
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to delete user',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

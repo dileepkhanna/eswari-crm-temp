@@ -63,8 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession({ user: userData });
     } catch (error) {
       console.error('Error fetching user data:', error);
+      // Clear invalid tokens
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       setUser(null);
       setSession(null);
+      throw error; // Re-throw to be handled by initAuth
     }
   }, []);
 
@@ -72,7 +76,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       const token = localStorage.getItem('access_token');
       if (token) {
-        await fetchUserData();
+        try {
+          await fetchUserData();
+        } catch (error) {
+          // If fetching user data fails, clear the invalid tokens
+          console.log('Invalid token detected, clearing authentication state');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          setUser(null);
+          setSession(null);
+        }
       }
       await checkAdminExists();
       setIsLoading(false);

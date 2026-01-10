@@ -86,8 +86,18 @@ export default function UserList() {
       // Fetch users from Django backend
       const response = await apiClient.getUsers();
       
-      // Handle paginated response from Django REST framework
-      const usersData = Array.isArray(response) ? response : (response as any).results || [];
+      // Handle both paginated and non-paginated responses
+      let usersData;
+      if (Array.isArray(response)) {
+        // Non-paginated response (direct array)
+        usersData = response;
+      } else if (response && response.results) {
+        // Paginated response
+        usersData = response.results;
+      } else {
+        // Fallback
+        usersData = [];
+      }
       
       // Transform Django user data to match frontend interface
       const transformedUsers: DBUser[] = usersData.map((user: any) => ({
@@ -373,20 +383,14 @@ export default function UserList() {
     if (!deleteUser) return;
     
     try {
-      // TODO: Implement delete user API in Django backend
-      // Delete via edge function to properly clean up auth user and all related data
-      // const { error } = await supabase.functions.invoke('delete-user', {
-      //   body: { userId: deleteUser.id }
-      // });
+      // Call the real Django API to delete the user
+      await apiClient.deleteUser(parseInt(deleteUser.id));
 
-      // Simulate successful deletion
-      const error = null;
-
-      if (error) throw error;
-
+      // Remove from frontend state
       setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
       toast.success('User and all associated data deleted successfully');
     } catch (error: any) {
+      console.error('Error deleting user:', error);
       toast.error('Failed to delete user', {
         description: error.message
       });

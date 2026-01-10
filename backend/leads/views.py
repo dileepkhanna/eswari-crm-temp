@@ -11,3 +11,6 @@ class LeadViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'email', 'company']
     ordering_fields = ['created_at', 'updated_at', 'name']
     ordering = ['-created_at']
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

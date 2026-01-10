@@ -28,10 +28,14 @@ class ApiClient {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    const headers = {
-      'Content-Type': 'application/json',
+    const headers: Record<string, string> = {
       ...options.headers,
     };
+
+    // Only set Content-Type if not already provided and not FormData
+    if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -44,9 +48,9 @@ class ApiClient {
 
     if (response.status === 401) {
       // Token expired, try to refresh
-      await this.refreshToken();
-      // Retry the request with new token
-      if (this.token) {
+      const refreshResult = await this.refreshToken();
+      if (refreshResult) {
+        // Retry the request with new token
         headers['Authorization'] = `Bearer ${this.token}`;
         const retryResponse = await fetch(url, { ...options, headers });
         if (!retryResponse.ok) {
@@ -71,6 +75,16 @@ class ApiClient {
           console.warn('Failed to parse JSON response, returning null:', jsonError);
           return null;
         }
+      } else {
+        // Refresh failed, clear tokens and throw error
+        this.logout();
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+        }
+        throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
       }
     }
 
@@ -100,9 +114,11 @@ class ApiClient {
     }
   }
 
-  private async refreshToken() {
+  private async refreshToken(): Promise<boolean> {
     const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) return;
+    if (!refreshToken) {
+      return false;
+    }
 
     try {
       const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
@@ -115,10 +131,16 @@ class ApiClient {
         const data = await response.json();
         this.token = data.access;
         localStorage.setItem('access_token', data.access);
+        return true;
+      } else {
+        // Refresh token is invalid
+        this.logout();
+        return false;
       }
     } catch (error) {
       console.error('Token refresh failed:', error);
       this.logout();
+      return false;
     }
   }
 
@@ -184,6 +206,12 @@ class ApiClient {
     return this.request('/auth/register/', {
       method: 'POST',
       body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(userId: number) {
+    return this.request(`/auth/users/${userId}/delete/`, {
+      method: 'DELETE',
     });
   }
 
@@ -354,6 +382,48 @@ class ApiClient {
     return this.request('/activity-logs/', {
       method: 'POST',
       body: JSON.stringify(activityData),
+    });
+  }
+
+  // Holidays
+  async getHolidays(params?: Record<string, any>) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/holidays/${queryString}`);
+  }
+
+  async createHoliday(holidayData: any) {
+    const isFormData = holidayData instanceof FormData;
+    const headers: Record<string, string> = {};
+    
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return this.request('/holidays/', {
+      method: 'POST',
+      body: isFormData ? holidayData : JSON.stringify(holidayData),
+      headers,
+    });
+  }
+
+  async updateHoliday(id: number, holidayData: any) {
+    const isFormData = holidayData instanceof FormData;
+    const headers: Record<string, string> = {};
+    
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return this.request(`/holidays/${id}/`, {
+      method: 'PUT',
+      body: isFormData ? holidayData : JSON.stringify(holidayData),
+      headers,
+    });
+  }
+
+  async deleteHoliday(id: number) {
+    return this.request(`/holidays/${id}/`, {
+      method: 'DELETE',
     });
   }
 

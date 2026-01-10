@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Building,
   CalendarOff,
+  Calendar,
   BarChart3,
   Activity,
   Settings,
@@ -22,7 +23,6 @@ import {
   Palette,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { mockLeads, mockTasks } from '@/data/mockData';
 import { isAfter, isBefore, addDays, isToday } from 'date-fns';
 
 interface NavItem {
@@ -34,25 +34,9 @@ interface NavItem {
 }
 
 const getRemindersCount = () => {
-  const today = new Date();
-  const nextWeek = addDays(today, 7);
-
-  const leadReminders = mockLeads.filter(l => 
-    (l.status === 'new' || l.status === 'contacted') && 
-    l.followUpDate && 
-    ((isAfter(l.followUpDate, today) && isBefore(l.followUpDate, nextWeek)) ||
-     (isBefore(l.followUpDate, today) && !isToday(l.followUpDate)))
-  ).length;
-
-  const taskReminders = mockTasks.filter(t => 
-    t.nextActionDate && 
-    ((isAfter(t.nextActionDate, today) && isBefore(t.nextActionDate, nextWeek)) ||
-     (isBefore(t.nextActionDate, today) && !isToday(t.nextActionDate))) &&
-    t.status !== 'completed' && 
-    t.status !== 'rejected'
-  ).length;
-
-  return leadReminders + taskReminders;
+  // TODO: Replace with real API calls to get leads and tasks
+  // For now, return 0 to avoid errors
+  return 0;
 };
 
 const navItems: NavItem[] = [
@@ -60,6 +44,7 @@ const navItems: NavItem[] = [
   { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
   { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
   { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'employee'] },
+  { label: 'Holidays', icon: Calendar, href: '/holidays', roles: ['admin', 'manager', 'employee'] },
   { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'employee'] },
   { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
   { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'employee'] },

@@ -2,11 +2,10 @@ from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 
 class CustomUserManager(UserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email=None, password=None, **extra_fields):
         """Create and save a User with the given email and password."""
-        if not email:
-            raise ValueError('The Email must be set')
-        email = self.normalize_email(email)
+        if email:
+            email = self.normalize_email(email)
         
         # Create user instance first with all fields
         user = self.model(email=email, **extra_fields)
@@ -21,6 +20,9 @@ class CustomUserManager(UserManager):
 
     def create_superuser(self, email, password=None, **extra_fields):
         """Create and save a SuperUser with the given email and password."""
+        if not email:
+            raise ValueError('Superuser must have an email address')
+            
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('role', 'admin')
@@ -33,7 +35,7 @@ class CustomUserManager(UserManager):
         return self.create_user(email, password, **extra_fields)
 
 class User(AbstractUser):
-    email = models.EmailField(unique=True)
+    email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=15, blank=True)
     role = models.CharField(max_length=20, choices=[
         ('admin', 'Admin'),
@@ -54,8 +56,17 @@ class User(AbstractUser):
 
     objects = CustomUserManager()
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = []
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['email'],
+                condition=models.Q(email__isnull=False),
+                name='unique_email_when_not_null'
+            )
+        ]
 
     def generate_username(self):
         """Generate username with pattern: {first_name}_{role}_{number}"""

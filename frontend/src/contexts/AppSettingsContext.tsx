@@ -20,7 +20,7 @@ interface AppSettingsContextType {
 }
 
 const defaultSettings: AppSettings = {
-  id: '',
+  id: 'default',
   app_name: 'ESWARI CONNECTS',
   logo_url: null,
   favicon_url: null,
@@ -72,24 +72,21 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const fetchSettings = useCallback(async () => {
     try {
       // TODO: Implement app settings API in Django backend
-      // const { data, error } = await supabase
-      //   .from('app_settings')
-      //   .select('*')
-      //   .limit(1)
-      //   .single();
-
-      // if (error) {
-      //   console.error('Error fetching settings:', error);
-      //   setSettings(defaultSettings);
-      //   applySettings(defaultSettings);
-      // } else if (data) {
-      //   setSettings(data);
-      //   applySettings(data);
-      // }
+      // For now, load from localStorage
+      const savedSettings = localStorage.getItem('appSettings');
+      let settingsToUse = defaultSettings;
       
-      // Use default settings for now
-      setSettings(defaultSettings);
-      applySettings(defaultSettings);
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          settingsToUse = { ...defaultSettings, ...parsed };
+        } catch (error) {
+          console.error('Error parsing saved settings:', error);
+        }
+      }
+      
+      setSettings(settingsToUse);
+      applySettings(settingsToUse);
     } catch (err) {
       console.error('Error:', err);
       setSettings(defaultSettings);
@@ -100,21 +97,20 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [applySettings]);
 
   const updateSettings = async (updates: Partial<AppSettings>) => {
-    if (!settings?.id) return;
+    if (!settings) return;
     
     // TODO: Implement app settings update API in Django backend
-    // const { error } = await supabase
-    //   .from('app_settings')
-    //   .update(updates)
-    //   .eq('id', settings.id);
-
-    // if (error) {
-    //   throw error;
-    // }
-
+    // For now, save to localStorage
     const newSettings = { ...settings, ...updates };
-    setSettings(newSettings);
-    applySettings(newSettings);
+    
+    try {
+      localStorage.setItem('appSettings', JSON.stringify(newSettings));
+      setSettings(newSettings);
+      applySettings(newSettings);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      throw new Error('Failed to save settings');
+    }
   };
 
   const refreshSettings = async () => {

@@ -2,12 +2,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Leave } from '@/types';
 import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays } from 'date-fns';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Calendar } from 'lucide-react';
 
 interface TeamMember {
   id: string;
   name: string;
-  role: 'manager' | 'staff';
+  role: 'manager' | 'employee';
 }
 
 interface MonthlyLeavesChartProps {
@@ -29,8 +29,8 @@ export default function MonthlyLeavesChart({
   leaves,
   selectedMonth = new Date()
 }: MonthlyLeavesChartProps) {
-  // Filter only managers and staff
-  const teamMembers = users.filter(u => u.role === 'manager' || u.role === 'staff');
+  // Filter only managers and employees
+  const teamMembers = users.filter(u => u.role === 'manager' || u.role === 'employee');
   
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
@@ -68,20 +68,25 @@ export default function MonthlyLeavesChart({
   });
 
   const totalLeaveDays = data.reduce((sum, d) => sum + d.leaveDays, 0);
+  const dataWithLeaves = data.filter(d => d.leaveDays > 0);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const item = payload[0].payload;
       return (
-        <div className="glass-card p-3 border border-border/50">
-          <p className="font-semibold text-foreground">{item.name}</p>
-          <p className="text-xs text-muted-foreground capitalize mb-2">{item.role}</p>
-          <p className="text-sm">
-            Leave Days: <span className="font-medium">{item.leaveDays}</span>
-          </p>
-          <p className="text-sm">
-            Percentage: <span className="font-medium text-primary">{item.leavePercentage}%</span>
-          </p>
+        <div className="glass-card p-4 border border-border/50 shadow-lg">
+          <p className="font-semibold text-foreground mb-1">{item.name}</p>
+          <p className="text-xs text-muted-foreground capitalize mb-3">{item.role}</p>
+          <div className="space-y-1">
+            <p className="text-sm">
+              <span className="text-muted-foreground">Leave Days:</span> 
+              <span className="font-medium ml-2">{item.leaveDays}</span>
+            </p>
+            <p className="text-sm">
+              <span className="text-muted-foreground">Percentage:</span> 
+              <span className="font-medium text-primary ml-2">{item.leavePercentage}%</span>
+            </p>
+          </div>
         </div>
       );
     }
@@ -108,61 +113,82 @@ export default function MonthlyLeavesChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pie Chart */}
-          <div>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={data.filter(d => d.leaveDays > 0)}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="leaveDays"
-                  nameKey="name"
-                >
-                  {data.filter(d => d.leaveDays > 0).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+        {dataWithLeaves.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Calendar className="w-12 h-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground mb-2">No approved leaves for this month</p>
+            <p className="text-sm text-muted-foreground">All team members were present</p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Pie Chart */}
+            <div className="flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={dataWithLeaves}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                    paddingAngle={3}
+                    dataKey="leaveDays"
+                    nameKey="name"
+                  >
+                    {dataWithLeaves.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
 
-          {/* Stats List */}
-          <div className="space-y-3">
-            {data.map((item) => (
-              <div 
-                key={item.name}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-              >
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <div>
-                    <p className="font-medium text-sm">{item.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{item.role}</p>
+            {/* Stats List */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-foreground mb-4">Leave Breakdown</h4>
+              {data.map((item) => (
+                <div 
+                  key={item.name}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-4 h-4 rounded-full border-2 border-background" 
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <div>
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{item.role}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-primary">{item.leavePercentage}%</p>
+                    <p className="text-xs text-muted-foreground">{item.leaveDays} days</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-primary">{item.leavePercentage}%</p>
-                  <p className="text-xs text-muted-foreground">{item.leaveDays} days</p>
-                </div>
-              </div>
-            ))}
-
-            {data.every(d => d.leaveDays === 0) && (
-              <div className="text-center py-8 text-muted-foreground">
-                No approved leaves for this month
-              </div>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Summary Stats */}
+        {dataWithLeaves.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border">
+            <div className="text-center">
+              <p className="text-lg font-bold text-primary">{dataWithLeaves.length}</p>
+              <p className="text-sm text-muted-foreground">Members on Leave</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-success">{teamMembers.length - dataWithLeaves.length}</p>
+              <p className="text-sm text-muted-foreground">Full Attendance</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-accent">{(totalLeaveDays / (teamMembers.length * totalWorkingDays) * 100).toFixed(1)}%</p>
+              <p className="text-sm text-muted-foreground">Overall Leave Rate</p>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

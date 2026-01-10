@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Upload, Palette, Code, Building2, Loader2, Globe } from 'lucide-react';
 
 const AdminBranding = () => {
@@ -50,17 +50,13 @@ const AdminBranding = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file type', description: 'Please upload an image file', variant: 'destructive' });
+      toast.error('Please upload an image file');
       return;
     }
 
     const maxSize = type === 'favicon' ? 512 * 1024 : 2 * 1024 * 1024; // 512KB for favicon, 2MB for logo
     if (file.size > maxSize) {
-      toast({ 
-        title: 'File too large', 
-        description: `Please upload an image under ${type === 'favicon' ? '512KB' : '2MB'}`, 
-        variant: 'destructive' 
-      });
+      toast.error(`Please upload an image under ${type === 'favicon' ? '512KB' : '2MB'}`);
       return;
     }
 
@@ -84,9 +80,9 @@ const AdminBranding = () => {
 
       // const fieldName = type === 'logo' ? 'logo_url' : 'favicon_url';
       // setFormData(prev => ({ ...prev, [fieldName]: urlData.publicUrl }));
-      toast({ title: `${type === 'logo' ? 'Logo' : 'Favicon'} upload not implemented yet` });
+      toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} upload not implemented yet`);
     } catch (error: any) {
-      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+      toast.error(`Upload failed: ${error.message}`);
     } finally {
       if (type === 'logo') setIsUploadingLogo(false);
       else setIsUploadingFavicon(false);
@@ -105,9 +101,9 @@ const AdminBranding = () => {
         sidebar_color: formData.sidebar_color,
         custom_css: formData.custom_css || null,
       });
-      toast({ title: 'Branding settings saved successfully' });
+      toast.success('Branding settings saved successfully');
     } catch (error: any) {
-      toast({ title: 'Failed to save settings', description: error.message, variant: 'destructive' });
+      toast.error(`Failed to save settings: ${error.message}`);
     } finally {
       setIsSaving(false);
     }

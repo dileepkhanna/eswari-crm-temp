@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "announcements",
     "leaves",
     "activity_logs",
+    "holidays",
 ]
 
 MIDDLEWARE = [

@@ -45,7 +45,7 @@ const apiToLead = (apiLead: any): Lead => ({
   status: apiLead.status,
   followUpDate: undefined,
   notes: [],
-  createdBy: apiLead.assigned_to_detail?.username || '',
+  createdBy: apiLead.created_by_detail?.id?.toString() || apiLead.created_by?.toString() || '',
   assignedProject: '',
   createdAt: new Date(apiLead.created_at),
   updatedAt: new Date(apiLead.updated_at),

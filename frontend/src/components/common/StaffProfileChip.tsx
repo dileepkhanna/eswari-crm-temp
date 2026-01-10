@@ -56,11 +56,18 @@ export default function StaffProfileChip({ userId, showDetails = true }: StaffPr
         const response = await apiClient.getUsers();
         // Handle paginated response from Django REST framework
         const users = Array.isArray(response) ? response : (response as any).results || [];
-        const user = users.find((u: any) => u.id === userId || u.username === userId);
+        
+        // Try to find user by ID, username, or string representation of ID
+        const user = users.find((u: any) => 
+          u.id === userId || 
+          u.id === parseInt(userId) || 
+          u.id.toString() === userId || 
+          u.username === userId
+        );
         
         if (user) {
           const profileData: Profile = {
-            id: user.id,
+            id: user.id.toString(),
             user_id: user.username,
             name: `${user.first_name} ${user.last_name}`.trim() || user.username,
             email: user.email,
@@ -72,9 +79,10 @@ export default function StaffProfileChip({ userId, showDetails = true }: StaffPr
 
           if (cancelled) return;
 
-          // Cache the result
+          // Cache the result with multiple keys for better lookup
           profileCache[userId] = profileData;
           profileCache[user.id] = profileData;
+          profileCache[user.id.toString()] = profileData;
           profileCache[user.username] = profileData;
 
           setProfile(profileData);

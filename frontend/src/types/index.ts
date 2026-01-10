@@ -139,3 +139,19 @@ export interface Announcement {
   expiresAt?: Date;
   isActive: boolean;
 }
+
+export interface Holiday {
+  id: string;
+  name: string;
+  start_date: Date;
+  end_date?: Date;
+  date: Date; // Backward compatibility - maps to start_date
+  holiday_type: 'national' | 'religious' | 'company' | 'optional';
+  description: string;
+  image?: string | File;
+  is_recurring: boolean;
+  created_by: string;
+  created_by_detail?: User;
+  created_at: Date;
+  updated_at: Date;
+}

@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 
 const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
   role: z.enum(['admin', 'manager', 'employee'] as const),
@@ -171,7 +171,7 @@ export default function UserFormModal({
 
   const handleCreateSubmit = async (data: CreateUserFormData) => {
     const result = await onSave({
-      email: data.email,
+      email: data.email || '', // Handle empty email
       password: data.password,
       name: data.name,
       phone: data.phone,
@@ -421,12 +421,12 @@ export default function UserFormModal({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter email address" {...field} />
+                      <Input type="email" placeholder="Enter email address (optional)" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Email is required for account creation but staff/managers will login with User ID.
+                      Email is optional. Staff/managers will login with their User ID.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
