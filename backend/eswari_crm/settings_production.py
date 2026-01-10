@@ -31,8 +31,38 @@ DATABASES = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+CORS_ALLOWED_ORIGINS = [
+
+    "http://15.206.229.201",
+
+]
+
+CSRF_TRUSTED_ORIGINS = [
+
+    "http://15.206.229.201",
+
+]
+
+CORS_ALLOW_HEADERS = [
+
+    "accept",
+
+    "authorization",
+
+    "content-type",
+
+    "origin",
+
+    "x-csrftoken",
+
+    "x-requested-with",
+
+]
+
+
 CORS_ALLOW_CREDENTIALS = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "http")
+
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
@@ -51,8 +81,8 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
 # Session security
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 

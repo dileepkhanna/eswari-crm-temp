@@ -27,8 +27,8 @@ proc_name = "eswari-crm-backend"
 # Server mechanics
 daemon = False
 pidfile = "/var/run/eswari-crm/gunicorn.pid"
-user = "www-data"
-group = "www-data"
+user = "ec2-user"
+group = "nginx"
 tmp_upload_dir = None
 
 # SSL (if needed)
