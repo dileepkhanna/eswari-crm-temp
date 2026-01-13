@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 interface LeaveFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (leaveData: Partial<Leave> & { documentUrl?: string }) => void;
+  onSave: (leaveData: Partial<Leave> & { document?: File }) => void;
   previousLeaveCount?: number;
 }
 
@@ -70,32 +70,6 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
     }
   };
 
-  const uploadDocument = async (): Promise<string | null> => {
-    if (!selectedFile || !user) return null;
-
-    // TODO: Implement file upload API in Django backend
-    // const fileExt = selectedFile.name.split('.').pop();
-    // const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-    // const { data, error } = await supabase.storage
-    //   .from('leave-documents')
-    //   .upload(fileName, selectedFile);
-
-    // if (error) {
-    //   console.error('Upload error:', error);
-    //   throw new Error('Failed to upload document');
-    // }
-
-    // const { data: urlData } = supabase.storage
-    //   .from('leave-documents')
-    //   .getPublicUrl(fileName);
-
-    // return urlData.publicUrl;
-    
-    // Mock return for now
-    return 'mock-document-url';
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -111,12 +85,6 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
 
     setUploading(true);
     try {
-      let documentUrl: string | undefined;
-      
-      if (selectedFile) {
-        documentUrl = (await uploadDocument()) || undefined;
-      }
-
       onSave({
         userId: user?.id || '',
         userName: user?.name || '',
@@ -126,7 +94,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
         endDate,
         reason: reason.trim(),
         status: 'pending',
-        documentUrl,
+        document: selectedFile, // Send the actual file
       });
 
       // Reset form

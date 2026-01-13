@@ -168,7 +168,7 @@ export default function LeadList({
       await addTask({
         leadId: lead.id,
         lead: lead,
-        status: "todo",
+        status: "in_progress",
         notes: [],
         attachments: [],
         assignedTo: user?.id || "unknown",
@@ -252,11 +252,10 @@ export default function LeadList({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="qualified">Qualified</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
+                <SelectItem value="hot">Hot</SelectItem>
+                <SelectItem value="warm">Warm</SelectItem>
+                <SelectItem value="cold">Cold</SelectItem>
+                <SelectItem value="not_interested">Not Interested</SelectItem>
               </SelectContent>
             </Select>
 
@@ -497,11 +496,10 @@ export default function LeadList({
                       <LeadStatusChip status={lead.status} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="contacted">Contacted</SelectItem>
-                      <SelectItem value="qualified">Qualified</SelectItem>
-                      <SelectItem value="converted">Converted</SelectItem>
-                      <SelectItem value="lost">Lost</SelectItem>
+                      <SelectItem value="hot">Hot</SelectItem>
+                      <SelectItem value="warm">Warm</SelectItem>
+                      <SelectItem value="cold">Cold</SelectItem>
+                      <SelectItem value="not_interested">Not Interested</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>

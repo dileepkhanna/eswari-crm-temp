@@ -13,16 +13,19 @@ interface TaskStatusChartProps {
 }
 
 const statusMap: Record<string, TaskStatus> = {
-  'To Do': 'todo',
   'In Progress': 'in_progress',
-  'Review': 'review',
+  'Site Visit': 'site_visit',
+  'Family Visit': 'family_visit',
   'Completed': 'completed',
+  'Rejected': 'rejected',
 };
 
 const statusIcons: Record<string, React.ElementType> = {
-  'To Do': Clock,
   'In Progress': Play,
-  'Review': Eye,
+  'Site Visit': MapPin,
+  'Family Visit': Users,
+  'Completed': CheckCircle,
+  'Rejected': XCircle,
   'Completed': CheckCircle,
 };
 
@@ -34,10 +37,11 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
   const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
 
   const tasksByStatus = [
-    { name: 'To Do', value: tasks.filter(t => t.status === 'todo').length, color: 'hsl(210, 40%, 60%)', gradient: 'from-gray-500 to-slate-600', status: 'todo' },
     { name: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, color: 'hsl(217, 91%, 60%)', gradient: 'from-blue-500 to-indigo-600', status: 'in_progress' },
-    { name: 'Review', value: tasks.filter(t => t.status === 'review').length, color: 'hsl(45, 93%, 47%)', gradient: 'from-amber-400 to-orange-500', status: 'review' },
+    { name: 'Site Visit', value: tasks.filter(t => t.status === 'site_visit').length, color: 'hsl(271, 81%, 56%)', gradient: 'from-purple-500 to-violet-600', status: 'site_visit' },
+    { name: 'Family Visit', value: tasks.filter(t => t.status === 'family_visit').length, color: 'hsl(25, 95%, 53%)', gradient: 'from-orange-500 to-amber-600', status: 'family_visit' },
     { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'hsl(152, 69%, 31%)', gradient: 'from-emerald-500 to-teal-600', status: 'completed' },
+    { name: 'Rejected', value: tasks.filter(t => t.status === 'rejected').length, color: 'hsl(0, 84%, 60%)', gradient: 'from-red-500 to-rose-600', status: 'rejected' },
   ].filter(item => item.value > 0);
 
   const filteredTasks = selectedStatus 

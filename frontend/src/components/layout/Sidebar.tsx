@@ -19,42 +19,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Megaphone,
-  Bell,
   Palette,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { isAfter, isBefore, addDays, isToday } from 'date-fns';
+import { useState } from 'react';
 
 interface NavItem {
   label: string;
   icon: React.ElementType;
   href: string;
   roles: ('admin' | 'manager' | 'employee')[];
-  getBadge?: () => number;
-}
-
-const getRemindersCount = () => {
-  // TODO: Replace with real API calls to get leads and tasks
-  // For now, return 0 to avoid errors
-  return 0;
-};
-
-const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
-  { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
-  { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Holidays', icon: Calendar, href: '/holidays', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Leaves', icon: CalendarOff, href: '/leaves', roles: ['admin', 'manager', 'employee'] },
-  { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin'] },
-  { label: 'Activity', icon: Activity, href: '/activity', roles: ['admin'] },
-];
-
-interface SidebarProps {
-  onNavigate?: () => void;
 }
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
@@ -62,14 +35,21 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { settings } = useAppSettings();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [hasNewNotifications, setHasNewNotifications] = useState(false);
 
-  useEffect(() => {
-    const count = getRemindersCount();
-    if (count > 0) {
-      setHasNewNotifications(true);
-    }
-  }, []);
+  // Navigation items
+  const navItems: NavItem[] = [
+    { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
+    { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
+    { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Holidays', icon: Calendar, href: '/holidays', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Leaves', icon: CalendarOff, href: '/leaves', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin'] },
+    { label: 'Activity', icon: Activity, href: '/activity', roles: ['admin'] },
+  ];
 
   if (!user) return null;
 
@@ -121,7 +101,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         {filteredNavItems.map((item) => {
           const isActive = location.pathname === `${basePath}${item.href}` || 
             (item.href === '' && location.pathname === basePath);
-          const badge = item.getBadge?.();
           
           return (
             <Link
@@ -134,17 +113,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 collapsed && "justify-center px-3"
               )}
             >
-              <div className="relative">
-                <item.icon className="w-5 h-5 shrink-0" />
-                {badge && badge > 0 && (
-                  <span className={cn(
-                    "absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse",
-                    hasNewNotifications && "ring-2 ring-destructive/30"
-                  )}>
-                    {badge > 9 ? '9+' : badge}
-                  </span>
-                )}
-              </div>
+              <item.icon className="w-5 h-5 shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );

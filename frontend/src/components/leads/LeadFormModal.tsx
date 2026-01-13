@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface LeadFormModalProps {
   open: boolean;
@@ -91,14 +92,25 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
 
   const handleStatusChange = (value: LeadStatus) => {
     setFormData({ ...formData, status: value });
-    // Auto-open date picker for follow-up when contacted is selected
-    if (value === 'contacted') {
+    // Auto-open date picker for follow-up when reminder is selected
+    if (value === 'reminder') {
       setTimeout(() => setIsDatePickerOpen(true), 100);
+    }
+    // Clear follow-up date if not reminder status
+    if (value !== 'reminder') {
+      setFormData(prev => ({ ...prev, status: value, followUpDate: null }));
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate reminder status requires follow-up date
+    if (formData.status === 'reminder' && !formData.followUpDate) {
+      toast.error('Please select a reminder date');
+      setIsDatePickerOpen(true);
+      return;
+    }
 
     onSave({
       ...formData,
@@ -252,11 +264,11 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="qualified">Qualified</SelectItem>
-                  <SelectItem value="converted">Converted</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
+                  <SelectItem value="hot">Hot</SelectItem>
+                  <SelectItem value="warm">Warm</SelectItem>
+                  <SelectItem value="cold">Cold</SelectItem>
+                  <SelectItem value="not_interested">Not Interested</SelectItem>
+                  <SelectItem value="reminder">Reminder</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -299,33 +311,57 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
 
             <div className="space-y-2">
               <Label>Follow-up Date {formData.status === 'reminder' && <span className="text-destructive">*</span>}</Label>
-              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                <PopoverTrigger asChild>
+              <div className="flex gap-2">
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "flex-1 justify-start text-left font-normal",
+                        !formData.followUpDate && "text-muted-foreground"
+                      )}
+                      disabled={formData.status !== 'reminder'}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.followUpDate ? format(formData.followUpDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.followUpDate || undefined}
+                      onSelect={(date) => {
+                        setFormData({ ...formData, followUpDate: date || null });
+                        setIsDatePickerOpen(false);
+                      }}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {formData.followUpDate && (
                   <Button
+                    type="button"
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.followUpDate && "text-muted-foreground"
-                    )}
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, followUpDate: null })}
+                    className="px-3"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.followUpDate ? format(formData.followUpDate, "PPP") : "Pick a date"}
+                    Remove
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.followUpDate || undefined}
-                    onSelect={(date) => {
-                      setFormData({ ...formData, followUpDate: date || null });
-                      setIsDatePickerOpen(false);
-                    }}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+                )}
+              </div>
+              {formData.status === 'reminder' && !formData.followUpDate && (
+                <p className="text-xs text-destructive">
+                  Please select a reminder date
+                </p>
+              )}
+              {formData.followUpDate && (
+                <p className="text-xs text-muted-foreground">
+                  Reminder will appear in your dashboard on {format(formData.followUpDate, "MMMM d, yyyy")}
+                </p>
+              )}
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useAuth } from '@/contexts/AuthContextDjango';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
@@ -59,6 +59,8 @@ export default function AdminActivity() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [staffAndManagers, setStaffAndManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<string>('all');
@@ -74,9 +76,17 @@ export default function AdminActivity() {
         
         console.log('Fetching activity logs...');
         
+        // Check if user is authenticated first
+        if (!user) {
+          console.log('No authenticated user, skipping activity fetch');
+          setActivities([]);
+          setStaffAndManagers([]);
+          setError('Please log in to view activity logs.');
+          return;
+        }
+        
         // Fetch activity logs
         const activityResponse = await apiClient.getActivityLogs();
-        console.log('Activity logs response:', activityResponse);
         
         const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
         
@@ -92,31 +102,30 @@ export default function AdminActivity() {
           created_at: activity.created_at,
         }));
         
-        console.log('Transformed activities:', transformedActivities.length);
+        console.log('Loaded activities:', transformedActivities.length);
         setActivities(transformedActivities);
 
         // Fetch users for filtering
-        console.log('Fetching users...');
         const usersResponse = await apiClient.getUsers();
-        console.log('Users response:', usersResponse);
         
         // Handle paginated response from Django
         const usersData = Array.isArray(usersResponse) ? usersResponse : (usersResponse as any).results || [];
-        console.log('Users data:', usersData.length);
         
         const transformedUsers = usersData.map((user: any) => ({
           id: user.id.toString(),
           name: `${user.first_name} ${user.last_name}`.trim() || user.username,
           user_id: user.id.toString(),
+          role: user.role, // Include role for filtering
         }));
         
-        // Filter to only staff and managers
-        const staffAndManagerUsers = transformedUsers.filter((u: any) => 
-          u.role === 'manager' || u.role === 'employee'
+        // Include all users who have created activities (not just staff and managers)
+        const usersWithActivities = transformedActivities.map(a => a.user_id);
+        const uniqueUserIds = [...new Set(usersWithActivities)];
+        const relevantUsers = transformedUsers.filter((u: any) => 
+          uniqueUserIds.includes(u.id)
         );
         
-        console.log('Staff and managers:', staffAndManagerUsers.length);
-        setStaffAndManagers(staffAndManagerUsers);
+        setStaffAndManagers(relevantUsers);
       } catch (error) {
         console.error('Error fetching data:', error);
         // Show user-friendly error message
@@ -139,7 +148,93 @@ export default function AdminActivity() {
     };
 
     fetchData();
-  }, []);
+  }, [user]); // Add user as dependency
+
+  // Add refresh function
+  const refreshActivities = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      
+      // Check if user is authenticated first
+      if (!user) {
+        console.log('No authenticated user, cannot refresh activities');
+        setActivities([]);
+        setStaffAndManagers([]);
+        setError('Please log in to view activity logs.');
+        return;
+      }
+      
+      const { apiClient } = await import('@/lib/api');
+      
+      console.log('Refreshing activities...');
+      const activityResponse = await apiClient.getActivityLogs();
+      const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
+      
+      const transformedActivities = activityData.map((activity: any) => ({
+        id: activity.id.toString(),
+        user_id: activity.user.toString(),
+        user_name: activity.user_name,
+        user_role: activity.user_role,
+        module: activity.module,
+        action: activity.action,
+        details: activity.details,
+        created_at: activity.created_at,
+      }));
+      
+      console.log('Refreshed activities:', transformedActivities.length);
+      setActivities(transformedActivities);
+      setLastRefresh(new Date());
+      
+      // Clear any previous errors
+      if (error) {
+        setError(null);
+      }
+    } catch (error: any) {
+      console.error('Error refreshing activities:', error);
+      
+      // Handle authentication errors
+      if (error.message?.includes('401')) {
+        setError('Session expired. Please refresh the page to log in again.');
+      } else if (error.message?.includes('403')) {
+        setError('Access denied. You may not have permission to view activities.');
+      } else {
+        setError('Failed to refresh activities. Please try again.');
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [error]);
+
+  // Auto-refresh every 30 seconds (disabled when no user)
+  useEffect(() => {
+    // Only set up auto-refresh if user is authenticated and no error
+    if (!user || error) {
+      console.log('Skipping auto-refresh: no user or error present');
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing activities...');
+      refreshActivities();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refreshActivities, user, error]); // Add error as dependency
+
+  // Listen for activity logged events
+  useEffect(() => {
+    const handleActivityLogged = () => {
+      // Only refresh if user is authenticated and no error
+      if (!user || error) {
+        console.log('Skipping activity refresh: no user or error present');
+        return;
+      }
+      console.log('Activity logged event received, refreshing...');
+      setTimeout(refreshActivities, 1000); // Small delay to ensure backend is updated
+    };
+
+    window.addEventListener('activityLogged', handleActivityLogged);
+    return () => window.removeEventListener('activityLogged', handleActivityLogged);
+  }, [refreshActivities, user, error]); // Add error as dependency
 
   // Get unique actions from activities
   const uniqueActions = useMemo(() => {
@@ -151,7 +246,7 @@ export default function AdminActivity() {
   const filteredActivities = useMemo(() => {
     return activities.filter(activity => {
       // Search filter
-      const matchesSearch = 
+      const matchesSearch = !searchQuery || 
         activity.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         activity.details.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -167,12 +262,22 @@ export default function AdminActivity() {
       // Date filter
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
-        matchesDate = isWithinInterval(new Date(activity.created_at), {
-          start: startOfDay(dateRange.from),
-          end: endOfDay(dateRange.to),
-        });
+        try {
+          matchesDate = isWithinInterval(new Date(activity.created_at), {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to),
+          });
+        } catch (error) {
+          console.error('Date filter error:', error);
+          matchesDate = true; // Default to showing the activity if date parsing fails
+        }
       } else if (dateRange.from) {
-        matchesDate = new Date(activity.created_at) >= startOfDay(dateRange.from);
+        try {
+          matchesDate = new Date(activity.created_at) >= startOfDay(dateRange.from);
+        } catch (error) {
+          console.error('Date filter error:', error);
+          matchesDate = true;
+        }
       }
       
       return matchesSearch && matchesUser && matchesModule && matchesAction && matchesDate;
@@ -184,6 +289,15 @@ export default function AdminActivity() {
   const taskActivities = filteredActivities.filter(a => a.module === 'tasks');
   const leaveActivities = filteredActivities.filter(a => a.module === 'leaves');
   const otherActivities = filteredActivities.filter(a => !['leads', 'tasks', 'leaves'].includes(a.module));
+
+  console.log('Activity counts:', {
+    total: activities.length,
+    filtered: filteredActivities.length,
+    leads: leadActivities.length,
+    tasks: taskActivities.length,
+    leaves: leaveActivities.length,
+    other: otherActivities.length
+  });
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -394,11 +508,48 @@ export default function AdminActivity() {
                 <Filter className="w-4 h-4 mr-2" />
                 Clear
               </Button>
+
+              {/* Refresh Button */}
+              <Button 
+                variant="outline" 
+                onClick={refreshActivities} 
+                disabled={refreshing}
+                className="shrink-0"
+              >
+                <svg 
+                  className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+
+              {/* Refresh Page Button (for auth errors) */}
+              {error?.includes('Session expired') && (
+                <Button 
+                  variant="destructive" 
+                  onClick={() => window.location.reload()} 
+                  className="shrink-0"
+                >
+                  Refresh Page
+                </Button>
+              )}
             </div>
 
             {/* Filter Summary */}
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredActivities.length} of {activities.length} activities
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>Showing {filteredActivities.length} of {activities.length} activities</span>
+              <div className="flex items-center gap-4">
+                {error && (
+                  <span className="text-destructive">{error}</span>
+                )}
+                {lastRefresh && (
+                  <span>Last updated: {lastRefresh.toLocaleTimeString()}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

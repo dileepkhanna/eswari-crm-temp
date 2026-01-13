@@ -3,6 +3,11 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 urlpatterns = [
+    # Admin setup endpoints
+    path('setup/admin/', views.create_initial_admin, name='create_initial_admin'),
+    path('setup/check/', views.check_admin_exists, name='check_admin_exists'),
+    
+    # Regular endpoints
     path('register/', views.RegisterView.as_view(), name='register'),
     path('login/', views.login_view, name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

@@ -6,10 +6,11 @@ interface TaskStatusChipProps {
 }
 
 const statusConfig: Record<TaskStatus, { label: string; className: string }> = {
-  todo: { label: 'To Do', className: 'bg-gray-100 text-gray-700 ring-1 ring-gray-300' },
   in_progress: { label: 'In Progress', className: 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' },
-  review: { label: 'Review', className: 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300' },
+  site_visit: { label: 'Site Visit', className: 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' },
+  family_visit: { label: 'Family Visit', className: 'bg-orange-100 text-orange-700 ring-1 ring-orange-300' },
   completed: { label: 'Completed', className: 'bg-green-100 text-green-700 ring-1 ring-green-300' },
+  rejected: { label: 'Rejected', className: 'bg-red-100 text-red-700 ring-1 ring-red-300' },
 };
 
 export default function TaskStatusChip({ status }: TaskStatusChipProps) {

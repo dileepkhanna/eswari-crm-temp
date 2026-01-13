@@ -11,18 +11,19 @@ interface LeadStatusChartProps {
 }
 
 const statusMap: Record<string, LeadStatus> = {
-  'New': 'new',
-  'Contacted': 'contacted',
-  'Qualified': 'qualified',
-  'Converted': 'converted',
-  'Lost': 'lost',
+  'Hot': 'hot',
+  'Warm': 'warm',
+  'Cold': 'cold',
+  'Not Interested': 'not_interested',
+  'Reminder': 'reminder',
 };
 
 const statusIcons: Record<string, React.ElementType> = {
-  'New': Bell,
-  'Contacted': Phone,
-  'Qualified': ThumbsUp,
-  'Converted': TrendingUp,
+  'Hot': TrendingUp,
+  'Warm': Phone,
+  'Cold': Clock,
+  'Not Interested': ThumbsDown,
+  'Reminder': Bell,
   'Lost': ThumbsDown,
 };
 
@@ -31,11 +32,11 @@ export default function LeadStatusChart({ leads, title = "Leads by Status" }: Le
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const leadsByStatus = [
-    { name: 'New', value: leads.filter(l => l.status === 'new').length, color: 'hsl(217, 91%, 60%)', gradient: 'from-blue-500 to-indigo-600', status: 'new' },
-    { name: 'Contacted', value: leads.filter(l => l.status === 'contacted').length, color: 'hsl(45, 93%, 47%)', gradient: 'from-amber-400 to-orange-500', status: 'contacted' },
-    { name: 'Qualified', value: leads.filter(l => l.status === 'qualified').length, color: 'hsl(152, 69%, 31%)', gradient: 'from-emerald-500 to-teal-600', status: 'qualified' },
-    { name: 'Converted', value: leads.filter(l => l.status === 'converted').length, color: 'hsl(120, 100%, 25%)', gradient: 'from-green-500 to-emerald-600', status: 'converted' },
-    { name: 'Lost', value: leads.filter(l => l.status === 'lost').length, color: 'hsl(0, 84%, 60%)', gradient: 'from-red-500 to-rose-600', status: 'lost' },
+    { name: 'Hot', value: leads.filter(l => l.status === 'hot').length, color: 'hsl(0, 84%, 60%)', gradient: 'from-red-500 to-rose-600', status: 'hot' },
+    { name: 'Warm', value: leads.filter(l => l.status === 'warm').length, color: 'hsl(45, 93%, 47%)', gradient: 'from-amber-400 to-orange-500', status: 'warm' },
+    { name: 'Cold', value: leads.filter(l => l.status === 'cold').length, color: 'hsl(217, 91%, 60%)', gradient: 'from-blue-500 to-indigo-600', status: 'cold' },
+    { name: 'Not Interested', value: leads.filter(l => l.status === 'not_interested').length, color: 'hsl(220, 9%, 46%)', gradient: 'from-gray-500 to-slate-600', status: 'not_interested' },
+    { name: 'Reminder', value: leads.filter(l => l.status === 'reminder').length, color: 'hsl(271, 81%, 56%)', gradient: 'from-purple-500 to-violet-600', status: 'reminder' },
   ].filter(item => item.value > 0);
 
   const filteredLeads = selectedStatus 

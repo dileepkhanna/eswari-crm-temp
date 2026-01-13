@@ -1,256 +1,224 @@
-import { Lead, Task } from '@/types';
-import { format, isAfter, isBefore, addDays, isToday } from 'date-fns';
-import { Bell, Calendar, Phone, ClipboardList, CheckSquare, AlertTriangle, Volume2 } from 'lucide-react';
-import LeadStatusChip from '@/components/leads/LeadStatusChip';
-import TaskStatusChip from '@/components/tasks/TaskStatusChip';
-import { useState, useCallback, useEffect } from 'react';
+import { useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useData } from '@/contexts/DataContextDjango';
+import { useAuth } from '@/contexts/AuthContextDjango';
+import { format, isToday, isTomorrow, isWithinInterval, addDays } from 'date-fns';
+import { Bell, Calendar, Phone, Mail, MapPin, Clock, ArrowRight } from 'lucide-react';
+import { Lead } from '@/types';
+import { Link } from 'react-router-dom';
 
-interface RemindersWidgetProps {
-  leads: Lead[];
-  tasks: Task[];
+interface ReminderItem {
+  id: string;
+  lead: Lead;
+  date: Date;
+  isOverdue: boolean;
+  isToday: boolean;
+  isTomorrow: boolean;
 }
 
-export default function RemindersWidget({ leads, tasks }: RemindersWidgetProps) {
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const today = new Date();
-  const nextWeek = addDays(today, 7);
+export default function RemindersWidget() {
+  const { leads } = useData();
+  const { user } = useAuth();
 
-  // Get leads with follow-up dates that need attention
-  const upcomingLeadReminders = leads.filter(l => 
-    (l.status === 'new' || l.status === 'contacted') && 
-    l.followUpDate && 
-    isAfter(l.followUpDate, today) &&
-    isBefore(l.followUpDate, nextWeek)
-  ).sort((a, b) => a.followUpDate!.getTime() - b.followUpDate!.getTime());
+  // Get all reminders from leads with reminder status and follow-up dates
+  const reminders = useMemo((): ReminderItem[] => {
+    const today = new Date();
+    
+    return leads
+      .filter(lead => lead.status === 'reminder' && lead.followUpDate)
+      .map(lead => ({
+        id: lead.id,
+        lead,
+        date: lead.followUpDate!,
+        isOverdue: lead.followUpDate! < today,
+        isToday: isToday(lead.followUpDate!),
+        isTomorrow: isTomorrow(lead.followUpDate!),
+      }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [leads]);
 
-  // Overdue leads
-  const overdueLeadReminders = leads.filter(l => 
-    (l.status === 'new' || l.status === 'contacted') && 
-    l.followUpDate && 
-    isBefore(l.followUpDate, today) &&
-    !isToday(l.followUpDate)
-  ).sort((a, b) => a.followUpDate!.getTime() - b.followUpDate!.getTime());
+  // Get today's reminders
+  const todayReminders = reminders.filter(r => r.isToday);
+  
+  // Get overdue reminders
+  const overdueReminders = reminders.filter(r => r.isOverdue);
+  
+  // Get upcoming reminders (next 7 days, excluding today)
+  const upcomingReminders = reminders.filter(r => {
+    const nextWeek = addDays(new Date(), 7);
+    return !r.isOverdue && !r.isToday && r.date <= nextWeek;
+  });
 
-  // Get tasks with upcoming action dates
-  const upcomingTaskReminders = tasks.filter(t => 
-    t.nextActionDate && 
-    isAfter(t.nextActionDate, today) &&
-    isBefore(t.nextActionDate, nextWeek) &&
-    t.status !== 'completed'
-  ).sort((a, b) => a.nextActionDate!.getTime() - b.nextActionDate!.getTime());
+  const getDateLabel = (reminder: ReminderItem) => {
+    if (reminder.isOverdue) return 'Overdue';
+    if (reminder.isToday) return 'Today';
+    if (reminder.isTomorrow) return 'Tomorrow';
+    return format(reminder.date, 'MMM d');
+  };
 
-  // Overdue tasks
-  const overdueTaskReminders = tasks.filter(t => 
-    t.nextActionDate && 
-    isBefore(t.nextActionDate, today) &&
-    !isToday(t.nextActionDate) &&
-    t.status !== 'completed'
-  ).sort((a, b) => a.nextActionDate!.getTime() - b.nextActionDate!.getTime());
+  const getDateColor = (reminder: ReminderItem) => {
+    if (reminder.isOverdue) return 'text-red-600 bg-red-50 border-red-200';
+    if (reminder.isToday) return 'text-orange-600 bg-orange-50 border-orange-200';
+    if (reminder.isTomorrow) return 'text-blue-600 bg-blue-50 border-blue-200';
+    return 'text-gray-600 bg-gray-50 border-gray-200';
+  };
 
-  const totalReminders = upcomingLeadReminders.length + upcomingTaskReminders.length;
-  const totalOverdue = overdueLeadReminders.length + overdueTaskReminders.length;
-
-  const playNotificationSound = useCallback(() => {
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+  const ReminderCard = ({ reminder }: { reminder: ReminderItem }) => (
+    <div className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+      <div className={`text-center min-w-[60px] px-2 py-1 rounded-md text-xs font-medium border ${getDateColor(reminder)}`}>
+        {getDateLabel(reminder)}
+      </div>
       
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (e) {
-      console.log('Audio notification not supported');
-    }
-  }, []);
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <h4 className="font-medium truncate">{reminder.lead.name}</h4>
+          <Badge variant="outline" className="text-xs">
+            {reminder.lead.status}
+          </Badge>
+        </div>
+        
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {reminder.lead.phone && (
+            <div className="flex items-center gap-1">
+              <Phone className="w-3 h-3" />
+              <span>{reminder.lead.phone}</span>
+            </div>
+          )}
+          {reminder.lead.email && (
+            <div className="flex items-center gap-1">
+              <Mail className="w-3 h-3" />
+              <span className="truncate">{reminder.lead.email}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3" />
+          <span>{format(reminder.date, 'h:mm a')}</span>
+        </div>
+      </div>
+    </div>
+  );
 
-  useEffect(() => {
-    if (soundEnabled && (totalReminders > 0 || totalOverdue > 0)) {
-      playNotificationSound();
-    }
-  }, [soundEnabled, totalReminders, totalOverdue, playNotificationSound]);
+  if (reminders.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="w-5 h-5" />
+            Reminders
+          </CardTitle>
+          <CardDescription>Your lead follow-up reminders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No reminders set</p>
+            <p className="text-sm">Set reminder status on leads to see them here</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Map Django roles to frontend routes
+  const roleRouteMap: Record<string, string> = {
+    'admin': '/admin',
+    'manager': '/manager',
+    'employee': '/staff'
+  };
+  
+  const basePath = roleRouteMap[user?.role || 'employee'] || '/login';
 
   return (
-    <div className="glass-card rounded-2xl p-6 animate-slide-up relative overflow-hidden" style={{ animationDelay: '200ms' }}>
-      {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-warning/10 to-transparent rounded-full blur-3xl" />
-      
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-warning to-orange-600 flex items-center justify-center relative">
-            <Bell className="w-5 h-5 text-white" />
-            {(totalReminders + totalOverdue) > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
-                {(totalReminders + totalOverdue) > 9 ? '9+' : totalReminders + totalOverdue}
-              </span>
-            )}
-          </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Reminders</h3>
-            <p className="text-sm text-muted-foreground">
-              {totalReminders} upcoming, {totalOverdue} overdue
-            </p>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Reminders
+              {(overdueReminders.length > 0 || todayReminders.length > 0) && (
+                <Badge variant="destructive" className="ml-2">
+                  {overdueReminders.length + todayReminders.length}
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription>Your lead follow-up reminders</CardDescription>
           </div>
+          <Link to={`${basePath}/calendar`}>
+            <Button variant="outline" size="sm">
+              View All
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </Link>
         </div>
-        <Button
-          variant={soundEnabled ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            setSoundEnabled(!soundEnabled);
-            if (!soundEnabled) playNotificationSound();
-          }}
-          className="gap-2"
-        >
-          <Volume2 className={`w-4 h-4 ${soundEnabled ? 'animate-pulse' : ''}`} />
-          {soundEnabled ? 'On' : 'Off'}
-        </Button>
-      </div>
-
-      {totalReminders === 0 && totalOverdue === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <Bell className="w-12 h-12 mx-auto mb-2 opacity-30" />
-          No upcoming reminders
-        </div>
-      ) : (
-        <div className="space-y-4 max-h-80 overflow-y-auto">
-          {/* Overdue Section */}
-          {totalOverdue > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-destructive">
-                <AlertTriangle className="w-4 h-4" />
-                Overdue ({totalOverdue})
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Overdue Reminders */}
+          {overdueReminders.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-red-600 mb-2 flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                Overdue ({overdueReminders.length})
+              </h4>
+              <div className="space-y-2">
+                {overdueReminders.slice(0, 3).map(reminder => (
+                  <ReminderCard key={reminder.id} reminder={reminder} />
+                ))}
+                {overdueReminders.length > 3 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    +{overdueReminders.length - 3} more overdue reminders
+                  </p>
+                )}
               </div>
-              {overdueLeadReminders.map((lead, index) => (
-                <div 
-                  key={lead.id}
-                  className="flex items-center gap-4 p-3 rounded-xl bg-destructive/10 border border-destructive/30 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center text-destructive shrink-0">
-                    <ClipboardList className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{lead.name}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="w-3 h-3" />
-                      <span className="truncate">{lead.phone}</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1 text-sm text-destructive mb-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(lead.followUpDate!, 'MMM dd')}
-                    </div>
-                    <LeadStatusChip status={lead.status} />
-                  </div>
-                </div>
-              ))}
-              {overdueTaskReminders.map((task, index) => (
-                <div 
-                  key={task.id}
-                  className="flex items-center gap-4 p-3 rounded-xl bg-destructive/10 border border-destructive/30 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center text-destructive shrink-0">
-                    <CheckSquare className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{task.lead.name}</p>
-                    <p className="text-sm text-muted-foreground capitalize truncate">
-                      {task.lead.requirementType} • {task.lead.bhkRequirement} BHK
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1 text-sm text-destructive mb-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(task.nextActionDate!, 'MMM dd')}
-                    </div>
-                    <TaskStatusChip status={task.status} />
-                  </div>
-                </div>
-              ))}
             </div>
           )}
 
-          {/* Lead Reminders */}
-          {upcomingLeadReminders.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <ClipboardList className="w-4 h-4" />
-                Lead Follow-ups ({upcomingLeadReminders.length})
+          {/* Today's Reminders */}
+          {todayReminders.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-orange-600 mb-2 flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                Today ({todayReminders.length})
+              </h4>
+              <div className="space-y-2">
+                {todayReminders.slice(0, 3).map(reminder => (
+                  <ReminderCard key={reminder.id} reminder={reminder} />
+                ))}
+                {todayReminders.length > 3 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    +{todayReminders.length - 3} more today
+                  </p>
+                )}
               </div>
-              {upcomingLeadReminders.map((lead, index) => (
-                <div 
-                  key={lead.id}
-                  className="flex items-center gap-4 p-3 rounded-xl bg-info/5 border border-info/20 animate-fade-in hover:bg-info/10 transition-colors"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0">
-                    <ClipboardList className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{lead.name}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="w-3 h-3" />
-                      <span className="truncate">{lead.phone}</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1 text-sm text-info mb-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(lead.followUpDate!, 'MMM dd')}
-                    </div>
-                    <LeadStatusChip status={lead.status} />
-                  </div>
-                </div>
-              ))}
             </div>
           )}
 
-          {/* Task Reminders */}
-          {upcomingTaskReminders.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <CheckSquare className="w-4 h-4" />
-                Task Actions ({upcomingTaskReminders.length})
+          {/* Upcoming Reminders */}
+          {upcomingReminders.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-blue-600 mb-2 flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                Upcoming ({upcomingReminders.length})
+              </h4>
+              <div className="space-y-2">
+                {upcomingReminders.slice(0, 2).map(reminder => (
+                  <ReminderCard key={reminder.id} reminder={reminder} />
+                ))}
+                {upcomingReminders.length > 2 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    +{upcomingReminders.length - 2} more upcoming
+                  </p>
+                )}
               </div>
-              {upcomingTaskReminders.map((task, index) => (
-                <div 
-                  key={task.id}
-                  className="flex items-center gap-4 p-3 rounded-xl bg-accent/5 border border-accent/20 animate-fade-in hover:bg-accent/10 transition-colors"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-white shrink-0">
-                    {task.lead.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{task.lead.name}</p>
-                    <p className="text-sm text-muted-foreground capitalize truncate">
-                      {task.lead.requirementType} • {task.lead.bhkRequirement} BHK
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1 text-sm text-accent mb-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(task.nextActionDate!, 'MMM dd')}
-                    </div>
-                    <TaskStatusChip status={task.status} />
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }

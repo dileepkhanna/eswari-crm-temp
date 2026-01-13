@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -47,11 +48,15 @@ export default function TaskFormModal({
   const { user } = useAuth();
   const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   const [formData, setFormData] = useState({
-    status: 'todo' as TaskStatus,
+    status: 'in_progress' as TaskStatus,
     assignedProject: 'none' as string,
     nextActionDate: null as Date | null,
     notes: '' as string,
     selectedLeadId: '' as string,
+    // Auto-generated lead fields
+    leadName: '' as string,
+    leadPhone: '' as string,
+    leadEmail: '' as string,
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -63,14 +68,20 @@ export default function TaskFormModal({
         nextActionDate: task.nextActionDate || null,
         notes: task.notes.length > 0 ? task.notes[task.notes.length - 1].content : '',
         selectedLeadId: '',
+        leadName: '',
+        leadPhone: '',
+        leadEmail: '',
       });
     } else {
       setFormData({
-        status: 'todo',
+        status: 'in_progress',
         assignedProject: 'none',
         nextActionDate: null,
         notes: '',
         selectedLeadId: '',
+        leadName: '',
+        leadPhone: '',
+        leadEmail: '',
       });
     }
   }, [task, open]);
@@ -81,14 +92,40 @@ export default function TaskFormModal({
     const assignedProject = formData.assignedProject === 'none' ? undefined : formData.assignedProject;
 
     if (isCreating) {
-      if (!formData.selectedLeadId) {
+      // Auto-generate lead if creating new task
+      let leadToUse = null;
+      
+      if (formData.selectedLeadId) {
+        // Use existing selected lead
+        leadToUse = availableLeads.find(l => l.id === formData.selectedLeadId);
+      } else if (formData.leadName && formData.leadPhone) {
+        // Create new lead automatically
+        leadToUse = {
+          id: `lead_${Date.now()}`, // Auto-generated ID
+          name: formData.leadName,
+          phone: formData.leadPhone,
+          email: formData.leadEmail || '',
+          address: '',
+          requirementType: 'apartment' as const,
+          bhkRequirement: '2' as const,
+          budgetMin: 0,
+          budgetMax: 0,
+          description: '',
+          status: 'hot' as const,
+          notes: [],
+          createdBy: user?.id || 'unknown',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+      
+      if (!leadToUse) {
+        // Show error message if no lead data provided
         return;
       }
-      const selectedLead = availableLeads.find(l => l.id === formData.selectedLeadId);
-      if (!selectedLead) return;
 
       onSave({
-        lead: selectedLead,
+        lead: leadToUse,
         status: formData.status,
         assignedProject,
         nextActionDate: formData.nextActionDate || undefined,
@@ -119,7 +156,7 @@ export default function TaskFormModal({
             {task ? 'Edit Task' : 'Create Task'}
           </DialogTitle>
           <DialogDescription>
-            {task ? 'Update task details and status' : 'Create a new task for lead follow-up'}
+            {task ? 'Update task details and status' : 'Create a new task with customer information'}
           </DialogDescription>
         </DialogHeader>
 
@@ -135,24 +172,81 @@ export default function TaskFormModal({
           )}
 
           {isCreating && !task && (
-            <div className="space-y-2">
-              <Label>Select Lead <span className="text-destructive">*</span></Label>
-              <Select
-                value={formData.selectedLeadId}
-                onValueChange={(value) => setFormData({ ...formData, selectedLeadId: value })}
-                required
-              >
-                <SelectTrigger className={cn(!formData.selectedLeadId && "text-muted-foreground")}>
-                  <SelectValue placeholder="Select a lead" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableLeads.map((lead) => (
-                    <SelectItem key={lead.id} value={lead.id}>
-                      {canViewPhone ? `${lead.name} - ${lead.phone}` : lead.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Customer Information</Label>
+                <span className="text-xs text-muted-foreground">Required</span>
+              </div>
+              
+              {/* Option to select existing lead */}
+              {availableLeads.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Select Existing Customer (Optional)</Label>
+                  <Select
+                    value={formData.selectedLeadId}
+                    onValueChange={(value) => {
+                      setFormData({ 
+                        ...formData, 
+                        selectedLeadId: value,
+                        // Clear manual fields when selecting existing lead
+                        leadName: '',
+                        leadPhone: '',
+                        leadEmail: ''
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose existing customer or create new below" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Create New Customer</SelectItem>
+                      {availableLeads.map((lead) => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {canViewPhone ? `${lead.name} - ${lead.phone}` : lead.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Manual lead creation fields - only show if no existing lead selected */}
+              {!formData.selectedLeadId && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
+                  <Label className="text-sm font-medium">Create New Customer</Label>
+                  
+                  <div className="space-y-2">
+                    <Label>Customer Name <span className="text-destructive">*</span></Label>
+                    <Input
+                      value={formData.leadName}
+                      onChange={(e) => setFormData({ ...formData, leadName: e.target.value })}
+                      placeholder="Enter customer name"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Phone Number <span className="text-destructive">*</span></Label>
+                    <Input
+                      value={formData.leadPhone}
+                      onChange={(e) => setFormData({ ...formData, leadPhone: e.target.value })}
+                      placeholder="Enter phone number"
+                      type="tel"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Email Address (Optional)</Label>
+                    <Input
+                      value={formData.leadEmail}
+                      onChange={(e) => setFormData({ ...formData, leadEmail: e.target.value })}
+                      placeholder="Enter email address"
+                      type="email"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -186,10 +280,11 @@ export default function TaskFormModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todo">To Do</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="review">Review</SelectItem>
+                <SelectItem value="site_visit">Site Visit</SelectItem>
+                <SelectItem value="family_visit">Family Visit</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>

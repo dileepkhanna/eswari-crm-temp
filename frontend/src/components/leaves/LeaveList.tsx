@@ -401,19 +401,23 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
     }
   };
 
-  const handleCreateLeave = async (leaveData: Partial<Leave> & { documentUrl?: string }) => {
+  const handleCreateLeave = async (leaveData: Partial<Leave> & { document?: File }) => {
     if (!user) return;
 
     try {
       const { apiClient } = await import('@/lib/api');
       
-      const leavePayload = {
+      const leavePayload: any = {
         leave_type: leaveData.type || 'casual',
         start_date: leaveData.startDate ? format(leaveData.startDate, 'yyyy-MM-dd') : '',
         end_date: leaveData.endDate ? format(leaveData.endDate, 'yyyy-MM-dd') : '',
         reason: leaveData.reason || '',
-        document_url: leaveData.documentUrl || null,
       };
+
+      // Add document file if provided
+      if (leaveData.document) {
+        leavePayload.document = leaveData.document;
+      }
 
       const newLeave = await apiClient.createLeave(leavePayload);
       

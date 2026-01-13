@@ -153,7 +153,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         await addTask({
           leadId: updatedTask.lead.id,
           lead: updatedTask.lead,
-          status: updatedTask.status || "pending",
+          status: updatedTask.status || "in_progress",
           nextActionDate: updatedTask.nextActionDate,
           notes: updatedTask.notes || [],
           attachments: updatedTask.attachments || [],
@@ -183,7 +183,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         await addTask({
           leadId: taskData.lead.id,
           lead: taskData.lead as Lead,
-          status: taskData.status || "pending",
+          status: taskData.status || "in_progress",
           nextActionDate: taskData.nextActionDate,
           notes: taskData.notes || [],
           attachments: taskData.attachments || [],
@@ -224,10 +224,11 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="todo">To Do</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="review">Review</SelectItem>
+                <SelectItem value="site_visit">Site Visit</SelectItem>
+                <SelectItem value="family_visit">Family Visit</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
 
@@ -315,6 +316,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         </div>
       </div>
 
+      {/* Customer Contact Info Notice - Only for Admin/Employee */}
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
         {filteredTasks.map((task, index) => (
@@ -326,26 +328,20 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             <div className="flex items-start justify-between mb-3 gap-2">
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-foreground truncate">{task.lead.name}</p>
-                {canViewPhone && (
-                  <div className="mt-1 space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Phone className="w-3 h-3" />
-                      <span>{task.lead.phone}</span>
-                    </div>
-                    {task.lead.email && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="w-3 h-3" />
-                        <span>{task.lead.email}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {!canViewPhone && (
-                  <p className="text-xs text-muted-foreground mt-1">Contact details hidden</p>
-                )}
+                <p className="text-xs text-muted-foreground capitalize truncate">Task</p>
               </div>
               <TaskStatusChip status={task.status} />
             </div>
+            {canViewPhone && (
+              <div className="grid grid-cols-1 gap-2 text-sm mb-3">
+                <div className="text-muted-foreground">
+                  <span className="truncate font-medium">{task.lead.phone}</span>
+                </div>
+                <div className="text-muted-foreground">
+                  <span className="truncate font-medium">{task.lead.email}</span>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-2 text-sm mb-3">
               <div>
                 <p className="text-xs text-muted-foreground">Project</p>
@@ -372,15 +368,6 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
     ))}
   </div>
   
-  {/* Privacy notice for managers - Mobile */}
-  {!canViewPhone && filteredTasks.length > 0 && (
-    <div className="md:hidden p-4 rounded-xl bg-muted/30 border">
-      <p className="text-sm text-muted-foreground text-center">
-        📞 Customer contact details are hidden for managers
-      </p>
-    </div>
-  )}
-
       {/* Desktop Table View */}
       <div className="glass-card rounded-2xl overflow-hidden hidden md:block">
         <Table>
@@ -394,6 +381,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 />
               </TableHead>
               <TableHead className="font-semibold">Lead Name</TableHead>
+              {canViewPhone && <TableHead className="font-semibold">Phone</TableHead>}
               {canViewPhone && <TableHead className="font-semibold">Contact</TableHead>}
               {canViewPhone && <TableHead className="font-semibold">Requirement</TableHead>}
               <TableHead className="font-semibold">Project</TableHead>
@@ -423,18 +411,12 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 </TableCell>
                 {canViewPhone && (
                   <TableCell>
-                    <div className="space-y-1">
-                      {task.lead.email && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="w-4 h-4 text-primary" />
-                          <span className="text-foreground">{task.lead.email}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-4 h-4 text-primary" />
-                        <span className="text-foreground font-medium">{task.lead.phone}</span>
-                      </div>
-                    </div>
+                    <p className="text-sm font-medium">{task.lead.phone || '-'}</p>
+                  </TableCell>
+                )}
+                {canViewPhone && (
+                  <TableCell>
+                    <p className="text-sm font-medium">{task.lead.email || '-'}</p>
                   </TableCell>
                 )}
                 {canViewPhone && (
@@ -455,10 +437,11 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                         <TaskStatusChip status={task.status} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="todo">To Do</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="review">Review</SelectItem>
+                        <SelectItem value="site_visit">Site Visit</SelectItem>
+                        <SelectItem value="family_visit">Family Visit</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
@@ -508,15 +491,6 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             ))}
           </TableBody>
         </Table>
-        
-        {/* Privacy notice for managers */}
-        {!canViewPhone && filteredTasks.length > 0 && (
-          <div className="p-4 bg-muted/30 border-t">
-            <p className="text-sm text-muted-foreground text-center">
-              📞 Customer contact details are hidden for managers. Contact admins or employees for customer information.
-            </p>
-          </div>
-        )}
       </div>
 
       {filteredTasks.length === 0 && (
@@ -543,7 +517,6 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       open={!!viewingTask}
       onClose={() => setViewingTask(null)}
       task={viewingTask}
-      isManagerView={isManager}
       canEdit={canEdit}
       onEdit={() => {
         if (viewingTask) {

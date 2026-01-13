@@ -7,10 +7,11 @@ User = get_user_model()
 
 class Task(models.Model):
     STATUS_CHOICES = [
-        ('todo', 'To Do'),
         ('in_progress', 'In Progress'),
-        ('review', 'Review'),
+        ('site_visit', 'Site Visit'),
+        ('family_visit', 'Family Visit'),
         ('completed', 'Completed'),
+        ('rejected', 'Rejected'),
     ]
     
     PRIORITY_CHOICES = [
@@ -23,7 +24,7 @@ class Task(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

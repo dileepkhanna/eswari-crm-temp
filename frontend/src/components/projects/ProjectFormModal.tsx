@@ -125,7 +125,7 @@ export default function ProjectFormModal({
       towerDetails: formData.towerDetails,
       nearbyLandmarks,
       photos,
-      coverImage: coverImage || photos[0] || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800',
+      coverImage: coverImage || photos[0] || '',
       status: formData.status as ProjectStatus,
     });
 
@@ -155,11 +155,38 @@ export default function ProjectFormModal({
   };
 
   const addPhoto = () => {
-    if (newPhoto.trim() && !photos.includes(newPhoto.trim())) {
-      setPhotos([...photos, newPhoto.trim()]);
-      if (!coverImage) setCoverImage(newPhoto.trim());
-      setNewPhoto('');
+    const photoUrl = newPhoto.trim();
+    if (!photoUrl) {
+      toast.error('Please enter a photo URL');
+      return;
     }
+    
+    // Validate URL format - must start with http:// or https://
+    if (!photoUrl.startsWith('http://') && !photoUrl.startsWith('https://')) {
+      toast.error('URL must start with http:// or https://');
+      return;
+    }
+    
+    try {
+      const urlObj = new URL(photoUrl);
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        toast.error('URL must use http:// or https:// protocol');
+        return;
+      }
+    } catch {
+      toast.error('Please enter a valid URL (e.g., https://example.com/image.jpg)');
+      return;
+    }
+    
+    if (photos.includes(photoUrl)) {
+      toast.error('This photo URL is already added');
+      return;
+    }
+    
+    setPhotos([...photos, photoUrl]);
+    if (!coverImage) setCoverImage(photoUrl);
+    setNewPhoto('');
+    toast.success('Photo URL added successfully');
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -508,17 +535,22 @@ export default function ProjectFormModal({
                 </div>
               </TabsContent>
               <TabsContent value="url" className="mt-3">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Paste image URL"
-                    value={newPhoto}
-                    onChange={(e) => setNewPhoto(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPhoto())}
-                    className="input-field flex-1"
-                  />
-                  <Button type="button" variant="secondary" onClick={addPhoto}>
-                    <Link className="w-4 h-4" />
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Paste image URL (e.g., https://example.com/image.jpg)"
+                      value={newPhoto}
+                      onChange={(e) => setNewPhoto(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPhoto())}
+                      className="input-field flex-1"
+                    />
+                    <Button type="button" variant="secondary" onClick={addPhoto}>
+                      <Link className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter a valid image URL starting with https:// or http://
+                  </p>
                 </div>
               </TabsContent>
             </Tabs>

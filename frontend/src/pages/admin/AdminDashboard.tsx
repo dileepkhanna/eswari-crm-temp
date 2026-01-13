@@ -16,9 +16,8 @@ import { ActivityLog } from '@/types';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { leads, tasks, projects, announcements } = useData();
+  const { leads, tasks, projects, announcements, leaves } = useData();
   const { user } = useAuth();
-  const [pendingLeaves, setPendingLeaves] = useState(0);
   const [teamCount, setTeamCount] = useState(0);
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
 
@@ -43,9 +42,6 @@ export default function AdminDashboard() {
         setTeamCount(0); // Set to 0 if there's an error
       }
 
-      // TODO: Implement leaves API in Django backend
-      setPendingLeaves(0); // Placeholder
-
       // TODO: Implement activity logs API
       const activities: ActivityLog[] = [];
       setRecentActivities(activities);
@@ -55,6 +51,8 @@ export default function AdminDashboard() {
   }, []);
 
   const activeTasks = tasks.filter(t => t.status !== 'completed').length;
+  const pendingLeads = leads.filter(l => l.status !== 'not_interested').length; // Hot, warm, cold leads need follow-up
+  const pendingLeaves = leaves.filter(l => l.status === 'pending').length; // Get real pending leaves count
   const conversionRate = leads.length > 0 
     ? Math.round((tasks.filter(t => t.status === 'completed').length / leads.length) * 100) 
     : 0;
@@ -143,7 +141,7 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Reminders Widget */}
-          <RemindersWidget leads={leads} tasks={tasks} />
+          <RemindersWidget />
 
           {/* Activity Feed */}
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>

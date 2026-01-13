@@ -1,4 +1,4 @@
-# Gunicorn configuration file
+# Gunicorn configuration for production deployment
 import multiprocessing
 
 # Server socket
@@ -14,23 +14,24 @@ keepalive = 2
 
 # Restart workers after this many requests, to help prevent memory leaks
 max_requests = 1000
-max_requests_jitter = 100
+max_requests_jitter = 50
 
 # Logging
-accesslog = "/var/log/eswari-crm/gunicorn-access.log"
-errorlog = "/var/log/eswari-crm/gunicorn-error.log"
+accesslog = "/var/log/eswari-crm/access.log"
+errorlog = "/var/log/eswari-crm/error.log"
 loglevel = "info"
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
 # Process naming
-proc_name = "eswari-crm-backend"
+proc_name = "eswari_crm"
 
 # Server mechanics
 daemon = False
 pidfile = "/var/run/eswari-crm/gunicorn.pid"
-user = "ec2-user"
-group = "nginx"
+user = "www-data"
+group = "www-data"
 tmp_upload_dir = None
 
-# SSL (if needed)
+# SSL (if using HTTPS directly with Gunicorn)
 # keyfile = "/path/to/keyfile"
 # certfile = "/path/to/certfile"

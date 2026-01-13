@@ -27,7 +27,7 @@ class Leave(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_leaves')
     rejection_reason = models.TextField(blank=True, null=True)
-    document_url = models.URLField(blank=True, null=True)
+    document = models.FileField(upload_to='leave_documents/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

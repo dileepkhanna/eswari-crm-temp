@@ -24,6 +24,7 @@ interface AuthContextType {
   loginWithUserId: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (email: string, password: string, name: string, phone: string, address: string) => Promise<{ success: boolean; error?: string }>;
   createUser: (email: string, password: string, name: string, phone: string, address: string, role: UserRole, managerId?: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
+  createInitialAdmin: (firstName: string, lastName: string, email: string, password: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   hasPermission: (module: string, action: string) => boolean;
 }
@@ -38,8 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check if admin exists by checking if we can access the API
   const checkAdminExists = useCallback(async () => {
-    // For now, just assume admin exists. This can be enhanced later.
-    setAdminExists(true);
+    try {
+      const result = await apiClient.checkAdminExists();
+      setAdminExists(result.admin_exists);
+    } catch (error) {
+      console.error('Error checking admin exists:', error);
+      setAdminExists(null);
+    }
   }, []);
 
   // Fetch user profile
@@ -75,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('access_token');
+      
       if (token) {
         try {
           await fetchUserData();
@@ -87,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null);
         }
       }
+      
       await checkAdminExists();
       setIsLoading(false);
     };
@@ -167,6 +175,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message || 'Signup failed' };
+    }
+  }, [checkAdminExists]);
+
+  const createInitialAdmin = useCallback(async (
+    firstName: string,
+    lastName: string,
+    email: string,
+    password: string,
+    phone?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const data = await apiClient.createInitialAdmin({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password,
+        phone: phone || '',
+      });
+      
+      const authUser: AuthUser = {
+        id: data.user.id,
+        userId: data.user.username,
+        name: `${data.user.first_name} ${data.user.last_name}`.trim() || data.user.username,
+        email: data.user.email,
+        phone: data.user.phone,
+        address: null,
+        role: data.user.role as UserRole,
+        status: 'active',
+        managerId: null,
+      };
+
+      setUser(authUser);
+      setSession({ user: data.user });
+      await checkAdminExists();
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to create admin' };
     }
   }, [checkAdminExists]);
 
@@ -286,6 +332,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginWithUserId,
       signup,
       createUser,
+      createInitialAdmin,
       logout, 
       hasPermission 
     }}>

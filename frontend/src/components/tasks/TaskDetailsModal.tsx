@@ -1,13 +1,12 @@
 import { Task } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
-import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
+import { canViewCustomerPhone } from '@/lib/permissions';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,7 +22,8 @@ import {
   MessageSquare,
   Clock,
   Building,
-  Edit
+  Edit,
+  MapPin
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -31,7 +31,6 @@ interface TaskDetailsModalProps {
   open: boolean;
   onClose: () => void;
   task: Task | null;
-  isManagerView?: boolean;
   onEdit?: () => void;
   canEdit?: boolean;
   getProjectName: (projectId?: string) => string;
@@ -41,7 +40,6 @@ export default function TaskDetailsModal({
   open, 
   onClose, 
   task, 
-  isManagerView = false, 
   onEdit, 
   canEdit = true,
   getProjectName 
@@ -88,10 +86,54 @@ export default function TaskDetailsModal({
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6">
-            {/* Lead Contact Information */}
+            {/* Contact Information */}
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Lead Information
+                Contact Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="font-medium">{task.lead.name}</p>
+                  </div>
+                </div>
+                {canViewPhone ? (
+                  <>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Phone</p>
+                        <p className="font-medium">{task.lead.phone}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="font-medium">{task.lead.email || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    {task.lead.source && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Lead Source</p>
+                          <p className="font-medium capitalize">{task.lead.source}</p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-3 rounded-lg bg-muted/50 sm:col-span-1">
+                    <p className="text-sm text-muted-foreground">Contact details are hidden for managers.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Customer Contact Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Customer Contact Details
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -104,19 +146,48 @@ export default function TaskDetailsModal({
                 {canViewPhone && (
                   <>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Phone className="w-4 h-4 text-primary" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Phone</p>
-                        <p className="font-medium">{task.lead.phone}</p>
+                      <Phone className="w-5 h-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Phone Number</p>
+                        <p className="font-medium text-lg">{task.lead.phone}</p>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`tel:${task.lead.phone}`, '_self')}
+                        className="shrink-0"
+                      >
+                        <Phone className="w-4 h-4 mr-1" />
+                        Call
+                      </Button>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Mail className="w-4 h-4 text-primary" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Email</p>
-                        <p className="font-medium">{task.lead.email || '-'}</p>
+                      <Mail className="w-5 h-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Email Address</p>
+                        <p className="font-medium">{task.lead.email || 'Not provided'}</p>
                       </div>
+                      {task.lead.email && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`mailto:${task.lead.email}`, '_self')}
+                          className="shrink-0"
+                        >
+                          <Mail className="w-4 h-4 mr-1" />
+                          Email
+                        </Button>
+                      )}
                     </div>
+                    {task.lead.source && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <MapPin className="w-5 h-5 text-primary" />
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">Lead Source</p>
+                          <p className="font-medium capitalize">{task.lead.source}</p>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
                 {!canViewPhone && (

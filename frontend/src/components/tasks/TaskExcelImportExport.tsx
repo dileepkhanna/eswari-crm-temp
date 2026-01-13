@@ -18,13 +18,13 @@ const TEMPLATE_COLUMNS = [
   'Requirement Type (villa/apartment/house/plot)',
   'BHK (1/2/3/4/5+)',
   'Project ID *',
-  'Status (todo/in_progress/review/completed)',
+  'Status (in_progress/site_visit/family_visit/completed/rejected)',
   'Next Action Date (YYYY-MM-DD)',
   'Notes'
 ];
 
 const SAMPLE_DATA = [
-  ['John Doe', '9876543210', 'john@example.com', 'apartment', '3', 'project-1', 'todo', '2024-02-15', 'Initial contact made'],
+  ['John Doe', '9876543210', 'john@example.com', 'apartment', '3', 'project-1', 'in_progress', '2024-02-15', 'Initial contact made'],
   ['Jane Smith', '9123456789', 'jane@example.com', 'villa', '4', 'project-2', 'in_progress', '2024-02-20', 'Schedule site visit'],
 ];
 
@@ -114,15 +114,15 @@ export default function TaskExcelImportExport({ onImport }: TaskExcelImportExpor
               budgetMin: 0,
               budgetMax: 0,
               description: '',
-              status: 'pending',
+              status: 'hot',
               notes: [],
               createdBy: '3',
               createdAt: new Date(),
               updatedAt: new Date(),
             },
             assignedProject: projectId,
-            status: ['visit', 'family_visit', 'pending', 'completed', 'rejected'].includes(status) 
-              ? status : 'pending',
+            status: ['in_progress', 'site_visit', 'family_visit', 'completed', 'rejected'].includes(status) 
+              ? status : 'in_progress',
             nextActionDate,
             notes: row[8] ? [{ 
               id: String(Date.now()), 

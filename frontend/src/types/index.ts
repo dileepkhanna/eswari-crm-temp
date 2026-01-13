@@ -1,8 +1,8 @@
 export type UserRole = 'admin' | 'manager' | 'employee';
 
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
+export type LeadStatus = 'hot' | 'warm' | 'cold' | 'not_interested' | 'reminder';
 
-export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'completed';
+export type TaskStatus = 'in_progress' | 'site_visit' | 'family_visit' | 'completed' | 'rejected';
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 

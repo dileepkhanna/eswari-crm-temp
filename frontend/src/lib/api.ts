@@ -17,6 +17,8 @@ interface AuthResponse {
   refresh: string;
 }
 
+import { handleAuthError } from './tokenCleaner';
+
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
@@ -78,6 +80,13 @@ class ApiClient {
       } else {
         // Refresh failed, clear tokens and throw error
         this.logout();
+        
+        // Use token cleaner to handle auth error
+        const error = new Error(`HTTP error! status: ${response.status}`);
+        if (handleAuthError(error)) {
+          return; // Token cleaner will handle the reload
+        }
+        
         let errorData = {};
         try {
           errorData = await response.json();
@@ -149,6 +158,29 @@ class ApiClient {
     const data = await this.request('/auth/login/', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    });
+    
+    this.token = data.access;
+    localStorage.setItem('access_token', data.access);
+    localStorage.setItem('refresh_token', data.refresh);
+    
+    return data;
+  }
+
+  async checkAdminExists(): Promise<{ admin_exists: boolean; needs_setup: boolean }> {
+    return this.request('/auth/setup/check/');
+  }
+
+  async createInitialAdmin(adminData: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }): Promise<AuthResponse> {
+    const data = await this.request('/auth/setup/admin/', {
+      method: 'POST',
+      body: JSON.stringify(adminData),
     });
     
     this.token = data.access;
@@ -230,7 +262,7 @@ class ApiClient {
 
   async updateLead(id: number, leadData: any) {
     return this.request(`/leads/${id}/`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(leadData),
     });
   }
@@ -313,7 +345,7 @@ class ApiClient {
 
   async updateTask(id: number, taskData: any) {
     return this.request(`/tasks/${id}/`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(taskData),
     });
   }
@@ -434,10 +466,28 @@ class ApiClient {
   }
 
   async createLeave(leaveData: any) {
-    return this.request('/leaves/', {
-      method: 'POST',
-      body: JSON.stringify(leaveData),
-    });
+    // Handle file upload if document is provided
+    if (leaveData.document instanceof File) {
+      const formData = new FormData();
+      Object.keys(leaveData).forEach(key => {
+        if (key === 'document') {
+          formData.append(key, leaveData[key]);
+        } else {
+          formData.append(key, leaveData[key]);
+        }
+      });
+      
+      return this.request('/leaves/', {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header - let browser set it with boundary for FormData
+      });
+    } else {
+      return this.request('/leaves/', {
+        method: 'POST',
+        body: JSON.stringify(leaveData),
+      });
+    }
   }
 
   async updateLeave(id: number, leaveData: any) {

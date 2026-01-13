@@ -4,7 +4,7 @@ import StatCard from '@/components/dashboard/StatCard';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
-import RemindersWidget from '@/components/dashboard/RemindersWidget';
+import EmployeeRemindersWidget from '@/components/dashboard/EmployeeRemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
 import LeaveStatsWidget from '@/components/dashboard/LeaveStatsWidget';
 import { useAuth } from '@/contexts/AuthContextDjango';
@@ -93,15 +93,21 @@ export default function StaffDashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Reminders Section - Prominent for Employees */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Employee Reminders Widget - Full width on mobile, half on desktop */}
+          <EmployeeRemindersWidget />
+          
+          {/* Leave Statistics Widget */}
+          <LeaveStatsWidget />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Leads by Status Chart - Interactive */}
           <LeadStatusChart leads={myLeads} title="My Leads by Status" />
 
           {/* Tasks by Status Chart - Interactive */}
           <TaskStatusChart tasks={myTasks} title="My Tasks by Status" />
-
-          {/* Reminders Widget */}
-          <RemindersWidget leads={myLeads} tasks={myTasks} />
         </div>
 
         {/* Calendar View */}

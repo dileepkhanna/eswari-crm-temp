@@ -5,7 +5,7 @@ import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, User, Lock, Eye, EyeOff, ArrowRight, Mail, Phone, MapPin } from "lucide-react";
+import { Building2, User, Lock, Eye, EyeOff, ArrowRight, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,26 +20,14 @@ const staffLoginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-const signupSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().min(10, "Please enter a valid phone number"),
-  address: z.string().min(5, "Please enter a valid address"),
-});
-
 export default function Login() {
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignupMode, setIsSignupMode] = useState(false);
   const [loginType, setLoginType] = useState<"admin" | "staff">("staff");
-  const { login, loginWithUserId, signup, isAuthenticated, user, isLoading: authLoading, adminExists } = useAuth();
+  const { login, loginWithUserId, isAuthenticated, user, isLoading: authLoading } = useAuth();
   const { settings } = useAppSettings();
   const navigate = useNavigate();
 
@@ -58,43 +46,12 @@ export default function Login() {
     }
   }, [isAuthenticated, user, navigate]);
 
-  // Show signup mode if no admin exists
-  useEffect(() => {
-    if (adminExists === false) {
-      setIsSignupMode(true);
-      setLoginType("admin");
-    }
-  }, [adminExists]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      if (isSignupMode) {
-        // Validate signup
-        const validation = signupSchema.safeParse({ email, password, name, phone, address });
-        if (!validation.success) {
-          toast.error("Validation Error", {
-            description: validation.error.errors[0].message,
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        const result = await signup(email, password, name, phone, address);
-
-        if (result.success) {
-          toast.success("Account created!", {
-            description: "You are now logged in as admin.",
-          });
-          navigate("/admin");
-        } else {
-          toast.error("Signup failed", {
-            description: result.error,
-          });
-        }
-      } else if (loginType === "admin") {
+      if (loginType === "admin") {
         // Admin login with email
         const validation = adminLoginSchema.safeParse({ email, password });
         if (!validation.success) {
@@ -244,84 +201,24 @@ export default function Login() {
 
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-foreground mb-2">
-              {isSignupMode ? "Create Admin Account" : "Welcome Back"}
+              Welcome Back
             </h2>
             <p className="text-muted-foreground">
-              {isSignupMode ? "Set up your admin account to get started" : "Sign in to continue to your dashboard"}
+              Sign in to continue to your dashboard - Admin, Manager, or Staff
             </p>
           </div>
 
-          {/* Login Type Tabs - Only show when not in signup mode and admin exists */}
-          {!isSignupMode && adminExists && (
-            <Tabs value={loginType} onValueChange={(v) => setLoginType(v as "admin" | "staff")} className="mb-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="staff">Staff / Manager</TabsTrigger>
-                <TabsTrigger value="admin">Admin</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
+          {/* Login Type Tabs */}
+          <Tabs value={loginType} onValueChange={(v) => setLoginType(v as "admin" | "staff")} className="mb-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="staff">Staff / Manager</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignupMode && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-foreground">
-                    Full Name
-                  </Label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pl-12 h-12 input-field"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-foreground">
-                    Phone
-                  </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="Enter your phone number"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="pl-12 h-12 input-field"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-foreground">
-                    Address
-                  </Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="address"
-                      type="text"
-                      placeholder="Enter your address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="pl-12 h-12 input-field"
-                      required
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Email field - only for admin login and signup */}
-            {(isSignupMode || loginType === "admin") && (
+            {/* Email field - only for admin login */}
+            {loginType === "admin" && (
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-foreground">
                   Email
@@ -342,7 +239,7 @@ export default function Login() {
             )}
 
             {/* User ID field - only for staff/manager login */}
-            {!isSignupMode && loginType === "staff" && (
+            {loginType === "staff" && (
               <div className="space-y-2">
                 <Label htmlFor="userId" className="text-foreground">
                   User ID
@@ -394,11 +291,11 @@ export default function Login() {
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {isSignupMode ? "Creating account..." : "Signing in..."}
+                  Signing in...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  {isSignupMode ? "Create Account" : "Sign In"}
+                  Sign In
                   <ArrowRight className="w-5 h-5" />
                 </div>
               )}
@@ -406,7 +303,7 @@ export default function Login() {
           </form>
 
           {/* Help text for staff/manager */}
-          {!isSignupMode && loginType === "staff" && (
+          {loginType === "staff" && (
             <div className="mt-6 p-4 rounded-lg bg-muted/50 text-sm">
               <p className="font-medium mb-1">Need help logging in?</p>
               <p className="text-muted-foreground">

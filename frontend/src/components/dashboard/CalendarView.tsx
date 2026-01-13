@@ -62,15 +62,15 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
-  // Get all events (lead follow-ups and task deadlines)
+  // Get all events (lead reminders and task deadlines)
   const events = useMemo(() => {
     const allEvents: CalendarEvent[] = [];
     
-    // Add lead follow-ups
+    // Add lead reminders (only leads with reminder status)
     leads.forEach(lead => {
-      if (lead.followUpDate) {
+      if (lead.status === 'reminder' && lead.followUpDate) {
         allEvents.push({
-          id: `lead-${lead.id}`,
+          id: `reminder-${lead.id}`,
           type: 'lead',
           title: lead.name,
           date: new Date(lead.followUpDate),
@@ -151,7 +151,7 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
     return (
       <div className="absolute bottom-0.5 left-0 right-0 flex justify-center gap-0.5">
         {counts.leads > 0 && (
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" title={`${counts.leads} lead follow-ups`} />
+          <div className="w-1.5 h-1.5 rounded-full bg-purple-500" title={`${counts.leads} reminders`} />
         )}
         {counts.tasks > 0 && (
           <div className="w-1.5 h-1.5 rounded-full bg-blue-500" title={`${counts.tasks} task deadlines`} />
@@ -197,8 +197,8 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
       {/* Legend */}
       <div className="flex items-center gap-4 mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span className="text-xs text-muted-foreground">Lead Follow-ups</span>
+          <div className="w-3 h-3 rounded-full bg-purple-500" />
+          <span className="text-xs text-muted-foreground">Reminders</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500" />
@@ -266,7 +266,7 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
                           key={event.id}
                           className={`p-3 rounded-lg border transition-all hover:shadow-md ${
                             event.type === 'lead'
-                              ? 'border-emerald-500/30 bg-emerald-500/5'
+                              ? 'border-purple-500/30 bg-purple-500/5'
                               : 'border-blue-500/30 bg-blue-500/5'
                           }`}
                         >
@@ -302,74 +302,140 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
 }
 
 function LeadEventCard({ lead }: { lead: Lead }) {
-  const Icon = leadStatusIcons[lead.status] || Bell;
-  const latestNote = lead.notes.length > 0 ? lead.notes[lead.notes.length - 1] : null;
+  const { user } = useAuth();
+  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
+  
+  // For reminder leads, show urgency
+  const isOverdue = lead.followUpDate && new Date(lead.followUpDate) < new Date() && !isToday(new Date(lead.followUpDate));
+  const isTodayReminder = lead.followUpDate && isToday(new Date(lead.followUpDate));
+  
+  const getUrgencyColor = () => {
+    if (isOverdue) return 'text-red-600 bg-red-50 border-red-200';
+    if (isTodayReminder) return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-purple-600 bg-purple-50 border-purple-200';
+  };
+  
+  const getUrgencyLabel = () => {
+    if (isOverdue) return 'OVERDUE';
+    if (isTodayReminder) return 'TODAY';
+    return 'REMINDER';
+  };
   
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-white" />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shrink-0">
+            <Bell className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-medium text-sm text-foreground">{lead.name}</p>
-            <p className="text-xs text-muted-foreground">Lead Follow-up</p>
+            <p className="font-semibold text-base text-foreground">{lead.name}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className={`text-xs font-medium ${getUrgencyColor()}`}>
+                {getUrgencyLabel()}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {lead.followUpDate && format(new Date(lead.followUpDate), 'h:mm a')}
+              </span>
+            </div>
           </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 gap-2 text-sm">
+        {lead.phone && (
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-muted-foreground" />
+            <span className="font-medium">
+              {canViewPhone ? lead.phone : maskPhoneNumber(lead.phone)}
+            </span>
+          </div>
+        )}
+        {lead.email && (
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-muted-foreground" />
+            <span className="truncate">{lead.email}</span>
+          </div>
+        )}
+        {lead.address && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <span className="truncate">{lead.address}</span>
+          </div>
+        )}
+      </div>
+      
+      {lead.description && (
+        <div className="p-3 bg-muted/50 rounded-md">
+          <p className="text-sm text-muted-foreground">{lead.description}</p>
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between pt-2 border-t">
+        <div className="text-xs text-muted-foreground">
+          {lead.requirementType} • {lead.bhkRequirement} BHK
         </div>
         <LeadStatusChip status={lead.status} />
       </div>
-      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Phone className="w-3 h-3" />
-          {lead.phone}
-        </span>
-        <span className="flex items-center gap-1">
-          <Mail className="w-3 h-3" />
-          {lead.email}
-        </span>
-      </div>
-      {latestNote && (
-        <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md">
-          {latestNote.content}
-        </p>
-      )}
     </div>
   );
 }
 
 function TaskEventCard({ task }: { task: Task }) {
+  const { user } = useAuth();
+  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   const Icon = taskStatusIcons[task.status] || Clock;
-  const latestNote = task.notes.length > 0 ? task.notes[task.notes.length - 1] : null;
   
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-white" />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
+            <Icon className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-medium text-sm text-foreground">{task.lead.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">{task.status.replace('_', ' ')} Task</p>
+            <p className="font-semibold text-base text-foreground">{task.lead.name}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-xs">
+                TASK DEADLINE
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {task.nextActionDate && format(new Date(task.nextActionDate), 'h:mm a')}
+              </span>
+            </div>
           </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 gap-2 text-sm">
+        {task.lead.phone && (
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-muted-foreground" />
+            <span className="font-medium">
+              {canViewPhone ? task.lead.phone : maskPhoneNumber(task.lead.phone)}
+            </span>
+          </div>
+        )}
+        {task.lead.email && (
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-muted-foreground" />
+            <span className="truncate">{task.lead.email}</span>
+          </div>
+        )}
+      </div>
+      
+      {task.lead.description && (
+        <div className="p-3 bg-muted/50 rounded-md">
+          <p className="text-sm text-muted-foreground">{task.lead.description}</p>
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between pt-2 border-t">
+        <div className="text-xs text-muted-foreground">
+          {task.lead.requirementType} • {task.lead.bhkRequirement} BHK
         </div>
         <TaskStatusChip status={task.status} />
       </div>
-      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Phone className="w-3 h-3" />
-          {canViewPhone ? task.lead.phone : maskPhoneNumber(task.lead.phone)}
-        </span>
-        <span className="capitalize">
-          {task.lead.requirementType} • {task.lead.bhkRequirement} BHK
-        </span>
-      </div>
-      {latestNote && (
-        <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md">
-          {latestNote.content}
-        </p>
-      )}
     </div>
   );
 }
