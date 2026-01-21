@@ -49,12 +49,13 @@ INSTALLED_APPS = [
     # Local apps
     "accounts",
     "leads",
+    "tasks", 
     "projects",
-    "tasks",
     "announcements",
     "leaves",
-    "activity_logs",
     "holidays",
+    "activity_logs",
+    "customers",
 ]
 
 MIDDLEWARE = [

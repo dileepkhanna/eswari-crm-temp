@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Megaphone,
   Palette,
+  Phone,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -43,6 +44,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
     { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'employee'] },
     { label: 'Holidays', icon: Calendar, href: '/holidays', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Customers', icon: Phone, href: '/customers', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'employee'] },
     { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
     { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'employee'] },

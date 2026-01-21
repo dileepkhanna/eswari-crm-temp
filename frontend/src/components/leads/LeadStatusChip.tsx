@@ -6,6 +6,7 @@ interface LeadStatusChipProps {
 }
 
 const statusConfig: Record<LeadStatus, { label: string; className: string }> = {
+  new: { label: 'New', className: 'bg-green-100 text-green-700 ring-1 ring-green-300' },
   hot: { label: 'Hot', className: 'bg-red-100 text-red-700 ring-1 ring-red-300' },
   warm: { label: 'Warm', className: 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300' },
   cold: { label: 'Cold', className: 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' },

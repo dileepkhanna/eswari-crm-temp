@@ -247,6 +247,66 @@ class ApiClient {
     });
   }
 
+  // Customers
+  async getCustomers(): Promise<Customer[]> {
+    return this.request('/customers/');
+  }
+
+  async createCustomer(customerData: Partial<Customer>) {
+    return this.request('/customers/', {
+      method: 'POST',
+      body: JSON.stringify(customerData),
+    });
+  }
+
+  async updateCustomer(id: string, customerData: Partial<Customer>) {
+    return this.request(`/customers/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(customerData),
+    });
+  }
+
+  async deleteCustomer(id: string) {
+    return this.request(`/customers/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async bulkImportCustomers(customers: Partial<Customer>[]) {
+    return this.request('/customers/bulk_import/', {
+      method: 'POST',
+      body: JSON.stringify({ customers }),
+    });
+  }
+
+  async bulkAssignCustomers(customerIds: string[], employeeId: string) {
+    return this.request('/customers/bulk_assign/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        customer_ids: customerIds, 
+        employee_id: employeeId === 'unassigned' ? null : employeeId 
+      }),
+    });
+  }
+
+  async convertCustomerToLead(customerId: string) {
+    return this.request(`/customers/${customerId}/convert_to_lead/`, {
+      method: 'POST',
+    });
+  }
+
+  // Call Allocations
+  async getCallAllocations(): Promise<CallAllocation[]> {
+    return this.request('/allocations/');
+  }
+
+  async createCallAllocation(allocationData: Partial<CallAllocation>) {
+    return this.request('/allocations/', {
+      method: 'POST',
+      body: JSON.stringify(allocationData),
+    });
+  }
+
   // Leads
   async getLeads(params?: Record<string, any>) {
     const queryString = params ? '?' + new URLSearchParams(params).toString() : '';

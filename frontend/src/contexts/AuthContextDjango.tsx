@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = await apiClient.getProfile();
       
       const authUser: AuthUser = {
-        id: userData.id,
+        id: userData.id.toString(),
         userId: userData.username,
         name: `${userData.first_name} ${userData.last_name}`.trim() || userData.username,
         email: userData.email,
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await apiClient.login(email, password);
       
       const authUser: AuthUser = {
-        id: data.user.id,
+        id: data.user.id.toString(),
         userId: data.user.username,
         name: `${data.user.first_name} ${data.user.last_name}`.trim() || data.user.username,
         email: data.user.email,
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await apiClient.register(userData);
       
       const authUser: AuthUser = {
-        id: data.user.id,
+        id: data.user.id.toString(),
         userId: data.user.username,
         name: `${data.user.first_name} ${data.user.last_name}`.trim() || data.user.username,
         email: data.user.email,
@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       const authUser: AuthUser = {
-        id: data.user.id,
+        id: data.user.id.toString(),
         userId: data.user.username,
         name: `${data.user.first_name} ${data.user.last_name}`.trim() || data.user.username,
         email: data.user.email,

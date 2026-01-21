@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { useNotifications } from '@/contexts/NotificationContext';
 import { logActivity } from '@/lib/activityLogger';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 import LeaveStatusChip from './LeaveStatusChip';
 import LeaveFormModal from './LeaveFormModal';
 import LeaveRejectDialog from './LeaveRejectDialog';
@@ -73,6 +75,7 @@ interface LeaveListProps {
 export default function LeaveList({ canApprove = false, canCreate = false, canDelete = false, showOnlyPending = false }: LeaveListProps) {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
+  const isPageVisible = usePageVisibility();
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,7 +89,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteLeaveId, setDeleteLeaveId] = useState<string | null>(null);
 
-  // Fetch leaves from Supabase
+  // Fetch leaves from Django backend
   const fetchLeaves = async (showLoader = true) => {
     if (!user) return;
     
@@ -128,6 +131,13 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
       setLoading(false);
     }
   };
+
+  // Auto-refresh hook - silent background refresh
+  useAutoRefresh({
+    interval: 30, // 30 seconds
+    enabled: isPageVisible, // Only refresh when page is visible
+    onRefresh: () => fetchLeaves(false), // Silent refresh without loader
+  });
 
   useEffect(() => {
     fetchLeaves(true);

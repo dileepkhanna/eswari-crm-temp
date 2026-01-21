@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -20,10 +21,11 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 interface LeadFormModalProps {
   open: boolean;
@@ -45,15 +47,51 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
     budgetMax: 0,
     description: '',
     preferredLocation: '',
-    source: 'website' as LeadSource,
+    source: 'website' as LeadSource | 'custom',
+    customSource: '', // Add custom source field
     status: 'new' as LeadStatus,
     followUpDate: null as Date | null,
-    assignedProject: 'none' as string,
+    assignedProjects: [] as string[], // Changed to array for multiple projects
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
+  // Helper functions for project selection
+  const handleProjectToggle = (projectId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedProjects: prev.assignedProjects.includes(projectId)
+        ? prev.assignedProjects.filter(id => id !== projectId)
+        : [...prev.assignedProjects, projectId]
+    }));
+  };
+
+  const removeProject = (projectId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedProjects: prev.assignedProjects.filter(id => id !== projectId)
+    }));
+  };
+
+  const clearAllProjects = () => {
+    setFormData(prev => ({
+      ...prev,
+      assignedProjects: []
+    }));
+  };
+
   useEffect(() => {
     if (lead) {
+      // Check if the lead source is one of the predefined values
+      const isStandardSource = ['call', 'walk_in', 'website', 'referral', 'customer_conversion'].includes(lead.source || '');
+      
+      // Handle both old single project and new multiple projects format
+      let assignedProjects: string[] = [];
+      if (lead.assignedProjects && Array.isArray(lead.assignedProjects)) {
+        assignedProjects = lead.assignedProjects;
+      } else if (lead.assignedProject && lead.assignedProject !== 'none') {
+        assignedProjects = [lead.assignedProject];
+      }
+      
       setFormData({
         name: lead.name,
         phone: lead.phone,
@@ -65,10 +103,11 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
         budgetMax: lead.budgetMax,
         description: lead.description,
         preferredLocation: lead.preferredLocation || '',
-        source: lead.source || 'website',
+        source: isStandardSource ? (lead.source as LeadSource) : 'custom',
+        customSource: isStandardSource ? '' : (lead.source || ''),
         status: lead.status,
         followUpDate: lead.followUpDate || null,
-        assignedProject: lead.assignedProject || 'none',
+        assignedProjects: assignedProjects,
       });
     } else {
       setFormData({
@@ -83,9 +122,10 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
         description: '',
         preferredLocation: '',
         source: 'website',
+        customSource: '',
         status: 'new',
         followUpDate: null,
-        assignedProject: 'none',
+        assignedProjects: [],
       });
     }
   }, [lead, open]);
@@ -112,9 +152,21 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
       return;
     }
 
+    // Validate custom source if selected
+    if (formData.source === 'custom' && !formData.customSource.trim()) {
+      toast.error('Please enter a custom lead source');
+      return;
+    }
+
+    // Prepare the final source value
+    const finalSource = formData.source === 'custom' ? formData.customSource.trim() : formData.source;
+
     onSave({
       ...formData,
-      assignedProject: formData.assignedProject === 'none' ? undefined : formData.assignedProject,
+      source: finalSource as LeadSource,
+      assignedProjects: formData.assignedProjects.length > 0 ? formData.assignedProjects : undefined,
+      // Keep backward compatibility
+      assignedProject: formData.assignedProjects.length > 0 ? formData.assignedProjects[0] : undefined,
       followUpDate: formData.followUpDate || undefined,
     });
   };
@@ -171,7 +223,13 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
               <Label htmlFor="source">Lead Source</Label>
               <Select
                 value={formData.source}
-                onValueChange={(value: LeadSource) => setFormData({ ...formData, source: value })}
+                onValueChange={(value: LeadSource | 'custom') => {
+                  setFormData({ ...formData, source: value });
+                  // Clear custom source when switching away from custom
+                  if (value !== 'custom') {
+                    setFormData(prev => ({ ...prev, source: value, customSource: '' }));
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -181,29 +239,107 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
                   <SelectItem value="walk_in">Walk-in</SelectItem>
                   <SelectItem value="website">Website</SelectItem>
                   <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="customer_conversion">Customer Conversion</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* Custom source input field */}
+              {formData.source === 'custom' && (
+                <div className="mt-2">
+                  <Input
+                    placeholder="Enter custom lead source"
+                    value={formData.customSource}
+                    onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
+                    className="input-field"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Examples: "Facebook Ad", "Trade Show", "Partner Company", "LinkedIn", "Google Ads"
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Assigned Project</Label>
-            <Select
-              value={formData.assignedProject}
-              onValueChange={(value) => setFormData({ ...formData, assignedProject: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a project (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No project</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name} - {project.location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Assigned Projects</Label>
+            <div className="space-y-3">
+              {/* Selected Projects Display */}
+              {formData.assignedProjects.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Selected Projects ({formData.assignedProjects.length})</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearAllProjects}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      Clear All
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.assignedProjects.map(projectId => {
+                      const project = projects.find(p => p.id === projectId);
+                      return project ? (
+                        <Badge key={projectId} variant="secondary" className="flex items-center gap-1">
+                          <span className="text-xs">{project.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeProject(projectId)}
+                            className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {/* Project Selection */}
+              <div className="border rounded-lg p-3 max-h-48 overflow-y-auto">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground mb-2">
+                    Available Projects ({projects.length})
+                  </div>
+                  {projects.length > 0 ? (
+                    projects.map((project) => (
+                      <div key={project.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`project-${project.id}`}
+                          checked={formData.assignedProjects.includes(project.id)}
+                          onCheckedChange={() => handleProjectToggle(project.id)}
+                        />
+                        <Label
+                          htmlFor={`project-${project.id}`}
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          <div>
+                            <div className="font-medium">{project.name}</div>
+                            <div className="text-xs text-muted-foreground">{project.location}</div>
+                          </div>
+                        </Label>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      No projects available
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {formData.assignedProjects.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Select one or more projects to assign to this lead (optional)
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -264,6 +400,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="new">New</SelectItem>
                   <SelectItem value="hot">Hot</SelectItem>
                   <SelectItem value="warm">Warm</SelectItem>
                   <SelectItem value="cold">Cold</SelectItem>

@@ -20,6 +20,7 @@ import AdminAnnouncements from '@/pages/admin/AdminAnnouncements';
 import AdminReports from '@/pages/admin/AdminReports';
 import AdminBranding from '@/pages/admin/AdminBranding';
 import AdminHolidays from '@/pages/admin/AdminHolidays';
+import AdminCustomers from '@/pages/admin/AdminCustomers';
 
 // Manager Pages
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
@@ -29,6 +30,7 @@ import ManagerLeaves from '@/pages/manager/ManagerLeaves';
 import ManagerProjects from '@/pages/manager/ManagerProjects';
 import ManagerAnnouncements from '@/pages/manager/ManagerAnnouncements';
 import ManagerHolidays from '@/pages/manager/ManagerHolidays';
+import ManagerCustomers from '@/pages/manager/ManagerCustomers';
 
 // Staff Pages
 import StaffDashboard from '@/pages/staff/StaffDashboard';
@@ -38,6 +40,7 @@ import StaffLeaves from '@/pages/staff/StaffLeaves';
 import StaffProjects from '@/pages/staff/StaffProjects';
 import StaffAnnouncements from '@/pages/staff/StaffAnnouncements';
 import StaffHolidays from '@/pages/staff/StaffHolidays';
+import StaffCustomers from '@/pages/staff/StaffCustomers';
 
 // Shared Pages
 import SettingsPage from '@/pages/settings/SettingsPage';
@@ -79,6 +82,7 @@ const AppRouter = () => {
       <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
         <Route index element={<AdminDashboard />} />
         <Route path="leads" element={<AdminLeads />} />
+        <Route path="customers" element={<AdminCustomers />} />
         <Route path="tasks" element={<AdminTasks />} />
         <Route path="projects" element={<AdminProjects />} />
         <Route path="leaves" element={<AdminLeaves />} />
@@ -96,6 +100,7 @@ const AppRouter = () => {
       <Route path="/manager" element={<DashboardLayout requiredRole="manager" />}>
         <Route index element={<ManagerDashboard />} />
         <Route path="leads" element={<ManagerLeads />} />
+        <Route path="customers" element={<ManagerCustomers />} />
         <Route path="tasks" element={<ManagerTasks />} />
         <Route path="projects" element={<ManagerProjects />} />
         <Route path="leaves" element={<ManagerLeaves />} />
@@ -109,6 +114,7 @@ const AppRouter = () => {
       <Route path="/staff" element={<DashboardLayout requiredRole="employee" />}>
         <Route index element={<StaffDashboard />} />
         <Route path="leads" element={<StaffLeads />} />
+        <Route path="customers" element={<StaffCustomers />} />
         <Route path="tasks" element={<StaffTasks />} />
         <Route path="projects" element={<StaffProjects />} />
         <Route path="leaves" element={<StaffLeaves />} />

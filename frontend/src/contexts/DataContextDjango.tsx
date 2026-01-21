@@ -13,6 +13,7 @@ interface DataContextType {
   announcements: Announcement[];
   leaves: Leave[];
   loading: boolean;
+  refreshData: (showLoading?: boolean) => Promise<void>;
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
@@ -30,7 +31,6 @@ interface DataContextType {
   deleteLeave: (id: string) => Promise<void>;
   approveLeave: (id: string) => Promise<void>;
   rejectLeave: (id: string, reason?: string) => Promise<void>;
-  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -68,7 +68,8 @@ const apiToLead = (apiLead: any): Lead => ({
   followUpDate: apiLead.follow_up_date ? new Date(apiLead.follow_up_date) : undefined,
   notes: [],
   createdBy: apiLead.created_by_detail?.id?.toString() || apiLead.created_by?.toString() || '',
-  assignedProject: apiLead.assigned_project || '',
+  assignedProjects: apiLead.assigned_projects || [], // New multiple projects field
+  assignedProject: apiLead.assigned_project || '', // Keep for backward compatibility
   createdAt: new Date(apiLead.created_at),
   updatedAt: new Date(apiLead.updated_at),
 });
@@ -303,18 +304,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (showLoading = false) => {
     // Don't fetch data if no user is authenticated
     if (!user) {
-      console.log('No authenticated user, skipping data refresh');
       setLoading(false);
       return;
     }
     
-    setLoading(true);
+    if (showLoading) {
+      setLoading(true);
+    }
     
     try {
-      console.log('Refreshing all data for user:', user.name);
       await Promise.all([
         fetchProjects(),
         fetchLeads(),
@@ -330,17 +331,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.warn('Authentication failed during data refresh. Tokens may be invalid.');
       }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, [fetchProjects, fetchLeads, fetchTasks, fetchAnnouncements, fetchLeaves, user]);
+
+  // Auto-refresh data every 30 seconds
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      refreshData();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [user, refreshData]);
 
   // Initial fetch
   useEffect(() => {
     if (user) {
-      console.log('User authenticated, refreshing data...');
-      refreshData();
+      refreshData(true); // Show loading on initial fetch
     } else {
-      console.log('No authenticated user, skipping data fetch');
       setLoading(false);
     }
   }, [user, refreshData]);
@@ -360,7 +372,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         preferred_location: lead.preferredLocation || '',
         status: lead.status,
         source: lead.source || 'website',
-        assigned_project: lead.assignedProject || null,
+        assigned_projects: lead.assignedProjects || [], // New multiple projects field
+        assigned_project: lead.assignedProject || null, // Keep for backward compatibility
         follow_up_date: lead.followUpDate?.toISOString() || null,
       };
 
@@ -414,6 +427,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.preferredLocation !== undefined) updateData.preferred_location = data.preferredLocation;
       if (data.status !== undefined) updateData.status = data.status;
       if (data.source !== undefined) updateData.source = data.source;
+      if (data.assignedProjects !== undefined) updateData.assigned_projects = data.assignedProjects;
       if (data.assignedProject !== undefined) updateData.assigned_project = data.assignedProject;
       if (data.followUpDate !== undefined) {
         updateData.follow_up_date = data.followUpDate?.toISOString() || null;
@@ -447,15 +461,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteLead = useCallback(async (id: string) => {
     try {
+      // Get lead details before deletion for activity logging
+      const leadToDelete = leads.find(l => l.id === id);
+      const leadName = leadToDelete?.name || 'Unknown Lead';
+      
       await apiClient.deleteLead(parseInt(id));
       setLeads(prev => prev.filter(l => l.id !== id));
+      
+      // Log activity after successful deletion
+      if (user) {
+        console.log('Logging lead deletion activity for user:', user);
+        try {
+          await logLeadActivity(user, 'deleted', leadName);
+          console.log('Lead deletion activity logged successfully');
+        } catch (activityError) {
+          console.error('Failed to log lead deletion activity:', activityError);
+        }
+      }
+      
       toast.success('Lead deleted successfully');
     } catch (error) {
       console.error('Error deleting lead:', error);
       toast.error('Failed to delete lead');
       throw error;
     }
-  }, []);
+  }, [user, leads]);
 
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -874,6 +904,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     announcements,
     leaves,
     loading,
+    refreshData,
     addLead,
     updateLead,
     deleteLead,
@@ -891,7 +922,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     deleteLeave,
     approveLeave,
     rejectLeave,
-    refreshData,
   };
 
   return (

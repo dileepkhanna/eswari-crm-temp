@@ -93,7 +93,11 @@ export default function LeadList({
         lead.phone.includes(searchQuery);
 
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-      const matchesProject = projectFilter === "all" || lead.assignedProject === projectFilter;
+      
+      // Updated project filtering to handle multiple projects
+      const matchesProject = projectFilter === "all" || 
+        (lead.assignedProjects && lead.assignedProjects.includes(projectFilter)) ||
+        lead.assignedProject === projectFilter;
 
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
@@ -165,6 +169,11 @@ export default function LeadList({
 
   const handleConvertToTask = async (lead: Lead) => {
     try {
+      // Use first assigned project or fallback to single project
+      const projectId = (lead.assignedProjects && lead.assignedProjects.length > 0) 
+        ? lead.assignedProjects[0] 
+        : lead.assignedProject;
+        
       await addTask({
         leadId: lead.id,
         lead: lead,
@@ -172,7 +181,7 @@ export default function LeadList({
         notes: [],
         attachments: [],
         assignedTo: user?.id || "unknown",
-        assignedProject: lead.assignedProject,
+        assignedProject: projectId,
       });
       toast.success(`Lead "${lead.name}" converted to task`, {
         description: "You can now track this lead in the Tasks module.",
@@ -205,6 +214,40 @@ export default function LeadList({
     if (!projectId) return "-";
     const project = projects.find((p) => p.id === projectId);
     return project ? project.name : "-";
+  };
+
+  // Helper function to get project names for multiple projects
+  const getProjectNames = (assignedProjects?: string[], assignedProject?: string) => {
+    // Handle both new multiple projects and old single project
+    let projectIds: string[] = [];
+    
+    if (assignedProjects && assignedProjects.length > 0) {
+      projectIds = assignedProjects;
+    } else if (assignedProject && assignedProject !== 'none') {
+      projectIds = [assignedProject];
+    }
+    
+    if (projectIds.length === 0) {
+      return '-';
+    }
+    
+    const projectNames = projectIds
+      .map(id => projects.find(p => p.id === id)?.name)
+      .filter(name => name);
+    
+    if (projectNames.length === 0) {
+      return '-';
+    }
+    
+    if (projectNames.length === 1) {
+      return projectNames[0];
+    }
+    
+    if (projectNames.length <= 2) {
+      return projectNames.join(', ');
+    }
+    
+    return `${projectNames[0]} +${projectNames.length - 1} more`;
   };
 
   const handleStatusChange = async (leadId: string, newStatus: Lead["status"]) => {
@@ -252,10 +295,12 @@ export default function LeadList({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="new">New</SelectItem>
                 <SelectItem value="hot">Hot</SelectItem>
                 <SelectItem value="warm">Warm</SelectItem>
                 <SelectItem value="cold">Cold</SelectItem>
                 <SelectItem value="not_interested">Not Interested</SelectItem>
+                <SelectItem value="reminder">Reminder</SelectItem>
               </SelectContent>
             </Select>
 
@@ -371,7 +416,7 @@ export default function LeadList({
               </div>
             )}
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 gap-2">
-              <span className="truncate">{getProjectName(lead.assignedProject)}</span>
+              <span className="truncate">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</span>
               {!isManagerView && <span className="shrink-0">{formatBudget(lead.budgetMin, lead.budgetMax)}</span>}
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -488,7 +533,7 @@ export default function LeadList({
                   <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
                 </TableCell>
                 <TableCell>
-                  <p className="text-sm font-medium">{getProjectName(lead.assignedProject)}</p>
+                  <p className="text-sm font-medium">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</p>
                 </TableCell>
                 <TableCell>
                   <Select value={lead.status} onValueChange={(value) => handleStatusChange(lead.id, value as Lead["status"])}>
@@ -496,10 +541,12 @@ export default function LeadList({
                       <LeadStatusChip status={lead.status} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
                       <SelectItem value="hot">Hot</SelectItem>
                       <SelectItem value="warm">Warm</SelectItem>
                       <SelectItem value="cold">Cold</SelectItem>
                       <SelectItem value="not_interested">Not Interested</SelectItem>
+                      <SelectItem value="reminder">Reminder</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>

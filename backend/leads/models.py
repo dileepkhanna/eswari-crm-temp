@@ -5,13 +5,14 @@ User = get_user_model()
 
 class Lead(models.Model):
     STATUS_CHOICES = [
+        ('new', 'New'),
         ('hot', 'Hot'),
         ('warm', 'Warm'),
         ('cold', 'Cold'),
         ('not_interested', 'Not Interested'),
         ('reminder', 'Reminder'),
     ]
-    
+
     REQUIREMENT_TYPE_CHOICES = [
         ('villa', 'Villa'),
         ('apartment', 'Apartment'),
@@ -48,13 +49,14 @@ class Lead(models.Model):
     preferred_location = models.CharField(max_length=200, blank=True)
     
     # Lead Management
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='hot')
-    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='website')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    source = models.CharField(max_length=100, default='website', help_text="Lead source - can be predefined or custom")
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_leads')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_leads', null=True, blank=True)
     
     # Project Assignment
-    assigned_project = models.CharField(max_length=100, blank=True, null=True)
+    assigned_project = models.CharField(max_length=100, blank=True, null=True)  # Keep for backward compatibility
+    assigned_projects = models.JSONField(default=list, blank=True, help_text="List of assigned project IDs")
     
     # Notes and Follow-up
     description = models.TextField(blank=True, help_text="Lead description and notes")

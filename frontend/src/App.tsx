@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContextDjango";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DataProvider } from "@/contexts/DataContextDjango";
+import { CustomerProvider } from "@/contexts/CustomerContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import AppRouter from "@/components/AppRouter";
 import { useEffect } from "react";
@@ -27,13 +28,15 @@ const App = () => {
           <AppSettingsProvider>
             <NotificationProvider>
               <DataProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
-                    <AppRouter />
-                  </BrowserRouter>
-                </TooltipProvider>
+                <CustomerProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
+                      <AppRouter />
+                    </BrowserRouter>
+                  </TooltipProvider>
+                </CustomerProvider>
               </DataProvider>
             </NotificationProvider>
           </AppSettingsProvider>
