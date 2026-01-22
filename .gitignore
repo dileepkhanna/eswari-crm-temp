@@ -1,90 +1,66 @@
-# DEPLOYMENT SETUP: Only frontend/ and backend/ folders will be pushed to Git
-# All root-level files and directories are ignored except frontend/ and backend/
+# ESWARI CRM - Git Ignore File
 
-# Ignore all root-level files and directories
-/*
-
-# Allow only frontend and backend directories
-!/frontend/
-!/backend/
-!/.gitignore
-
-# Environment files
+# Environment variables
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.production
+.env.development
 backend/.env
-frontend/.env
+frontend/.env.local
+frontend/.env.production
 
-# Python virtual environments
-.venv/
-venv/
-env/
-ENV/
-backend/venv/
-backend/.venv/
+# Database
+*.sqlite3
+*.db
+db.sqlite3
 
-# Python cache and compiled files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.pyc
-*.pyo
-*.pyd
 .Python
-.pytest_cache/
-backend/__pycache__/
-backend/*/__pycache__/
-backend/*/*/__pycache__/
-backend/*/*/*/__pycache__/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Django
-*.log
-backend/media/
-backend/static/
-backend/staticfiles/
-backend/media/uploads/
-db.sqlite3
-db.sqlite3-journal
+# Virtual Environment
+venv/
+env/
+ENV/
+backend/venv/
+backend/env/
 
 # Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 frontend/node_modules/
 frontend/dist/
-frontend/dist-ssr/
-frontend/.vite/
+frontend/build/
 
-# Build artifacts
-dist/
-build/
-.vite/
-*.local
-
-# Logs
-logs/
-*.log
-
-# Database
-*.sqlite3
-*.db
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+# IDE
+.vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -93,11 +69,32 @@ logs/
 ehthumbs.db
 Thumbs.db
 
+# Logs
+*.log
+logs/
+backend/logs/
+frontend/logs/
+
+# Static files (generated)
+backend/staticfiles/
+backend/static/
+backend/media/
+
 # Temporary files
 *.tmp
 *.temp
+temp/
+tmp/
+
+# Backup files
 *.bak
 *.backup
+backup/
+
+# Test files
+test_document.txt
+clear_tokens.html
+clear_browser_tokens.js
 
 # Coverage reports
 htmlcov/
@@ -106,37 +103,26 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
+.pytest_cache/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Deployment specific
+deploy-config.local.sh
+webhook.json.local
 
-# pyenv
-.python-version
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
 
-# pipenv
-Pipfile.lock
+# Local configuration overrides
+local_settings.py
+settings_local.py
 
-# PEP 582
-__pypackages__/
+# Cache
+.cache/
+.parcel-cache/
 
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Build artifacts
+*.tgz
+*.tar.gz
