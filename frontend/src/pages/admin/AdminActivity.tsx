@@ -398,10 +398,7 @@ export default function AdminActivity() {
     <div className="min-h-screen">
       <TopBar title="🔴 ADMIN - Activity Log" subtitle="Track all system activities by staff and managers" />
       <div className="p-4 md:p-6 space-y-6">
-        {/* DEBUG INDICATOR */}
-        <div className="bg-red-500 text-white p-4 rounded-lg text-center font-bold">
-          🔴 ADMIN PANEL - ALL SYSTEM ACTIVITIES (Original Version)
-        </div>
+
         {/* Filters */}
         <div className="glass-card rounded-2xl p-4 md:p-6">
           <div className="flex flex-col gap-4">
