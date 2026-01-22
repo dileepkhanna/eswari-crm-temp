@@ -118,19 +118,19 @@ export default function CustomerList({
     }
   };
 
-  // Auto-refresh hook - silent background refresh every 30 seconds
-  useAutoRefresh({
-    interval: 30, // 30 seconds
-    enabled: isPageVisible, // Only refresh when page is visible
-    onRefresh: async () => {
-      try {
-        await onRefreshCustomers();
-      } catch (error) {
-        console.error('Auto-refresh failed:', error);
-        // Don't show error toast for auto-refresh failures to avoid spam
-      }
-    },
-  });
+  // Auto-refresh hook - DISABLED to prevent form data loss
+  // useAutoRefresh({
+  //   interval: 30, // 30 seconds
+  //   enabled: isPageVisible, // Only refresh when page is visible
+  //   onRefresh: async () => {
+  //     try {
+  //       await onRefreshCustomers();
+  //     } catch (error) {
+  //       console.error('Auto-refresh failed:', error);
+  //       // Don't show error toast for auto-refresh failures to avoid spam
+  //     }
+  //   },
+  // });
 
   // Get unique custom statuses from all customers
   const uniqueCustomStatuses = useMemo(() => {

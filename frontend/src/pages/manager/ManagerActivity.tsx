@@ -209,20 +209,20 @@ export default function ManagerActivity() {
     }
   }, [error, user]);
 
-  // Auto-refresh every 30 seconds (disabled when no user)
-  useEffect(() => {
-    // Only set up auto-refresh if user is authenticated and no error
-    if (!user || error) {
-      console.log('Skipping auto-refresh: no user or error present');
-      return;
-    }
+  // Auto-refresh every 30 seconds (disabled when no user) - DISABLED to prevent form data loss
+  // useEffect(() => {
+  //   // Only set up auto-refresh if user is authenticated and no error
+  //   if (!user || error) {
+  //     console.log('Skipping auto-refresh: no user or error present');
+  //     return;
+  //   }
     
-    const interval = setInterval(() => {
-      console.log('Auto-refreshing activities...');
-      refreshActivities();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [refreshActivities, user, error]); // Add error as dependency
+  //   const interval = setInterval(() => {
+  //     console.log('Auto-refreshing activities...');
+  //     refreshActivities();
+  //   }, 30000);
+  //   return () => clearInterval(interval);
+  // }, [refreshActivities, user, error]); // Add error as dependency
 
   // Listen for activity logged events
   useEffect(() => {

@@ -337,16 +337,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchProjects, fetchLeads, fetchTasks, fetchAnnouncements, fetchLeaves, user]);
 
-  // Auto-refresh data every 30 seconds
-  useEffect(() => {
-    if (!user) return;
+  // Auto-refresh data every 30 seconds - DISABLED to prevent form data loss
+  // useEffect(() => {
+  //   if (!user) return;
 
-    const interval = setInterval(() => {
-      refreshData();
-    }, 30000); // 30 seconds
+  //   const interval = setInterval(() => {
+  //     refreshData();
+  //   }, 30000); // 30 seconds
 
-    return () => clearInterval(interval);
-  }, [user, refreshData]);
+  //   return () => clearInterval(interval);
+  // }, [user, refreshData]);
 
   // Initial fetch
   useEffect(() => {

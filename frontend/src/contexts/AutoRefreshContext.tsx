@@ -25,7 +25,7 @@ interface AutoRefreshProviderProps {
 }
 
 export function AutoRefreshProvider({ children }: AutoRefreshProviderProps) {
-  const [globalRefreshEnabled, setGlobalRefreshEnabled] = useState(true);
+  const [globalRefreshEnabled, setGlobalRefreshEnabled] = useState(false); // Disabled by default to prevent form data loss
   const [refreshInterval, setRefreshInterval] = useState(30); // seconds
   const [refreshCallbacks, setRefreshCallbacks] = useState<Map<string, () => void>>(new Map());
 

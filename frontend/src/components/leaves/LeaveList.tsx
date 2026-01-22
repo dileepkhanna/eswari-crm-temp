@@ -132,12 +132,12 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
     }
   };
 
-  // Auto-refresh hook - silent background refresh
-  useAutoRefresh({
-    interval: 30, // 30 seconds
-    enabled: isPageVisible, // Only refresh when page is visible
-    onRefresh: () => fetchLeaves(false), // Silent refresh without loader
-  });
+  // Auto-refresh hook - DISABLED to prevent form data loss
+  // useAutoRefresh({
+  //   interval: 30, // 30 seconds
+  //   enabled: isPageVisible, // Only refresh when page is visible
+  //   onRefresh: () => fetchLeaves(false), // Silent refresh without loader
+  // });
 
   useEffect(() => {
     fetchLeaves(true);
