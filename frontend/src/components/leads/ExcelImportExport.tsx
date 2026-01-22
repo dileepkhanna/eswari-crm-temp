@@ -4,8 +4,10 @@ import { Lead, LeadStatus, RequirementType, LeadSource } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface ExcelImportExportProps {
+  leads?: Lead[]; // Add leads prop for export
   onImport: (leads: Partial<Lead>[]) => void;
 }
 
@@ -30,8 +32,67 @@ const SAMPLE_DATA = [
   ['Jane Smith', '9123456789', 'jane@example.com', '456 Oak Ave', 'villa', '4', '10000000', '15000000', 'Suburbs', 'referral', 'contacted', '2024-02-15', 'Family looking for villa'],
 ];
 
-export default function ExcelImportExport({ onImport }: ExcelImportExportProps) {
+export default function ExcelImportExport({ leads = [], onImport }: ExcelImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    try {
+      if (leads.length === 0) {
+        toast.error('No leads to export');
+        return;
+      }
+
+      const exportData = leads.map(lead => ({
+        'Name': lead.name,
+        'Phone': lead.phone,
+        'Email': lead.email,
+        'Address': lead.address,
+        'Requirement Type': lead.requirementType,
+        'BHK': lead.bhkRequirement,
+        'Budget Min': lead.budgetMin,
+        'Budget Max': lead.budgetMax,
+        'Preferred Location': lead.preferredLocation,
+        'Source': lead.source,
+        'Status': lead.status,
+        'Follow-up Date': lead.followUpDate ? format(lead.followUpDate, 'yyyy-MM-dd') : '',
+        'Description': lead.description,
+        'Created Date': format(lead.createdAt, 'yyyy-MM-dd'),
+        'Created By': lead.createdBy,
+        'Assigned Projects': lead.assignedProjects ? lead.assignedProjects.join(', ') : (lead.assignedProject || ''),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Leads');
+      
+      // Auto-size columns
+      const colWidths = [
+        { wch: 20 }, // Name
+        { wch: 15 }, // Phone
+        { wch: 25 }, // Email
+        { wch: 30 }, // Address
+        { wch: 15 }, // Requirement Type
+        { wch: 8 },  // BHK
+        { wch: 12 }, // Budget Min
+        { wch: 12 }, // Budget Max
+        { wch: 20 }, // Preferred Location
+        { wch: 12 }, // Source
+        { wch: 15 }, // Status
+        { wch: 12 }, // Follow-up Date
+        { wch: 40 }, // Description
+        { wch: 12 }, // Created Date
+        { wch: 15 }, // Created By
+        { wch: 25 }, // Assigned Projects
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.writeFile(wb, `leads_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(`Exported ${leads.length} leads successfully`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export leads data');
+    }
+  };
 
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
@@ -151,6 +212,15 @@ export default function ExcelImportExport({ onImport }: ExcelImportExportProps) 
       >
         <Upload className="w-4 h-4" />
         Import Excel
+      </Button>
+      <Button
+        variant="outline"
+        onClick={handleExport}
+        className="gap-2"
+        disabled={leads.length === 0}
+      >
+        <Download className="w-4 h-4" />
+        Export Data ({leads.length})
       </Button>
       <input
         ref={fileInputRef}

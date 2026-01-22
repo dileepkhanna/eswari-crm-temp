@@ -8,12 +8,6 @@ export default function ManagerCustomers() {
   const {
     customers,
     employees,
-    addCustomer,
-    updateCustomer,
-    deleteCustomer,
-    bulkImportCustomers,
-    convertToLead,
-    createLeadFromCustomer,
     refreshCustomers,
   } = useCustomers();
 
@@ -21,21 +15,22 @@ export default function ManagerCustomers() {
     <div className="min-h-screen">
       <TopBar 
         title="Customer Management" 
-        subtitle="Manage team customers and call allocations" 
+        subtitle="View assigned customers and call allocations" 
       />
       <div className="p-3 sm:p-4 md:p-6">
         <CustomerList
           customers={customers}
           employees={employees}
           projects={projects}
-          onAddCustomer={addCustomer}
-          onUpdateCustomer={updateCustomer}
-          onDeleteCustomer={deleteCustomer}
-          onBulkImport={bulkImportCustomers}
-          onConvertToLead={convertToLead}
-          onCreateLead={createLeadFromCustomer}
+          onAddCustomer={() => {}} // Disabled for managers
+          onUpdateCustomer={() => {}} // Disabled for managers - no edit functionality
+          onDeleteCustomer={() => {}} // Disabled for managers
+          onBulkImport={() => {}} // Disabled for managers
+          onConvertToLead={() => {}} // Disabled for managers - no convert functionality
+          onCreateLead={() => {}} // Disabled for managers - no convert functionality
           onRefreshCustomers={refreshCustomers}
-          canManageAll={true}
+          canManageAll={false} // Managers cannot manage all customers
+          isManagerView={true} // New prop to indicate this is manager view
         />
       </div>
     </div>

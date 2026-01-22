@@ -49,8 +49,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
     { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leaves', icon: CalendarOff, href: '/leaves', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin'] },
-    { label: 'Activity', icon: Activity, href: '/activity', roles: ['admin'] },
+    { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin', 'manager'] },
+    { label: 'Activity', icon: Activity, href: '/activity', roles: ['admin', 'manager'] },
   ];
 
   if (!user) return null;

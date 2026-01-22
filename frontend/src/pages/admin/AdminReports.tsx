@@ -236,9 +236,13 @@ export default function AdminReports() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title="Reports" subtitle="Team performance analytics and insights" />
+      <TopBar title="🔴 ADMIN - Reports" subtitle="Team performance analytics and insights" />
 
       <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* DEBUG INDICATOR */}
+        <div className="bg-red-500 text-white p-4 rounded-lg text-center font-bold">
+          🔴 ADMIN PANEL - ALL ORGANIZATION REPORTS (Original Version)
+        </div>
         {/* Filters Section */}
         <Card className="glass-card">
           <CardHeader className="pb-4">

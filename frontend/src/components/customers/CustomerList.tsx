@@ -65,6 +65,7 @@ interface CustomerListProps {
   onCreateLead: (leadData: any) => void; // Add new prop for creating lead
   onRefreshCustomers: () => Promise<void>; // Add refresh function
   canManageAll?: boolean; // Admin/Manager permissions
+  isManagerView?: boolean; // New prop to indicate manager view (hides phone numbers)
 }
 
 export default function CustomerList({
@@ -78,7 +79,8 @@ export default function CustomerList({
   onConvertToLead,
   onCreateLead,
   onRefreshCustomers,
-  canManageAll = false
+  canManageAll = false,
+  isManagerView = false
 }: CustomerListProps) {
   const { user } = useAuth();
   const isPageVisible = usePageVisibility();
@@ -545,7 +547,7 @@ export default function CustomerList({
         </div>
 
         {/* Bulk Actions Row */}
-        {selectedIds.size > 0 && (
+        {selectedIds.size > 0 && !isManagerView && (
           <div className="flex flex-wrap gap-2">
             {canManageAll && (
               <>
@@ -586,20 +588,24 @@ export default function CustomerList({
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
           
-          <CustomerExcelImportExport
-            customers={filteredCustomers}
-            onImport={onBulkImport}
-            employees={employees}
-            canAssignToEmployee={canManageAll}
-          />
-          
-          <Button 
-            className="btn-accent text-xs sm:text-sm" 
-            onClick={() => setIsFormOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-1 sm:mr-2" />
-            Add Customer
-          </Button>
+          {!isManagerView && (
+            <>
+              <CustomerExcelImportExport
+                customers={filteredCustomers}
+                onImport={onBulkImport}
+                employees={employees}
+                canAssignToEmployee={canManageAll}
+              />
+              
+              <Button 
+                className="btn-accent text-xs sm:text-sm" 
+                onClick={() => setIsFormOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+                Add Customer
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -610,13 +616,15 @@ export default function CustomerList({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-12">
-                  <Checkbox 
-                    checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0} 
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all"
-                  />
-                </TableHead>
+                {!isManagerView && (
+                  <TableHead className="w-12">
+                    <Checkbox 
+                      checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0} 
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="font-semibold">Phone</TableHead>
                 <TableHead className="font-semibold">Name</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
@@ -632,21 +640,26 @@ export default function CustomerList({
                   className="table-row-hover animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedIds.has(customer.id)} 
-                      onCheckedChange={() => toggleSelect(customer.id)}
-                      aria-label={`Select ${customer.name || customer.phone}`}
-                    />
-                  </TableCell>
+                  {!isManagerView && (
+                    <TableCell>
+                      <Checkbox 
+                        checked={selectedIds.has(customer.id)} 
+                        onCheckedChange={() => toggleSelect(customer.id)}
+                        aria-label={`Select ${customer.name || customer.phone}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{customer.phone}</span>
+                      <span className="font-medium">
+                        {isManagerView ? '***-***-****' : customer.phone}
+                      </span>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                         onClick={() => handlePhoneCall(customer)}
+                        disabled={isManagerView} // Disable call button for managers
                       >
                         <Phone className="w-4 h-4" />
                       </Button>
@@ -727,29 +740,33 @@ export default function CustomerList({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          console.log('🖱️ Edit button clicked for customer:', customer);
-                          setEditingCustomer(customer);
-                          setIsFormOpen(true);
-                          console.log('✅ Modal should open with customer data');
-                        }}
-                        className="text-xs"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleConvert(customer)}
-                        disabled={customer.isConverted}
-                        className="text-xs"
-                      >
-                        {customer.isConverted ? 'Converted' : 'Convert to Lead'}
-                      </Button>
+                      {!isManagerView && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              console.log('🖱️ Edit button clicked for customer:', customer);
+                              setEditingCustomer(customer);
+                              setIsFormOpen(true);
+                              console.log('✅ Modal should open with customer data');
+                            }}
+                            className="text-xs"
+                          >
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleConvert(customer)}
+                            disabled={customer.isConverted}
+                            className="text-xs"
+                          >
+                            {customer.isConverted ? 'Converted' : 'Convert to Lead'}
+                          </Button>
+                        </>
+                      )}
                       {customer.isConverted && (
                         <Badge variant="secondary" className="text-xs">
                           Lead
@@ -767,16 +784,18 @@ export default function CustomerList({
         <div className="lg:hidden">
           {/* Select All Header */}
           <div className="p-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0} 
-                onCheckedChange={toggleSelectAll}
-                aria-label="Select all"
-              />
-              <span className="text-sm font-medium">
-                {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
-              </span>
-            </div>
+            {!isManagerView && (
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0} 
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+                <span className="text-sm font-medium">
+                  {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+                </span>
+              </div>
+            )}
             <span className="text-sm text-muted-foreground">
               {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''}
             </span>
@@ -791,23 +810,28 @@ export default function CustomerList({
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <div className="flex items-start gap-3">
-                  <Checkbox 
-                    checked={selectedIds.has(customer.id)} 
-                    onCheckedChange={() => toggleSelect(customer.id)}
-                    aria-label={`Select ${customer.name || customer.phone}`}
-                    className="mt-1"
-                  />
+                  {!isManagerView && (
+                    <Checkbox 
+                      checked={selectedIds.has(customer.id)} 
+                      onCheckedChange={() => toggleSelect(customer.id)}
+                      aria-label={`Select ${customer.name || customer.phone}`}
+                      className="mt-1"
+                    />
+                  )}
                   
                   <div className="flex-1 space-y-3">
                     {/* Header with Phone and Call Button */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-base">{customer.phone}</span>
+                        <span className="font-medium text-base">
+                          {isManagerView ? '***-***-****' : customer.phone}
+                        </span>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                           onClick={() => handlePhoneCall(customer)}
+                          disabled={isManagerView} // Disable call button for managers
                         >
                           <Phone className="w-4 h-4" />
                         </Button>
@@ -907,31 +931,33 @@ export default function CustomerList({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          console.log('🖱️ Edit button clicked for customer:', customer);
-                          setEditingCustomer(customer);
-                          setIsFormOpen(true);
-                          console.log('✅ Modal should open with customer data');
-                        }}
-                        className="text-xs"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleConvert(customer)}
-                        disabled={customer.isConverted}
-                        className="text-xs"
-                      >
-                        {customer.isConverted ? 'Converted' : 'Convert to Lead'}
-                      </Button>
-                    </div>
+                    {!isManagerView && (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            console.log('🖱️ Edit button clicked for customer:', customer);
+                            setEditingCustomer(customer);
+                            setIsFormOpen(true);
+                            console.log('✅ Modal should open with customer data');
+                          }}
+                          className="text-xs"
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleConvert(customer)}
+                          disabled={customer.isConverted}
+                          className="text-xs"
+                        >
+                          {customer.isConverted ? 'Converted' : 'Convert to Lead'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -946,122 +972,130 @@ export default function CustomerList({
         )}
       </div>
 
-      {/* Customer Form Modal */}
-      <CustomerFormModal
-        open={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingCustomer(null);
-        }}
-        onSave={(customerData) => {
-          if (editingCustomer) {
-            onUpdateCustomer(editingCustomer.id, customerData);
-          } else {
-            onAddCustomer(customerData);
-          }
-          setIsFormOpen(false);
-          setEditingCustomer(null);
-        }}
-        customer={editingCustomer}
-        employees={employees}
-        canAssignToEmployee={canManageAll}
-      />
+      {/* Customer Form Modal - Only for non-manager views */}
+      {!isManagerView && (
+        <CustomerFormModal
+          open={isFormOpen}
+          onClose={() => {
+            setIsFormOpen(false);
+            setEditingCustomer(null);
+          }}
+          onSave={(customerData) => {
+            if (editingCustomer) {
+              onUpdateCustomer(editingCustomer.id, customerData);
+            } else {
+              onAddCustomer(customerData);
+            }
+            setIsFormOpen(false);
+            setEditingCustomer(null);
+          }}
+          customer={editingCustomer}
+          employees={employees}
+          canAssignToEmployee={canManageAll}
+        />
+      )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg">Delete Customers</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
-              Are you sure you want to delete {selectedIds.size} customer(s)? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleBulkDelete} 
-              className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Confirmation Dialog - Only for non-manager views */}
+      {!isManagerView && (
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-lg">Delete Customers</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
+                Are you sure you want to delete {selectedIds.size} customer(s)? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleBulkDelete} 
+                className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
-      {/* Bulk Assignment Dialog */}
-      <AlertDialog open={showBulkAssignDialog} onOpenChange={setShowBulkAssignDialog}>
-        <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg">Assign Customers to Employee</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
-              Assign {selectedIds.size} customer(s) to an employee. This will update their assignment immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Employee</label>
-              <Select value={bulkAssignEmployee} onValueChange={setBulkAssignEmployee}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Choose employee or unassign" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Remove Assignment</SelectItem>
-                  {employees.length > 0 ? (
-                    employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.role})
+      {/* Bulk Assignment Dialog - Only for non-manager views */}
+      {!isManagerView && (
+        <AlertDialog open={showBulkAssignDialog} onOpenChange={setShowBulkAssignDialog}>
+          <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-lg">Assign Customers to Employee</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
+                Assign {selectedIds.size} customer(s) to an employee. This will update their assignment immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Employee</label>
+                <Select value={bulkAssignEmployee} onValueChange={setBulkAssignEmployee}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Choose employee or unassign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Remove Assignment</SelectItem>
+                    {employees.length > 0 ? (
+                      employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} ({emp.role})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-employees" disabled>
+                        No employees available
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-employees" disabled>
-                      No employees available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkAssign} className="w-full sm:w-auto">
-              Assign Customers
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkAssign} className="w-full sm:w-auto">
+                Assign Customers
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
-      {/* Lead Form Modal for Convert to Lead */}
-      <LeadFormModal
-        open={isLeadFormOpen}
-        onClose={() => {
-          setIsLeadFormOpen(false);
-          setConvertingCustomer(null);
-        }}
-        onSave={handleLeadFormSave}
-        lead={convertingCustomer ? {
-          id: '', // New lead
-          name: convertingCustomer.name || '',
-          phone: convertingCustomer.phone,
-          email: '',
-          address: '',
-          requirementType: 'apartment',
-          bhkRequirement: '2',
-          budgetMin: 0,
-          budgetMax: 0,
-          description: convertingCustomer.notes || '',
-          preferredLocation: '',
-          source: 'customer_conversion',
-          status: 'new',
-          followUpDate: undefined,
-          notes: [],
-          createdBy: '',
-          assignedProjects: [], // Initialize as empty array
-          assignedProject: '', // Keep for backward compatibility
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        } : null}
-        projects={projects || []}
-      />
+      {/* Lead Form Modal for Convert to Lead - Only for non-manager views */}
+      {!isManagerView && (
+        <LeadFormModal
+          open={isLeadFormOpen}
+          onClose={() => {
+            setIsLeadFormOpen(false);
+            setConvertingCustomer(null);
+          }}
+          onSave={handleLeadFormSave}
+          lead={convertingCustomer ? {
+            id: '', // New lead
+            name: convertingCustomer.name || '',
+            phone: convertingCustomer.phone,
+            email: '',
+            address: '',
+            requirementType: 'apartment',
+            bhkRequirement: '2',
+            budgetMin: 0,
+            budgetMax: 0,
+            description: convertingCustomer.notes || '',
+            preferredLocation: '',
+            source: 'customer_conversion',
+            status: 'new',
+            followUpDate: undefined,
+            notes: [],
+            createdBy: '',
+            assignedProjects: [], // Initialize as empty array
+            assignedProject: '', // Keep for backward compatibility
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } : null}
+          projects={projects || []}
+        />
+      )}
     </div>
   );
 }

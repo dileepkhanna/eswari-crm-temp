@@ -8,7 +8,7 @@ import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
 import { useData } from '@/contexts/DataContextDjango';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
-import { Building, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
+import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface StaffMember {
@@ -24,35 +24,9 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch pending leaves for staff
-      const { data: leavesData } = await supabase
-        .from('leaves')
-        .select('id')
-        .eq('status', 'pending')
-        .eq('user_role', 'staff');
-      
-      setPendingLeaves(leavesData?.length || 0);
-
-      // TODO: Implement staff members API in Django backend
-      // const { data: profilesData } = await supabase
-      //   .from('profiles')
-      //   .select('id, name, email');
-      
-      // if (profilesData) {
-      //   // Filter for staff members (non-admin, non-manager)
-      //   const staffList: StaffMember[] = [];
-      //   for (const profile of profilesData) {
-      //     const { data: roleData } = await supabase.rpc('get_user_role', {
-      //       _user_id: profile.id
-      //     });
-      //     if (roleData === 'staff') {
-      //       staffList.push(profile);
-      //     }
-      //   }
-      //   setStaffMembers(staffList);
-      // }
-      
-      // Mock data for now
+      // TODO: Implement leaves API in Django backend
+      // For now, set mock data
+      setPendingLeaves(0);
       setStaffMembers([]);
     };
 
@@ -75,7 +49,7 @@ export default function ManagerDashboard() {
         {/* Announcements */}
         <AnnouncementBanner userRole="manager" />
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
             title="Projects"
             value={projects.length}
@@ -115,6 +89,26 @@ export default function ManagerDashboard() {
             iconColor="bg-warning"
             delay={150}
             href="/manager/leaves"
+          />
+          <StatCard
+            title="Employee Reports"
+            value="View"
+            change="Performance insights"
+            changeType="neutral"
+            icon={BarChart3}
+            iconColor="bg-success"
+            delay={200}
+            href="/manager/reports"
+          />
+          <StatCard
+            title="Employee Activity"
+            value="Monitor"
+            change="Recent actions"
+            changeType="neutral"
+            icon={Activity}
+            iconColor="bg-purple-500"
+            delay={250}
+            href="/manager/activity"
           />
         </div>
 

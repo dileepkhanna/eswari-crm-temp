@@ -6,6 +6,7 @@ User = get_user_model()
 class ActivityLog(models.Model):
     MODULE_CHOICES = [
         ('leads', 'Leads'),
+        ('customers', 'Customers'),  # Added customers
         ('tasks', 'Tasks'),
         ('projects', 'Projects'),
         ('leaves', 'Leaves'),
@@ -15,15 +16,24 @@ class ActivityLog(models.Model):
     ]
     
     ACTION_CHOICES = [
-        ('created', 'Created'),
-        ('updated', 'Updated'),
-        ('deleted', 'Deleted'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
-        ('converted', 'Converted'),
-        ('assigned', 'Assigned'),
-        ('completed', 'Completed'),
-        ('viewed', 'Viewed'),
+        ('create', 'Create'),      # Changed to present tense to match frontend
+        ('created', 'Created'),    # Keep both for compatibility
+        ('update', 'Update'),      # Changed to present tense to match frontend
+        ('updated', 'Updated'),    # Keep both for compatibility
+        ('delete', 'Delete'),      # Changed to present tense to match frontend
+        ('deleted', 'Deleted'),    # Keep both for compatibility
+        ('view', 'View'),          # Changed to present tense to match frontend
+        ('viewed', 'Viewed'),      # Keep both for compatibility
+        ('approve', 'Approve'),    # Changed to present tense to match frontend
+        ('approved', 'Approved'),  # Keep both for compatibility
+        ('reject', 'Reject'),      # Changed to present tense to match frontend
+        ('rejected', 'Rejected'),  # Keep both for compatibility
+        ('convert', 'Convert'),    # Changed to present tense to match frontend
+        ('converted', 'Converted'), # Keep both for compatibility
+        ('assign', 'Assign'),      # Changed to present tense to match frontend
+        ('assigned', 'Assigned'),  # Keep both for compatibility
+        ('complete', 'Complete'),  # Changed to present tense to match frontend
+        ('completed', 'Completed'), # Keep both for compatibility
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activity_logs')

@@ -367,7 +367,7 @@ export default function LeadList({
 
         <div className="flex gap-2 flex-wrap justify-between items-center">
           <div className="flex gap-2 items-center">
-            <ExcelImportExport onImport={handleImportLeads} />
+            <ExcelImportExport leads={filteredLeads} onImport={handleImportLeads} />
             {someSelected && (
               <Button 
                 variant="destructive" 

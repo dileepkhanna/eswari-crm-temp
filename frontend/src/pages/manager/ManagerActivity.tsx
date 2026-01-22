@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useAuth } from '@/contexts/AuthContextDjango';
-// import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, FileText, Search, Calendar, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -18,6 +17,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import ActivityLogger from '@/utils/activityLogger';
 
 interface ActivityLog {
   id: string;
@@ -43,6 +43,7 @@ const moduleIcons: Record<string, React.ElementType> = {
   leaves: CalendarOff,
   users: Users,
   reports: FileText,
+  customers: Users,
 };
 
 const actionColors: Record<string, string> = {
@@ -52,9 +53,12 @@ const actionColors: Record<string, string> = {
   approved: 'text-success',
   rejected: 'text-destructive',
   deleted: 'text-destructive',
+  create: 'text-success',
+  update: 'text-info',
+  view: 'text-muted-foreground',
 };
 
-export default function AdminActivity() {
+export default function ManagerActivity() {
   const { user } = useAuth();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [staffAndManagers, setStaffAndManagers] = useState<Profile[]>([]);
@@ -118,7 +122,7 @@ export default function AdminActivity() {
           role: user.role, // Include role for filtering
         }));
         
-        // Include all users who have created activities (not just staff and managers)
+        // Include all users who have created activities
         const usersWithActivities = transformedActivities.map(a => a.user_id);
         const uniqueUserIds = [...new Set(usersWithActivities)];
         const relevantUsers = transformedUsers.filter((u: any) => 
@@ -131,9 +135,9 @@ export default function AdminActivity() {
         // Show user-friendly error message
         if (error instanceof Error) {
           if (error.message.includes('401')) {
-            setError('Authentication required. Please log in as an admin to view activity logs.');
+            setError('Authentication required. Please log in to view activity logs.');
           } else if (error.message.includes('403')) {
-            setError('Access denied. Only administrators can view activity logs.');
+            setError('Access denied. You may not have permission to view activity logs.');
           } else {
             setError(`Failed to load activity data: ${error.message}`);
           }
@@ -203,7 +207,7 @@ export default function AdminActivity() {
     } finally {
       setRefreshing(false);
     }
-  }, [error]);
+  }, [error, user]);
 
   // Auto-refresh every 30 seconds (disabled when no user)
   useEffect(() => {
@@ -287,14 +291,16 @@ export default function AdminActivity() {
   // Group activities by module
   const leadActivities = filteredActivities.filter(a => a.module === 'leads');
   const taskActivities = filteredActivities.filter(a => a.module === 'tasks');
+  const customerActivities = filteredActivities.filter(a => a.module === 'customers');
   const leaveActivities = filteredActivities.filter(a => a.module === 'leaves');
-  const otherActivities = filteredActivities.filter(a => !['leads', 'tasks', 'leaves'].includes(a.module));
+  const otherActivities = filteredActivities.filter(a => !['leads', 'tasks', 'customers', 'leaves'].includes(a.module));
 
   console.log('Activity counts:', {
     total: activities.length,
     filtered: filteredActivities.length,
     leads: leadActivities.length,
     tasks: taskActivities.length,
+    customers: customerActivities.length,
     leaves: leaveActivities.length,
     other: otherActivities.length
   });
@@ -340,6 +346,9 @@ export default function AdminActivity() {
             <span className="text-xs px-2 py-0.5 rounded-full bg-muted capitalize">
               {activity.module}
             </span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              {activity.user_role}
+            </span>
           </div>
         </div>
       </div>
@@ -365,7 +374,7 @@ export default function AdminActivity() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <TopBar title="Activity Log" subtitle="Track all system activities by staff and managers" />
+        <TopBar title="Activity Log" subtitle="Track all system activities" />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-2 text-muted-foreground">Loading activity data...</span>
@@ -377,7 +386,7 @@ export default function AdminActivity() {
   if (error) {
     return (
       <div className="min-h-screen">
-        <TopBar title="Activity Log" subtitle="Track all system activities by staff and managers" />
+        <TopBar title="Activity Log" subtitle="Track all system activities" />
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <div className="text-center max-w-md">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -396,12 +405,8 @@ export default function AdminActivity() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title="🔴 ADMIN - Activity Log" subtitle="Track all system activities by staff and managers" />
+      <TopBar title="🔵 MANAGER - Activity Log" subtitle="Track all system activities" />
       <div className="p-4 md:p-6 space-y-6">
-        {/* DEBUG INDICATOR */}
-        <div className="bg-red-500 text-white p-4 rounded-lg text-center font-bold">
-          🔴 ADMIN PANEL - ALL SYSTEM ACTIVITIES (Original Version)
-        </div>
         {/* Filters */}
         <div className="glass-card rounded-2xl p-4 md:p-6">
           <div className="flex flex-col gap-4">
@@ -422,7 +427,7 @@ export default function AdminActivity() {
 
               {/* User Filter */}
               <div className="min-w-[180px]">
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Staff/Manager</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">User</label>
                 <Select value={selectedUser} onValueChange={setSelectedUser}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Users" />
@@ -448,6 +453,7 @@ export default function AdminActivity() {
                   <SelectContent>
                     <SelectItem value="all">All Modules</SelectItem>
                     <SelectItem value="leads">Leads</SelectItem>
+                    <SelectItem value="customers">Customers</SelectItem>
                     <SelectItem value="tasks">Tasks</SelectItem>
                     <SelectItem value="leaves">Leaves</SelectItem>
                     <SelectItem value="projects">Projects</SelectItem>
@@ -560,9 +566,10 @@ export default function AdminActivity() {
 
         {/* Activity Tabs */}
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 mb-6">
             <TabsTrigger value="all">All ({filteredActivities.length})</TabsTrigger>
             <TabsTrigger value="leads">Leads ({leadActivities.length})</TabsTrigger>
+            <TabsTrigger value="customers">Customers ({customerActivities.length})</TabsTrigger>
             <TabsTrigger value="tasks">Tasks ({taskActivities.length})</TabsTrigger>
             <TabsTrigger value="leaves">Leaves ({leaveActivities.length})</TabsTrigger>
             <TabsTrigger value="other">Other ({otherActivities.length})</TabsTrigger>
@@ -576,6 +583,11 @@ export default function AdminActivity() {
           <TabsContent value="leads" className="glass-card rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">Lead Activities</h3>
             {renderActivityList(leadActivities)}
+          </TabsContent>
+
+          <TabsContent value="customers" className="glass-card rounded-2xl p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Customer Activities</h3>
+            {renderActivityList(customerActivities)}
           </TabsContent>
 
           <TabsContent value="tasks" className="glass-card rounded-2xl p-6">

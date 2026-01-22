@@ -295,7 +295,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
 
         <div className="flex gap-2 flex-wrap justify-between items-center">
           <div className="flex gap-2 items-center">
-            <TaskExcelImportExport onImport={handleImportTasks} />
+            <TaskExcelImportExport tasks={filteredTasks} onImport={handleImportTasks} getProjectName={getProjectName} />
             {someSelected && (
               <Button 
                 variant="destructive" 

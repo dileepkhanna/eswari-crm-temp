@@ -6,9 +6,12 @@ import { canViewCustomerPhone } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface TaskExcelImportExportProps {
+  tasks?: Task[]; // Add tasks prop for export
   onImport: (tasks: Partial<Task>[]) => void;
+  getProjectName?: (projectId?: string) => string; // Add project name resolver
 }
 
 const TEMPLATE_COLUMNS = [
@@ -28,7 +31,7 @@ const SAMPLE_DATA = [
   ['Jane Smith', '9123456789', 'jane@example.com', 'villa', '4', 'project-2', 'in_progress', '2024-02-20', 'Schedule site visit'],
 ];
 
-export default function TaskExcelImportExport({ onImport }: TaskExcelImportExportProps) {
+export default function TaskExcelImportExport({ tasks = [], onImport, getProjectName }: TaskExcelImportExportProps) {
   const { user } = useAuth();
   const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +40,59 @@ export default function TaskExcelImportExport({ onImport }: TaskExcelImportExpor
   if (!canViewPhone) {
     return null;
   }
+
+  const handleExport = () => {
+    try {
+      if (tasks.length === 0) {
+        toast.error('No tasks to export');
+        return;
+      }
+
+      const exportData = tasks.map(task => ({
+        'Lead Name': task.lead.name,
+        'Lead Phone': task.lead.phone,
+        'Lead Email': task.lead.email,
+        'Requirement Type': task.lead.requirementType,
+        'BHK': task.lead.bhkRequirement,
+        'Budget Min': task.lead.budgetMin,
+        'Budget Max': task.lead.budgetMax,
+        'Project': getProjectName ? getProjectName(task.assignedProject) : task.assignedProject,
+        'Status': task.status,
+        'Assigned To': task.assignedTo,
+        'Next Action Date': task.nextActionDate ? format(task.nextActionDate, 'yyyy-MM-dd') : '',
+        'Created Date': format(task.createdAt, 'yyyy-MM-dd'),
+        'Notes': task.notes.map(note => note.content).join('; '),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Tasks');
+      
+      // Auto-size columns
+      const colWidths = [
+        { wch: 20 }, // Lead Name
+        { wch: 15 }, // Lead Phone
+        { wch: 25 }, // Lead Email
+        { wch: 15 }, // Requirement Type
+        { wch: 8 },  // BHK
+        { wch: 12 }, // Budget Min
+        { wch: 12 }, // Budget Max
+        { wch: 20 }, // Project
+        { wch: 15 }, // Status
+        { wch: 15 }, // Assigned To
+        { wch: 12 }, // Next Action Date
+        { wch: 12 }, // Created Date
+        { wch: 40 }, // Notes
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.writeFile(wb, `tasks_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(`Exported ${tasks.length} tasks successfully`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export tasks data');
+    }
+  };
 
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
@@ -170,6 +226,15 @@ export default function TaskExcelImportExport({ onImport }: TaskExcelImportExpor
       >
         <Upload className="w-4 h-4" />
         Import Excel
+      </Button>
+      <Button
+        variant="outline"
+        onClick={handleExport}
+        className="gap-2"
+        disabled={tasks.length === 0}
+      >
+        <Download className="w-4 h-4" />
+        Export Data ({tasks.length})
       </Button>
       <input
         ref={fileInputRef}

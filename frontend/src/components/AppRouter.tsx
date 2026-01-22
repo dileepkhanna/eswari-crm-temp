@@ -31,6 +31,8 @@ import ManagerProjects from '@/pages/manager/ManagerProjects';
 import ManagerAnnouncements from '@/pages/manager/ManagerAnnouncements';
 import ManagerHolidays from '@/pages/manager/ManagerHolidays';
 import ManagerCustomers from '@/pages/manager/ManagerCustomers';
+import ManagerReports from '@/pages/manager/ManagerReports';
+import ManagerActivity from '@/pages/manager/ManagerActivity';
 
 // Staff Pages
 import StaffDashboard from '@/pages/staff/StaffDashboard';
@@ -107,6 +109,8 @@ const AppRouter = () => {
         <Route path="holidays" element={<ManagerHolidays />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="announcements" element={<ManagerAnnouncements />} />
+        <Route path="reports" element={<ManagerReports />} />
+        <Route path="activity" element={<ManagerActivity />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 
