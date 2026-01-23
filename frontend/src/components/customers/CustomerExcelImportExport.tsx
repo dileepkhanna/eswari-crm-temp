@@ -186,12 +186,12 @@ export default function CustomerExcelImportExport({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+    <div className="flex flex-col sm:flex-row gap-2">
       <Button
         variant="outline"
         size="sm"
         onClick={downloadTemplate}
-        className="flex items-center gap-2 text-xs sm:text-sm"
+        className="flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
       >
         <Download className="w-4 h-4" />
         <span className="hidden sm:inline">Download Template</span>
@@ -202,7 +202,7 @@ export default function CustomerExcelImportExport({
         variant="outline"
         size="sm"
         onClick={() => fileInputRef.current?.click()}
-        className="flex items-center gap-2 text-xs sm:text-sm"
+        className="flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
         title={canAssignToEmployee ? "Import customers (use bulk assignment after import)" : "Import customers (will be automatically assigned to you)"}
       >
         <Upload className="w-4 h-4" />
@@ -217,7 +217,7 @@ export default function CustomerExcelImportExport({
         variant="outline"
         size="sm"
         onClick={handleExport}
-        className="flex items-center gap-2 text-xs sm:text-sm"
+        className="flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
         disabled={customers.length === 0}
       >
         <Download className="w-4 h-4" />

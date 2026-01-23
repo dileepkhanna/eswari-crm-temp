@@ -214,27 +214,30 @@ export default function TaskExcelImportExport({ tasks = [], onImport, getProject
   };
 
   return (
-    <div className="flex gap-2">
-      <Button variant="outline" onClick={downloadTemplate} className="gap-2">
+    <div className="flex flex-col sm:flex-row gap-2">
+      <Button variant="outline" onClick={downloadTemplate} className="gap-2 w-full sm:w-auto">
         <Download className="w-4 h-4" />
-        Download Template
+        <span className="hidden sm:inline">Download Template</span>
+        <span className="sm:hidden">Template</span>
       </Button>
       <Button 
         variant="outline" 
         onClick={() => fileInputRef.current?.click()}
-        className="gap-2"
+        className="gap-2 w-full sm:w-auto"
       >
         <Upload className="w-4 h-4" />
-        Import Excel
+        <span className="hidden sm:inline">Import Excel</span>
+        <span className="sm:hidden">Import</span>
       </Button>
       <Button
         variant="outline"
         onClick={handleExport}
-        className="gap-2"
+        className="gap-2 w-full sm:w-auto"
         disabled={tasks.length === 0}
       >
         <Download className="w-4 h-4" />
-        Export Data ({tasks.length})
+        <span className="hidden sm:inline">Export Data ({tasks.length})</span>
+        <span className="sm:hidden">Export ({tasks.length})</span>
       </Button>
       <input
         ref={fileInputRef}

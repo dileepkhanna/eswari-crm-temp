@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Task, TaskStatus, Lead } from "@/types";
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
-import { canViewCustomerPhone, isManagerView as isManagerRole } from '@/lib/permissions';
+import { canViewCustomerPhone, isManagerView as isManagerRole, canDeleteLeadsAndTasks } from '@/lib/permissions';
 import TaskStatusChip from "./TaskStatusChip";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailsModal from "./TaskDetailsModal";
@@ -61,6 +61,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   // Use permission utility instead of prop for phone visibility
   const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   const isManager = user ? isManagerRole(user.role) : false;
+  
+  // Check if user can delete tasks
+  const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -217,7 +220,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
@@ -250,7 +253,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="justify-start text-left font-normal w-full col-span-2 sm:col-span-1"
+                  className="justify-start text-left font-normal w-full"
                 >
                   <Calendar className="mr-2 h-4 w-4 shrink-0" />
                   <span className="truncate text-xs">
@@ -285,7 +288,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 variant="ghost"
                 size="sm"
                 onClick={() => setDateRange({})}
-                className="col-span-2 sm:col-span-1"
+                className="w-full"
               >
                 Clear
               </Button>
@@ -293,10 +296,10 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-between items-center">
-          <div className="flex gap-2 items-center">
+        <div className="flex gap-2 flex-wrap justify-between items-start sm:items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             <TaskExcelImportExport tasks={filteredTasks} onImport={handleImportTasks} getProjectName={getProjectName} />
-            {someSelected && (
+            {someSelected && canDelete && (
               <Button 
                 variant="destructive" 
                 size="sm"
@@ -308,7 +311,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             )}
           </div>
           {canCreate && (
-            <Button onClick={handleAddTask} className="btn-accent shrink-0">
+            <Button onClick={handleAddTask} className="btn-accent shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Add Task
             </Button>
@@ -352,18 +355,18 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 <p className="font-medium">{task.nextActionDate ? format(task.nextActionDate, "MMM dd") : "-"}</p>
               </div>
             </div>
-            <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingTask(task)}>
-            <Eye className="w-3.5 h-3.5 mr-1" />
-            View
-          </Button>
-          {canEdit && (
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditTask(task)}>
-              <Edit className="w-3.5 h-3.5 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" className="flex-1 min-w-[70px]" onClick={() => setViewingTask(task)}>
+                <Eye className="w-3.5 h-3.5 mr-1" />
+                View
+              </Button>
+              {canEdit && (
+                <Button variant="outline" size="sm" className="flex-1 min-w-[70px]" onClick={() => handleEditTask(task)}>
+                  <Edit className="w-3.5 h-3.5 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
       </div>
     ))}
   </div>

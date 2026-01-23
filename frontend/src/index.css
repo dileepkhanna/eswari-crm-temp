@@ -340,3 +340,52 @@
 .compact-view .space-y-4 > * + * {
   margin-top: 0.75rem !important;
 }
+
+/* Mobile Responsive Improvements */
+@media (max-width: 640px) {
+  .glass-card {
+    @apply p-3;
+  }
+  
+  .stat-card {
+    @apply p-4;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 0.75rem !important;
+  }
+  
+  /* Ensure buttons don't overflow */
+  .btn-accent, .btn-primary {
+    @apply text-sm px-3 py-2;
+  }
+  
+  /* Better mobile grid spacing */
+  .grid {
+    @apply gap-2;
+  }
+  
+  /* Mobile card improvements */
+  .mobile-card-actions {
+    @apply flex gap-2 flex-wrap;
+  }
+  
+  .mobile-card-actions .btn {
+    @apply flex-1 min-w-[70px] text-xs;
+  }
+}
+
+/* Tablet responsive improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .stat-card {
+    @apply p-5;
+  }
+  
+  .glass-card {
+    @apply p-5;
+  }
+}

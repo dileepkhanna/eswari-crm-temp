@@ -8,7 +8,7 @@ export interface ActivityLogData {
 }
 
 export class ActivityLogger {
-  private static baseUrl = 'http://localhost:8000/api/activity-logs/';
+  private static baseUrl = '/api/activity-logs/';
 
   static async log(activityData: ActivityLogData): Promise<boolean> {
     try {

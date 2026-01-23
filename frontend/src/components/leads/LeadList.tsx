@@ -58,6 +58,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContextDjango";
 import { useData } from "@/contexts/DataContextDjango";
+import { canDeleteLeadsAndTasks } from "@/lib/permissions";
 
 interface LeadListProps {
   canCreate?: boolean;
@@ -74,6 +75,9 @@ export default function LeadList({
 }: LeadListProps) {
   const { user } = useAuth();
   const { leads, projects, addLead, updateLead, deleteLead, addTask } = useData();
+
+  // Check if user can delete leads and tasks
+  const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -288,7 +292,7 @@ export default function LeadList({
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
@@ -322,7 +326,7 @@ export default function LeadList({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="justify-start text-left font-normal w-full col-span-2 sm:col-span-1"
+                  className="justify-start text-left font-normal w-full"
                 >
                   <Calendar className="mr-2 h-4 w-4 shrink-0" />
                   <span className="truncate text-xs">
@@ -357,7 +361,7 @@ export default function LeadList({
                 variant="ghost"
                 size="sm"
                 onClick={() => setDateRange({})}
-                className="col-span-2 sm:col-span-1"
+                className="w-full"
               >
                 Clear
               </Button>
@@ -365,10 +369,10 @@ export default function LeadList({
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-between items-center">
-          <div className="flex gap-2 items-center">
+        <div className="flex gap-2 flex-wrap justify-between items-start sm:items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             <ExcelImportExport leads={filteredLeads} onImport={handleImportLeads} />
-            {someSelected && (
+            {someSelected && canDelete && (
               <Button 
                 variant="destructive" 
                 size="sm"
@@ -380,7 +384,7 @@ export default function LeadList({
             )}
           </div>
           {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
+            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Add Lead
             </Button>
@@ -594,13 +598,15 @@ export default function LeadList({
                           Convert to Task
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => handleDeleteLead(lead)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Lead
-                      </DropdownMenuItem>
+                      {canDelete && (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleDeleteLead(lead)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Lead
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

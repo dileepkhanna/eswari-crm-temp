@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 interface User {
   id: string;
@@ -208,6 +208,35 @@ class ApiClient {
 
   async getProfile(): Promise<User> {
     return this.request('/auth/profile/');
+  }
+
+  async updateProfile(profileData: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone?: string;
+  }): Promise<{ message: string; user: User }> {
+    return this.request('/auth/profile/update/', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  async changePassword(passwordData: {
+    current_password: string;
+    new_password: string;
+  }): Promise<{ message: string }> {
+    return this.request('/auth/profile/change-password/', {
+      method: 'POST',
+      body: JSON.stringify(passwordData),
+    });
+  }
+
+  async deleteAccount(adminPassword: string): Promise<{ message: string; deleted_data: any }> {
+    return this.request('/auth/profile/delete-account/', {
+      method: 'POST',
+      body: JSON.stringify({ admin_password: adminPassword }),
+    });
   }
 
   async logout() {

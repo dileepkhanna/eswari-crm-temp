@@ -26,6 +26,7 @@ interface AuthContextType {
   createUser: (email: string, password: string, name: string, phone: string, address: string, role: UserRole, managerId?: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
   createInitialAdmin: (firstName: string, lastName: string, email: string, password: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   hasPermission: (module: string, action: string) => boolean;
 }
 
@@ -289,6 +290,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await checkAdminExists();
   }, [checkAdminExists]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      await fetchUserData();
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  }, [fetchUserData]);
+
   const hasPermission = useCallback((module: string, action: string): boolean => {
     if (!user) return false;
     
@@ -333,7 +342,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signup,
       createUser,
       createInitialAdmin,
-      logout, 
+      logout,
+      refreshUser,
       hasPermission 
     }}>
       {children}

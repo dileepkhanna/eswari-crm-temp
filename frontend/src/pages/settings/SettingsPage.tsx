@@ -10,11 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useTheme } from '@/contexts/ThemeContext';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { User, Bell, Shield, Palette, Save, Camera, Loader2, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -22,13 +23,25 @@ export default function SettingsPage() {
   const isAdmin = user?.role === 'admin';
   
   // Profile settings
-  const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [address, setAddress] = useState(user?.address || '');
+  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Initialize form fields when user data is available
+  useEffect(() => {
+    if (user) {
+      // Parse the name field to get first and last names
+      const nameParts = (user.name || '').split(' ');
+      setName(nameParts[0] || '');
+      setLastName(nameParts.slice(1).join(' ') || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+    }
+  }, [user]);
   
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -58,6 +71,51 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  
+  // Account deletion
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [adminPasswordForDeletion, setAdminPasswordForDeletion] = useState('');
+
+  // Password strength checker
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { score: 0, text: '', color: '' };
+    
+    let score = 0;
+    let feedback = [];
+    
+    if (password.length >= 8) score += 1;
+    else feedback.push('at least 8 characters');
+    
+    if (/[a-z]/.test(password)) score += 1;
+    else feedback.push('lowercase letters');
+    
+    if (/[A-Z]/.test(password)) score += 1;
+    else feedback.push('uppercase letters');
+    
+    if (/[0-9]/.test(password)) score += 1;
+    else feedback.push('numbers');
+    
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+    else feedback.push('special characters');
+    
+    const strength = {
+      0: { text: 'Very Weak', color: 'text-red-500' },
+      1: { text: 'Weak', color: 'text-red-400' },
+      2: { text: 'Fair', color: 'text-yellow-500' },
+      3: { text: 'Good', color: 'text-blue-500' },
+      4: { text: 'Strong', color: 'text-green-500' },
+      5: { text: 'Very Strong', color: 'text-green-600' }
+    };
+    
+    return {
+      score,
+      text: strength[score as keyof typeof strength].text,
+      color: strength[score as keyof typeof strength].color,
+      feedback: feedback.length > 0 ? `Missing: ${feedback.join(', ')}` : 'Good password!'
+    };
+  };
+
+  const passwordStrength = getPasswordStrength(newPassword);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -111,18 +169,19 @@ export default function SettingsPage() {
     
     setIsSavingProfile(true);
     try {
-      // TODO: Implement profile update API in Django backend
-      // const { error } = await supabase
-      //   .from('profiles')
-      //   .update({
-      //     name,
-      //     phone,
-      //     address,
-      //   })
-      //   .eq('id', user.id);
+      const profileData = {
+        first_name: name.trim(),
+        last_name: lastName.trim(),
+        email: email.trim() || undefined,
+        phone: phone.trim(),
+      };
 
-      // if (error) throw error;
-      toast.success('Profile update not implemented yet');
+      const response = await apiClient.updateProfile(profileData);
+      
+      // Refresh user data in auth context
+      await refreshUser();
+      
+      toast.success(response.message || 'Profile updated successfully');
     } catch (error: any) {
       console.error('Error updating profile:', error);
       toast.error(error.message || 'Failed to update profile');
@@ -167,62 +226,117 @@ export default function SettingsPage() {
       toast.error('Passwords do not match!');
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters!');
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+    if (passwordStrength.score < 2) {
+      toast.error('Password is too weak. Please choose a stronger password.');
       return;
     }
     
     setIsChangingPassword(true);
     try {
-      // TODO: Implement password change API in Django backend
-      // const { error: signInError } = await supabase.auth.signInWithPassword({
-      //   email: user?.email || '',
-      //   password: currentPassword,
-      // });
+      const response = await apiClient.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
 
-      // if (signInError) {
-      //   toast.error('Current password is incorrect');
-      //   return;
-      // }
-
-      // const { error } = await supabase.auth.updateUser({
-      //   password: newPassword,
-      // });
-
-      // if (error) throw error;
-
-      toast.success('Password change not implemented yet');
+      toast.success(response.message || 'Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
       console.error('Error changing password:', error);
-      toast.error(error.message || 'Failed to change password');
+      
+      // Parse error details for better user feedback
+      let errorMessage = 'Failed to change password';
+      
+      if (error.message && error.message.includes('details:')) {
+        try {
+          const detailsStart = error.message.indexOf('details:') + 8;
+          const detailsJson = error.message.substring(detailsStart);
+          const details = JSON.parse(detailsJson);
+          
+          if (details.details && Array.isArray(details.details)) {
+            errorMessage = details.details.join(' ');
+          } else if (details.error) {
+            errorMessage = details.error;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error details:', parseError);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsChangingPassword(false);
     }
   };
 
   const handleDeleteAccount = async () => {
-    if (!user?.id) return;
+    if (!adminPasswordForDeletion) {
+      toast.error('Please enter your admin password to confirm account deletion');
+      return;
+    }
     
     setIsDeletingAccount(true);
     try {
-      // TODO: Implement account deletion API in Django backend
-      // const response = await supabase.functions.invoke('delete-user', {
-      //   body: { userId: user.id },
-      // });
-
-      // if (response.error) throw response.error;
-
-      toast.success('Account deletion not implemented yet');
-      // await logout();
-      // window.location.href = '/login';
+      const response = await apiClient.deleteAccount(adminPasswordForDeletion);
+      
+      toast.success(response.message);
+      
+      // Show system reset summary
+      const deletedData = response.deleted_data;
+      const totalDeleted = deletedData.total_records_deleted || 0;
+      
+      if (totalDeleted > 0) {
+        const summary = [];
+        if (deletedData.users > 0) summary.push(`${deletedData.users} users`);
+        if (deletedData.leads > 0) summary.push(`${deletedData.leads} leads`);
+        if (deletedData.tasks > 0) summary.push(`${deletedData.tasks} tasks`);
+        if (deletedData.projects > 0) summary.push(`${deletedData.projects} projects`);
+        if (deletedData.customers > 0) summary.push(`${deletedData.customers} customers`);
+        if (deletedData.leaves > 0) summary.push(`${deletedData.leaves} leave requests`);
+        if (deletedData.announcements > 0) summary.push(`${deletedData.announcements} announcements`);
+        if (deletedData.holidays > 0) summary.push(`${deletedData.holidays} holidays`);
+        
+        toast.info(`System Reset Complete: ${totalDeleted} total records deleted`, {
+          description: summary.length > 0 ? summary.join(', ') : 'All data cleared',
+          duration: 10000, // Show for 10 seconds
+        });
+      }
+      
+      // Clear tokens and redirect to login
+      await logout();
+      window.location.href = '/login';
     } catch (error: any) {
       console.error('Error deleting account:', error);
-      toast.error(error.message || 'Failed to delete account');
+      
+      let errorMessage = 'Failed to delete account';
+      if (error.message && error.message.includes('details:')) {
+        try {
+          const detailsStart = error.message.indexOf('details:') + 8;
+          const detailsJson = error.message.substring(detailsStart);
+          const details = JSON.parse(detailsJson);
+          
+          if (details.error) {
+            errorMessage = details.error;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error details:', parseError);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsDeletingAccount(false);
+      setShowDeleteDialog(false);
+      setAdminPasswordForDeletion('');
     }
   };
 
@@ -279,7 +393,7 @@ export default function SettingsPage() {
                       <Avatar className="w-20 h-20 cursor-pointer" onClick={handleAvatarClick}>
                         <AvatarImage src={avatarUrl || undefined} alt={user?.name} />
                         <AvatarFallback className="gradient-primary text-white text-2xl font-bold">
-                          {user?.name.charAt(0)}
+                          {user?.name?.charAt(0) || user?.userId?.charAt(0) || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div 
@@ -309,12 +423,21 @@ export default function SettingsPage() {
                   
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label htmlFor="first-name">First Name</Label>
                       <Input 
-                        id="name" 
+                        id="first-name" 
                         value={name} 
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter your full name"
+                        placeholder="Enter your first name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last-name">Last Name</Label>
+                      <Input 
+                        id="last-name" 
+                        value={lastName} 
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter your last name"
                       />
                     </div>
                     <div className="space-y-2">
@@ -334,15 +457,6 @@ export default function SettingsPage() {
                         value={phone} 
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="Enter your phone number"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Address</Label>
-                      <Input 
-                        id="address" 
-                        value={address} 
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Enter your address"
                       />
                     </div>
                   </div>
@@ -526,6 +640,35 @@ export default function SettingsPage() {
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Enter new password"
                       />
+                      {newPassword && (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs">Strength:</span>
+                            <span className={`text-xs font-medium ${passwordStrength.color}`}>
+                              {passwordStrength.text}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className={`h-1.5 rounded-full transition-all duration-300 ${
+                                passwordStrength.score <= 1 ? 'bg-red-500' :
+                                passwordStrength.score <= 2 ? 'bg-yellow-500' :
+                                passwordStrength.score <= 3 ? 'bg-blue-500' :
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{passwordStrength.feedback}</p>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Password requirements:
+                        <br />• At least 8 characters long
+                        <br />• Should not be too similar to your name or email
+                        <br />• Should not be a common password
+                        <br />• Should include a mix of letters and numbers
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password">Confirm New Password</Label>
@@ -548,31 +691,17 @@ export default function SettingsPage() {
                   <div className="border-t pt-6 mt-6">
                     <h4 className="font-medium text-destructive mb-2">Danger Zone</h4>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Once you delete your account, there is no going back. Please be certain.
+                      Permanently delete your admin account and perform a COMPLETE SYSTEM RESET. 
+                      This will delete ALL data from the entire CRM system and return it to initial state.
                     </p>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isDeletingAccount}>
-                          {isDeletingAccount ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                          Delete Account
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete your account
-                            and remove all your data from the system. You will need to create a new admin account to start fresh.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Yes, delete my account
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => setShowDeleteDialog(true)}
+                      disabled={isDeletingAccount}
+                    >
+                      {isDeletingAccount ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                      Reset Entire System
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -580,6 +709,98 @@ export default function SettingsPage() {
           )}
         </Tabs>
       </main>
+
+      {/* Account Deletion Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              ⚠️ COMPLETE SYSTEM RESET
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <div className="font-medium text-destructive mb-2">⚠️ WARNING: COMPLETE SYSTEM RESET!</div>
+                <div className="text-sm">
+                  You are about to permanently delete your admin account and perform a COMPLETE SYSTEM RESET. 
+                  This will delete ALL data from the entire CRM system, not just your data.
+                </div>
+              </div>
+              
+              <div>
+                <div className="font-medium mb-2 text-destructive">ALL of the following data will be permanently deleted:</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>ALL user accounts (admin, managers, employees)</li>
+                    <li>ALL leads from all users</li>
+                    <li>ALL tasks from all users</li>
+                    <li>ALL projects from all users</li>
+                    <li>ALL customers from all users</li>
+                  </ul>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>ALL leave requests from all users</li>
+                    <li>ALL announcements from all users</li>
+                    <li>ALL activity logs from all users</li>
+                    <li>ALL call allocations from all users</li>
+                    <li>ALL holidays and system data</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="text-sm text-red-800">
+                  <strong>COMPLETE SYSTEM RESET:</strong> This will return the CRM to its initial state as if it was just installed. 
+                  You will need to set up a new admin account to use the system again.
+                </div>
+              </div>
+              
+              <div className="font-medium text-destructive">
+                Enter your admin password to confirm this COMPLETE SYSTEM RESET:
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="admin-password-confirm">Admin Password</Label>
+              <Input
+                id="admin-password-confirm"
+                type="password"
+                value={adminPasswordForDeletion}
+                onChange={(e) => setAdminPasswordForDeletion(e.target.value)}
+                placeholder="Enter your admin password to confirm SYSTEM RESET"
+                className="border-destructive focus:border-destructive"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setAdminPasswordForDeletion('');
+                setShowDeleteDialog(false);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteAccount} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!adminPasswordForDeletion || isDeletingAccount}
+            >
+              {isDeletingAccount ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  RESETTING SYSTEM...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  RESET ENTIRE SYSTEM
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -128,12 +128,18 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
     return counts;
   }, [events]);
 
-  const handlePreviousMonth = () => {
-    setCurrentMonth(prev => subMonths(prev, 1));
+  const handlePreviousMonth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newMonth = subMonths(currentMonth, 1);
+    setCurrentMonth(newMonth);
   };
 
-  const handleNextMonth = () => {
-    setCurrentMonth(prev => addMonths(prev, 1));
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newMonth = addMonths(currentMonth, 1);
+    setCurrentMonth(newMonth);
   };
 
   const handleToday = () => {
@@ -161,12 +167,12 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 animate-slide-up relative overflow-hidden">
+    <div className="glass-card rounded-2xl p-4 md:p-6 animate-slide-up relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl" />
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
             <CalendarIcon className="w-5 h-5 text-primary-foreground" />
@@ -178,24 +184,36 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleToday}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" onClick={handleToday} className="flex-1 sm:flex-none">
             Today
           </Button>
-          <Button variant="ghost" size="icon" onClick={handlePreviousMonth}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium min-w-[120px] text-center">
-            {format(currentMonth, 'MMMM yyyy')}
-          </span>
-          <Button variant="ghost" size="icon" onClick={handleNextMonth}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1 flex-1 sm:flex-none justify-center">
+            <button 
+              onClick={handlePreviousMonth} 
+              className="shrink-0 h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center cursor-pointer z-10 relative"
+              type="button"
+              style={{ pointerEvents: 'auto' }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-medium min-w-[120px] text-center px-2">
+              {format(currentMonth, 'MMMM yyyy')}
+            </span>
+            <button 
+              onClick={handleNextMonth} 
+              className="shrink-0 h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center cursor-pointer z-10 relative"
+              type="button"
+              style={{ pointerEvents: 'auto' }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-4 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-purple-500" />
           <span className="text-xs text-muted-foreground">Reminders</span>
@@ -206,33 +224,38 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
         {/* Calendar */}
         <div className="flex justify-center">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            month={currentMonth}
-            onMonthChange={setCurrentMonth}
-            className="rounded-xl border border-border bg-card p-3 pointer-events-auto"
-            modifiers={{
-              hasEvents: datesWithEvents,
-            }}
-            modifiersStyles={{
-              hasEvents: {
-                fontWeight: 'bold',
-              },
-            }}
-            components={{
-              DayContent: ({ date }) => (
-                <div className="relative w-full h-full flex items-center justify-center">
-                  <span>{date.getDate()}</span>
-                  {renderDayContent(date)}
-                </div>
-              ),
-            }}
-          />
+          <div className="calendar-container">
+            <Calendar
+              key={format(currentMonth, 'yyyy-MM')}
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              month={currentMonth}
+              onMonthChange={setCurrentMonth}
+              className="rounded-xl border border-border bg-card p-2 md:p-3 pointer-events-auto w-full max-w-md"
+              modifiers={{
+                hasEvents: datesWithEvents,
+              }}
+              modifiersStyles={{
+                hasEvents: {
+                  fontWeight: 'bold',
+                },
+              }}
+              components={{
+                DayContent: ({ date }) => (
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <span>{date.getDate()}</span>
+                    {renderDayContent(date)}
+                  </div>
+                ),
+              }}
+              showOutsideDays={false}
+              fixedWeeks
+            />
+          </div>
         </div>
 
         {/* Selected Date Events */}
@@ -259,7 +282,7 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
             <CardContent>
               {selectedDate ? (
                 selectedDateEvents.length > 0 ? (
-                  <ScrollArea className="h-[280px] pr-4">
+                  <ScrollArea className="h-[250px] md:h-[280px] pr-4">
                     <div className="space-y-3">
                       {selectedDateEvents.map((event) => (
                         <div
@@ -280,14 +303,14 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
                     </div>
                   </ScrollArea>
                 ) : (
-                  <div className="h-[280px] flex flex-col items-center justify-center text-muted-foreground">
+                  <div className="h-[250px] md:h-[280px] flex flex-col items-center justify-center text-muted-foreground">
                     <CalendarIcon className="w-12 h-12 mb-3 opacity-50" />
                     <p className="text-sm">No events scheduled</p>
                     <p className="text-xs">for this date</p>
                   </div>
                 )
               ) : (
-                <div className="h-[280px] flex flex-col items-center justify-center text-muted-foreground">
+                <div className="h-[250px] md:h-[280px] flex flex-col items-center justify-center text-muted-foreground">
                   <CalendarIcon className="w-12 h-12 mb-3 opacity-50" />
                   <p className="text-sm">Click on a date</p>
                   <p className="text-xs">to view scheduled events</p>
@@ -345,21 +368,21 @@ function LeadEventCard({ lead }: { lead: Lead }) {
       <div className="grid grid-cols-1 gap-2 text-sm">
         {lead.phone && (
           <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">
+            <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="font-medium truncate">
               {canViewPhone ? lead.phone : maskPhoneNumber(lead.phone)}
             </span>
           </div>
         )}
         {lead.email && (
           <div className="flex items-center gap-2">
-            <Mail className="w-4 h-4 text-muted-foreground" />
+            <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="truncate">{lead.email}</span>
           </div>
         )}
         {lead.address && (
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="truncate">{lead.address}</span>
           </div>
         )}
@@ -410,15 +433,15 @@ function TaskEventCard({ task }: { task: Task }) {
       <div className="grid grid-cols-1 gap-2 text-sm">
         {task.lead.phone && (
           <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">
+            <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="font-medium truncate">
               {canViewPhone ? task.lead.phone : maskPhoneNumber(task.lead.phone)}
             </span>
           </div>
         )}
         {task.lead.email && (
           <div className="flex items-center gap-2">
-            <Mail className="w-4 h-4 text-muted-foreground" />
+            <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="truncate">{task.lead.email}</span>
           </div>
         )}

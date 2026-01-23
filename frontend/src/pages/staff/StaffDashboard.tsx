@@ -46,11 +46,11 @@ export default function StaffDashboard() {
     <div className="min-h-screen">
       <TopBar title="Staff Dashboard" subtitle={`Welcome back, ${user?.name || 'User'}!`} />
       
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Announcements */}
         <AnnouncementBanner userRole="employee" />
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="My Leads"
             value={myLeads.length}
@@ -94,7 +94,7 @@ export default function StaffDashboard() {
         </div>
 
         {/* Reminders Section - Prominent for Employees */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
           {/* Employee Reminders Widget - Full width on mobile, half on desktop */}
           <EmployeeRemindersWidget />
           
@@ -102,7 +102,7 @@ export default function StaffDashboard() {
           <LeaveStatsWidget />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
           {/* Leads by Status Chart - Interactive */}
           <LeadStatusChart leads={myLeads} title="My Leads by Status" />
 
@@ -113,7 +113,7 @@ export default function StaffDashboard() {
         {/* Calendar View */}
         <CalendarView leads={myLeads} tasks={myTasks} title="My Calendar" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Recent Tasks */}
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">

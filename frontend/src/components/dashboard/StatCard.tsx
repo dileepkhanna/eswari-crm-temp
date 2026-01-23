@@ -40,13 +40,13 @@ export default function StatCard({
       style={{ animationDelay: `${delay}ms` }}
       onClick={handleClick}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">{title}</p>
-          <p className="text-3xl font-bold text-foreground">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-muted-foreground mb-1 truncate">{title}</p>
+          <p className="text-2xl md:text-3xl font-bold text-foreground truncate">{value}</p>
           {change && (
             <p className={cn(
-              "text-sm mt-2 font-medium",
+              "text-xs md:text-sm mt-2 font-medium truncate",
               changeType === 'positive' && "text-success",
               changeType === 'negative' && "text-destructive",
               changeType === 'neutral' && "text-muted-foreground"
@@ -55,8 +55,8 @@ export default function StatCard({
             </p>
           )}
         </div>
-        <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", iconColor)}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0", iconColor)}>
+          <Icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
         </div>
       </div>
     </div>

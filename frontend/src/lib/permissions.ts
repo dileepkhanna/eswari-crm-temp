@@ -17,6 +17,14 @@ export function isManagerView(userRole: UserRole): boolean {
 }
 
 /**
+ * Determines if the current user can delete leads and tasks
+ * Only admins and managers can delete, employees cannot
+ */
+export function canDeleteLeadsAndTasks(userRole: UserRole): boolean {
+  return userRole === 'admin' || userRole === 'manager';
+}
+
+/**
  * Masks a phone number for privacy
  * Shows only the last 4 digits: "1234567890" -> "******7890"
  */

@@ -86,21 +86,21 @@ export default function EmployeeRemindersWidget() {
   };
 
   const ReminderCard = ({ reminder }: { reminder: ReminderItem }) => (
-    <div className={`p-4 rounded-lg border-2 transition-all hover:shadow-md ${
+    <div className={`p-3 md:p-4 rounded-lg border-2 transition-all hover:shadow-md ${
       reminder.urgency === 'overdue' ? 'border-red-200 bg-red-50' :
       reminder.urgency === 'today' ? 'border-orange-200 bg-orange-50' :
       reminder.urgency === 'tomorrow' ? 'border-blue-200 bg-blue-50' :
       'border-gray-200 bg-gray-50'
     }`}>
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0">
+      <div className="flex flex-col sm:flex-row items-start gap-3">
+        <div className="flex-shrink-0 self-start sm:self-center">
           {getUrgencyIcon(reminder.urgency)}
         </div>
         
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1 min-w-0 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
             <h4 className="font-semibold text-lg truncate">{reminder.lead.name}</h4>
-            <Badge className={`text-xs font-medium ${getUrgencyColor(reminder.urgency)}`}>
+            <Badge className={`text-xs font-medium self-start sm:self-center ${getUrgencyColor(reminder.urgency)}`}>
               {getDateLabel(reminder)}
             </Badge>
           </div>
@@ -108,13 +108,13 @@ export default function EmployeeRemindersWidget() {
           <div className="space-y-1 mb-3">
             {reminder.lead.phone && (
               <div className="flex items-center gap-2 text-sm">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">{reminder.lead.phone}</span>
+                <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="font-medium truncate">{reminder.lead.phone}</span>
               </div>
             )}
             {reminder.lead.email && (
               <div className="flex items-center gap-2 text-sm">
-                <Mail className="w-4 h-4 text-muted-foreground" />
+                <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span className="truncate">{reminder.lead.email}</span>
               </div>
             )}
@@ -126,14 +126,14 @@ export default function EmployeeRemindersWidget() {
             </p>
           )}
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>{format(reminder.date, 'MMM d, yyyy • h:mm a')}</span>
+              <Clock className="w-4 h-4 shrink-0" />
+              <span className="truncate">{format(reminder.date, 'MMM d, yyyy • h:mm a')}</span>
             </div>
             
-            <Link to="/staff/leads">
-              <Button size="sm" variant="outline">
+            <Link to="/staff/leads" className="self-start sm:self-center">
+              <Button size="sm" variant="outline" className="w-full sm:w-auto">
                 View Lead
               </Button>
             </Link>
@@ -152,8 +152,8 @@ export default function EmployeeRemindersWidget() {
   return (
     <Card className="relative">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="w-full sm:w-auto">
             <CardTitle className="flex items-center gap-2 text-xl">
               <Bell className="w-6 h-6" />
               My Reminders
@@ -167,16 +167,17 @@ export default function EmployeeRemindersWidget() {
               Your lead follow-up reminders and tasks
             </CardDescription>
           </div>
-          <div className="flex gap-2">
-            <Link to="/staff/leads">
-              <Button variant="outline" size="sm">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Link to="/staff/leads" className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-1" />
                 Add Lead
               </Button>
             </Link>
-            <Link to="/staff/calendar">
-              <Button variant="outline" size="sm">
-                View Calendar
+            <Link to="/staff/calendar" className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                <span className="hidden sm:inline">View Calendar</span>
+                <span className="sm:hidden">Calendar</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
@@ -185,7 +186,7 @@ export default function EmployeeRemindersWidget() {
         
         {/* Quick Stats */}
         {reminders.length > 0 && (
-          <div className="flex gap-4 mt-4">
+          <div className="flex flex-wrap gap-3 mt-4">
             {overdueCount > 0 && (
               <div className="flex items-center gap-1 text-sm text-red-600">
                 <AlertCircle className="w-4 h-4" />
@@ -216,29 +217,29 @@ export default function EmployeeRemindersWidget() {
       
       <CardContent>
         {reminders.length === 0 ? (
-          <div className="text-center py-12">
-            <Bell className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <div className="text-center py-8 md:py-12">
+            <Bell className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No Reminders Set</h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-6 px-4">
               Set reminder status on your leads to keep track of follow-ups
             </p>
-            <Link to="/staff/leads">
-              <Button>
+            <Link to="/staff/leads" className="inline-block">
+              <Button className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Lead with Reminder
               </Button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {reminders.slice(0, 5).map(reminder => (
               <ReminderCard key={reminder.id} reminder={reminder} />
             ))}
             
             {reminders.length > 5 && (
               <div className="text-center pt-4 border-t">
-                <Link to="/staff/calendar">
-                  <Button variant="outline">
+                <Link to="/staff/calendar" className="inline-block w-full sm:w-auto">
+                  <Button variant="outline" className="w-full sm:w-auto">
                     View All {reminders.length} Reminders
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
