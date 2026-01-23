@@ -55,6 +55,7 @@ export interface Lead {
   followUpDate?: Date;
   notes: LeadNote[];
   createdBy: string;
+  assignedTo?: string; // Employee assignment for role-based visibility
   assignedProjects?: string[]; // Changed to array for multiple projects
   assignedProject?: string; // Keep for backward compatibility
   createdAt: Date;

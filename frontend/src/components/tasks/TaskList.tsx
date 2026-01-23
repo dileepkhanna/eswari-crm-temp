@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Task, TaskStatus, Lead } from "@/types";
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
-import { canViewCustomerPhone, isManagerView as isManagerRole, canDeleteLeadsAndTasks } from '@/lib/permissions';
+import { canViewCustomerPhone, isManagerView as isManagerRole, canDeleteLeadsAndTasks, maskPhoneNumber, maskEmail } from '@/lib/permissions';
 import TaskStatusChip from "./TaskStatusChip";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailsModal from "./TaskDetailsModal";
@@ -58,8 +58,11 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const { user } = useAuth();
   const { tasks, leads, projects, addTask, updateTask, deleteTask } = useData();
   
-  // Use permission utility instead of prop for phone visibility
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
+  // Helper function to check if current user can see a task's phone number
+  const canSeePhoneNumber = (task: Task) => {
+    return canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy);
+  };
+  
   const isManager = user ? isManagerRole(user.role) : false;
   
   // Check if user can delete tasks
@@ -78,9 +81,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
-      const matchesSearch =
-        task.lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.lead.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = !searchQuery || 
+        (task.lead?.name && task.lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (task.lead?.email && task.lead.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesStatus = statusFilter === "all" || task.status === statusFilter;
       const matchesProject = projectFilter === "all" || task.assignedProject === projectFilter;
@@ -98,6 +101,11 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       return matchesSearch && matchesStatus && matchesProject && matchesDate;
     });
   }, [tasks, searchQuery, statusFilter, projectFilter, dateRange]);
+
+  // Check if user can see any phone numbers (for table headers) - MOVED AFTER filteredTasks
+  const canSeeAnyPhoneNumbers = useMemo(() => {
+    return filteredTasks.some(task => canSeePhoneNumber(task));
+  }, [filteredTasks, user]);
 
   const allSelected = filteredTasks.length > 0 && filteredTasks.every(task => selectedIds.has(task.id));
   const someSelected = selectedIds.size > 0;
@@ -121,15 +129,32 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   };
 
   const handleBulkDelete = async () => {
+    const failedDeletions: string[] = [];
+    const successfulDeletions: string[] = [];
+    
     try {
       for (const id of selectedIds) {
-        await deleteTask(id);
+        try {
+          await deleteTask(id);
+          successfulDeletions.push(id);
+        } catch (error) {
+          console.error(`Failed to delete task ${id}:`, error);
+          failedDeletions.push(id);
+        }
       }
-      toast.success(`${selectedIds.size} task(s) deleted successfully`);
+      
+      if (successfulDeletions.length > 0) {
+        toast.success(`${successfulDeletions.length} task(s) deleted successfully`);
+      }
+      
+      if (failedDeletions.length > 0) {
+        toast.error(`Failed to delete ${failedDeletions.length} task(s). They may have been already deleted or you don't have permission.`);
+      }
+      
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
     } catch (error) {
-      toast.error("Failed to delete some tasks");
+      toast.error("Failed to delete tasks");
     }
   };
 
@@ -330,18 +355,28 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           >
             <div className="flex items-start justify-between mb-3 gap-2">
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground truncate">{task.lead.name}</p>
+                <p className="font-medium text-foreground truncate">{task.lead?.name || 'Unknown Lead'}</p>
                 <p className="text-xs text-muted-foreground capitalize truncate">Task</p>
               </div>
               <TaskStatusChip status={task.status} />
             </div>
-            {canViewPhone && (
+            {canSeePhoneNumber(task) && (
               <div className="grid grid-cols-1 gap-2 text-sm mb-3">
                 <div className="text-muted-foreground">
-                  <span className="truncate font-medium">{task.lead.phone}</span>
+                  <span className="truncate font-medium">{task.lead?.phone || '-'}</span>
                 </div>
                 <div className="text-muted-foreground">
-                  <span className="truncate font-medium">{task.lead.email}</span>
+                  <span className="truncate font-medium">{task.lead?.email || '-'}</span>
+                </div>
+              </div>
+            )}
+            {!canSeePhoneNumber(task) && (
+              <div className="grid grid-cols-1 gap-2 text-sm mb-3">
+                <div className="text-muted-foreground">
+                  <span className="truncate font-medium">{maskPhoneNumber(task.lead?.phone || '')}</span>
+                </div>
+                <div className="text-muted-foreground">
+                  <span className="truncate font-medium">***@***.***</span>
                 </div>
               </div>
             )}
@@ -384,13 +419,13 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 />
               </TableHead>
               <TableHead className="font-semibold">Lead Name</TableHead>
-              {canViewPhone && <TableHead className="font-semibold">Phone</TableHead>}
-              {canViewPhone && <TableHead className="font-semibold">Contact</TableHead>}
-              {canViewPhone && <TableHead className="font-semibold">Requirement</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Phone</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Contact</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Requirement</TableHead>}
               <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Assigned To</TableHead>
-              {canViewPhone && <TableHead className="font-semibold">Next Action</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Next Action</TableHead>}
               <TableHead className="font-semibold">Created</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
@@ -406,27 +441,37 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                   <Checkbox 
                     checked={selectedIds.has(task.id)} 
                     onCheckedChange={() => toggleSelect(task.id)}
-                    aria-label={`Select ${task.lead.name}`}
+                    aria-label={`Select ${task.lead?.name || 'task'}`}
                   />
                 </TableCell>
                 <TableCell>
-                  <p className="font-medium text-foreground">{task.lead.name}</p>
+                  <p className="font-medium text-foreground">{task.lead?.name || 'Unknown Lead'}</p>
                 </TableCell>
-                {canViewPhone && (
+                {canSeePhoneNumber(task) && (
                   <TableCell>
-                    <p className="text-sm font-medium">{task.lead.phone || '-'}</p>
+                    <p className="text-sm font-medium">{task.lead?.phone || '-'}</p>
                   </TableCell>
                 )}
-                {canViewPhone && (
+                {!canSeePhoneNumber(task) && canSeeAnyPhoneNumbers && (
                   <TableCell>
-                    <p className="text-sm font-medium">{task.lead.email || '-'}</p>
+                    <p className="text-sm font-medium">{maskPhoneNumber(task.lead?.phone || '')}</p>
                   </TableCell>
                 )}
-                {canViewPhone && (
+                {canSeePhoneNumber(task) && (
+                  <TableCell>
+                    <p className="text-sm font-medium">{task.lead?.email || '-'}</p>
+                  </TableCell>
+                )}
+                {!canSeePhoneNumber(task) && canSeeAnyPhoneNumbers && (
+                  <TableCell>
+                    <p className="text-sm font-medium">***@***.***</p>
+                  </TableCell>
+                )}
+                {canSeeAnyPhoneNumbers && (
                   <TableCell>
                     <div>
-                      <p className="text-sm capitalize">{task.lead.requirementType}</p>
-                      <p className="text-xs text-muted-foreground">{task.lead.bhkRequirement} BHK</p>
+                      <p className="text-sm capitalize">{task.lead?.requirementType || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{task.lead?.bhkRequirement || '-'} BHK</p>
                     </div>
                   </TableCell>
                 )}
@@ -452,9 +497,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                   )}
                 </TableCell>
                 <TableCell>
-                  <StaffProfileChip userId={task.assignedTo} showDetails={canViewPhone} />
+                  <StaffProfileChip userId={task.assignedTo} showDetails={canSeeAnyPhoneNumbers} />
                 </TableCell>
-                {canViewPhone && (
+                {canSeeAnyPhoneNumbers && (
                   <TableCell>
                     {task.nextActionDate ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">

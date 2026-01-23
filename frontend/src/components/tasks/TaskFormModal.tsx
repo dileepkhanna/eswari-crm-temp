@@ -46,7 +46,7 @@ export default function TaskFormModal({
   projects,
 }: TaskFormModalProps) {
   const { user } = useAuth();
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
+  
   const [formData, setFormData] = useState({
     status: 'in_progress' as TaskStatus,
     assignedProject: 'none' as string,
@@ -58,6 +58,8 @@ export default function TaskFormModal({
     leadPhone: '' as string,
     leadEmail: '' as string,
   });
+
+  const canViewPhone = task ? canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy) : false;
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   useEffect(() => {
@@ -164,9 +166,9 @@ export default function TaskFormModal({
           {task && (
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Lead</p>
-              <p className="font-medium">{task.lead.name}</p>
+              <p className="font-medium">{task.lead?.name || 'Unknown Lead'}</p>
               {canViewPhone && (
-                <p className="text-sm text-muted-foreground">{task.lead.phone}</p>
+                <p className="text-sm text-muted-foreground">{task.lead?.phone || '-'}</p>
               )}
             </div>
           )}

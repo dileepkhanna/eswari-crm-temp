@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Lead, LeadStatus, RequirementType, LeadSource, Project } from '@/types';
+import { Lead, LeadStatus, RequirementType, LeadSource, Project, User } from '@/types';
+import { useAuth } from '@/contexts/AuthContextDjango';
 import {
   Dialog,
   DialogContent,
@@ -33,9 +34,12 @@ interface LeadFormModalProps {
   onSave: (lead: Partial<Lead>) => void;
   lead?: Lead | null;
   projects: Project[];
+  employees?: User[]; // Add employees prop for assignment
+  showAssignment?: boolean; // Control whether to show assignment section
 }
 
-export default function LeadFormModal({ open, onClose, onSave, lead, projects }: LeadFormModalProps) {
+export default function LeadFormModal({ open, onClose, onSave, lead, projects, employees = [], showAssignment = true }: LeadFormModalProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -51,9 +55,11 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
     customSource: '', // Add custom source field
     status: 'new' as LeadStatus,
     followUpDate: null as Date | null,
+    assignedTo: '', // Add employee assignment
     assignedProjects: [] as string[], // Changed to array for multiple projects
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Helper functions for project selection
   const handleProjectToggle = (projectId: string) => {
@@ -107,6 +113,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
         customSource: isStandardSource ? '' : (lead.source || ''),
         status: lead.status,
         followUpDate: lead.followUpDate || null,
+        assignedTo: lead.assignedTo || undefined,
         assignedProjects: assignedProjects,
       });
     } else {
@@ -125,10 +132,11 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
         customSource: '',
         status: 'new',
         followUpDate: null,
+        assignedTo: user?.role === 'employee' ? user.id : undefined, // Auto-assign to employee when they create leads
         assignedProjects: [],
       });
     }
-  }, [lead, open]);
+  }, [lead, open, user]);
 
   const handleStatusChange = (value: LeadStatus) => {
     setFormData({ ...formData, status: value });
@@ -142,8 +150,10 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) return; // Prevent multiple submissions
 
     // Validate reminder status requires follow-up date
     if (formData.status === 'reminder' && !formData.followUpDate) {
@@ -158,17 +168,25 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
       return;
     }
 
-    // Prepare the final source value
-    const finalSource = formData.source === 'custom' ? formData.customSource.trim() : formData.source;
+    setIsSubmitting(true);
 
-    onSave({
-      ...formData,
-      source: finalSource as LeadSource,
-      assignedProjects: formData.assignedProjects.length > 0 ? formData.assignedProjects : undefined,
-      // Keep backward compatibility
-      assignedProject: formData.assignedProjects.length > 0 ? formData.assignedProjects[0] : undefined,
-      followUpDate: formData.followUpDate || undefined,
-    });
+    try {
+      // Prepare the final source value
+      const finalSource = formData.source === 'custom' ? formData.customSource.trim() : formData.source;
+
+      await onSave({
+        ...formData,
+        source: finalSource as LeadSource,
+        assignedProjects: formData.assignedProjects.length > 0 ? formData.assignedProjects : undefined,
+        // Keep backward compatibility
+        assignedProject: formData.assignedProjects.length > 0 ? formData.assignedProjects[0] : undefined,
+        followUpDate: formData.followUpDate || undefined,
+      });
+    } catch (error) {
+      // Error handling is done in the parent component
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -260,6 +278,44 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
               )}
             </div>
           </div>
+
+          {/* Employee Assignment Section - Only for Managers when showAssignment is true */}
+          {showAssignment && user?.role === 'manager' && (
+            <div className="space-y-2">
+              <Label>Assign to Employee</Label>
+              <Select 
+                value={formData.assignedTo || "unassigned"} 
+                onValueChange={(value) => setFormData({ ...formData, assignedTo: value === "unassigned" ? undefined : value })}
+              >
+                <SelectTrigger className="input-field">
+                  <SelectValue placeholder="Select employee (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">No Assignment</SelectItem>
+                  {employees.map(employee => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name} ({employee.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Assign this lead to a specific employee. If assigned, only the assigned employee, managers, and admins can see this lead.
+              </p>
+            </div>
+          )}
+
+          {/* Employee Assignment Info - Only for Employees when showAssignment is true */}
+          {showAssignment && user?.role === 'employee' && (
+            <div className="space-y-2">
+              <Label>Lead Assignment</Label>
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  This lead will be assigned to you: <span className="font-medium text-foreground">{user.name}</span>
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Assigned Projects</Label>
@@ -517,8 +573,15 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="btn-primary">
-              {lead ? 'Update Lead' : 'Create Lead'}
+            <Button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  {lead ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                lead ? 'Update Lead' : 'Create Lead'
+              )}
             </Button>
           </div>
         </form>

@@ -34,7 +34,10 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
+  // Check if user can see phone numbers for any tasks (for tooltip display)
+  const canViewAnyPhoneNumbers = tasks.some(task => 
+    canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy)
+  );
 
   const tasksByStatus = [
     { name: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, color: 'hsl(217, 91%, 60%)', gradient: 'from-blue-500 to-indigo-600', status: 'in_progress' },
@@ -222,16 +225,22 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
                 className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
               >
                 <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                  {task.lead.name.charAt(0)}
+                  {task.lead?.name?.charAt(0) || 'T'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">{task.lead.name}</p>
+                  <p className="font-medium text-sm text-foreground truncate">{task.lead?.name || 'Unknown Lead'}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="capitalize">{task.lead.requirementType} • {task.lead.bhkRequirement} BHK</span>
-                    {canViewPhone && (
+                    <span className="capitalize">{task.lead?.requirementType || '-'} • {task.lead?.bhkRequirement || '-'} BHK</span>
+                    {canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy) && (
                       <span className="flex items-center gap-1">
                         <Phone className="w-3 h-3" />
-                        {task.lead.phone}
+                        {task.lead?.phone || '-'}
+                      </span>
+                    )}
+                    {!canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy) && canViewAnyPhoneNumbers && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {maskPhoneNumber(task.lead?.phone || '')}
                       </span>
                     )}
                   </div>

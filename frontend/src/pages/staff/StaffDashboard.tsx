@@ -130,12 +130,12 @@ export default function StaffDashboard() {
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold">
-                      {task.lead.name.charAt(0)}
+                      {task.lead?.name?.charAt(0) || 'T'}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-foreground">{task.lead.name}</p>
+                      <p className="font-medium text-foreground">{task.lead?.name || 'Unknown Lead'}</p>
                       <p className="text-sm text-muted-foreground capitalize">
-                        {task.lead.requirementType} • {task.lead.bhkRequirement} BHK
+                        {task.lead?.requirementType || '-'} • {task.lead?.bhkRequirement || '-'} BHK
                       </p>
                     </div>
                     <TaskStatusChip status={task.status} />

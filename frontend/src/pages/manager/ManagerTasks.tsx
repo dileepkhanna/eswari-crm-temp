@@ -6,7 +6,7 @@ export default function ManagerTasks() {
     <div className="min-h-screen">
       <TopBar title="Tasks" subtitle="Manage tasks" />
       <div className="p-4 md:p-6">
-        <TaskList canCreate canEdit />
+        <TaskList canCreate canEdit isManagerView />
       </div>
     </div>
   );

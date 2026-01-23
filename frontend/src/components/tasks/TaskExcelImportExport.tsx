@@ -33,11 +33,14 @@ const SAMPLE_DATA = [
 
 export default function TaskExcelImportExport({ tasks = [], onImport, getProjectName }: TaskExcelImportExportProps) {
   const { user } = useAuth();
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Only allow import/export for users who can view phone numbers
-  if (!canViewPhone) {
+  // Only allow import/export for users who can view phone numbers for at least some tasks
+  const canViewAnyPhoneNumbers = tasks.some(task => 
+    canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy)
+  );
+  
+  if (!canViewAnyPhoneNumbers) {
     return null;
   }
 
@@ -49,13 +52,13 @@ export default function TaskExcelImportExport({ tasks = [], onImport, getProject
       }
 
       const exportData = tasks.map(task => ({
-        'Lead Name': task.lead.name,
-        'Lead Phone': task.lead.phone,
-        'Lead Email': task.lead.email,
-        'Requirement Type': task.lead.requirementType,
-        'BHK': task.lead.bhkRequirement,
-        'Budget Min': task.lead.budgetMin,
-        'Budget Max': task.lead.budgetMax,
+        'Lead Name': task.lead?.name || 'Unknown Lead',
+        'Lead Phone': task.lead?.phone || '-',
+        'Lead Email': task.lead?.email || '-',
+        'Requirement Type': task.lead?.requirementType || '-',
+        'BHK': task.lead?.bhkRequirement || '-',
+        'Budget Min': task.lead?.budgetMin || 0,
+        'Budget Max': task.lead?.budgetMax || 0,
         'Project': getProjectName ? getProjectName(task.assignedProject) : task.assignedProject,
         'Status': task.status,
         'Assigned To': task.assignedTo,

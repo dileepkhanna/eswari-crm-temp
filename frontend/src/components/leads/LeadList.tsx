@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Lead } from "@/types";
+import { Lead, User } from "@/types";
 import LeadStatusChip from "./LeadStatusChip";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailsModal from "./LeadDetailsModal";
@@ -58,13 +58,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContextDjango";
 import { useData } from "@/contexts/DataContextDjango";
-import { canDeleteLeadsAndTasks } from "@/lib/permissions";
+import { canDeleteLeadsAndTasks, canViewCustomerPhone, maskPhoneNumber, maskEmail } from "@/lib/permissions";
 
 interface LeadListProps {
   canCreate?: boolean;
   canEdit?: boolean;
   canConvert?: boolean;
   isManagerView?: boolean;
+  employees?: User[]; // Add employees for assignment
 }
 
 export default function LeadList({
@@ -72,12 +73,18 @@ export default function LeadList({
   canEdit = true,
   canConvert = true,
   isManagerView = false,
+  employees = [],
 }: LeadListProps) {
   const { user } = useAuth();
   const { leads, projects, addLead, updateLead, deleteLead, addTask } = useData();
 
   // Check if user can delete leads and tasks
   const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
+
+  // Helper function to check if current user can see a lead's phone number
+  const canSeePhoneNumber = (lead: Lead) => {
+    return canViewCustomerPhone(user?.role, user?.id, lead.createdBy);
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -116,6 +123,11 @@ export default function LeadList({
       return matchesSearch && matchesStatus && matchesProject && matchesDate;
     });
   }, [leads, searchQuery, statusFilter, projectFilter, dateRange]);
+
+  // Check if user can see any phone numbers (for table headers)
+  const canSeeAnyPhoneNumbers = useMemo(() => {
+    return filteredLeads.some(lead => canSeePhoneNumber(lead));
+  }, [filteredLeads, user]);
 
   const allSelected = filteredLeads.length > 0 && filteredLeads.every(lead => selectedIds.has(lead.id));
   const someSelected = selectedIds.size > 0;
@@ -407,15 +419,19 @@ export default function LeadList({
               </div>
               <LeadStatusChip status={lead.status} />
             </div>
-            {!isManagerView && (
+            {canSeeAnyPhoneNumbers && (
               <div className="grid grid-cols-1 gap-2 text-sm mb-3">
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Phone className="w-3.5 h-3.5" />
-                  <span className="truncate">{lead.phone}</span>
+                  <span className="truncate">
+                    {canSeePhoneNumber(lead) ? lead.phone : maskPhoneNumber(lead.phone)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Mail className="w-3.5 h-3.5" />
-                  <span className="truncate">{lead.email}</span>
+                  <span className="truncate">
+                    {canSeePhoneNumber(lead) ? lead.email : maskEmail(lead.email)}
+                  </span>
                 </div>
               </div>
             )}
@@ -476,14 +492,14 @@ export default function LeadList({
                   <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                 </div>
               </TableHead>
-              {!isManagerView && <TableHead className="font-semibold">Phone</TableHead>}
-              {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
-              {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Phone</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Contact</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Requirement</TableHead>}
               <TableHead className="font-semibold">Budget</TableHead>
               <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Created By</TableHead>
-              {!isManagerView && <TableHead className="font-semibold">Follow-up</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Follow-up</TableHead>}
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
           </TableHeader>
@@ -509,23 +525,23 @@ export default function LeadList({
                     )}
                   </div>
                 </TableCell>
-                {!isManagerView && (
+                {canSeeAnyPhoneNumbers && (
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Phone className="w-3.5 h-3.5" />
-                      {lead.phone}
+                      {canSeePhoneNumber(lead) ? lead.phone : maskPhoneNumber(lead.phone)}
                     </div>
                   </TableCell>
                 )}
-                {!isManagerView && (
+                {canSeeAnyPhoneNumbers && (
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="w-3.5 h-3.5" />
-                      {lead.email}
+                      {canSeePhoneNumber(lead) ? lead.email : maskEmail(lead.email)}
                     </div>
                   </TableCell>
                 )}
-                {!isManagerView && (
+                {canSeeAnyPhoneNumbers && (
                   <TableCell>
                     <div>
                       <p className="text-sm capitalize">{lead.requirementType}</p>
@@ -557,7 +573,7 @@ export default function LeadList({
                 <TableCell>
                   <StaffProfileChip userId={lead.createdBy} showDetails={!isManagerView} />
                 </TableCell>
-                {!isManagerView && (
+                {canSeeAnyPhoneNumbers && (
                   <TableCell>
                     {lead.followUpDate ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -631,6 +647,8 @@ export default function LeadList({
         onSave={handleSaveLead}
         lead={editingLead}
         projects={projects}
+        employees={employees}
+        showAssignment={true} // Always show assignment for regular lead creation/editing
       />
 
       <LeadDetailsModal

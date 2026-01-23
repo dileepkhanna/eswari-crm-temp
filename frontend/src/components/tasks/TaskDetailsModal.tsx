@@ -45,9 +45,10 @@ export default function TaskDetailsModal({
   getProjectName 
 }: TaskDetailsModalProps) {
   const { user } = useAuth();
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   
   if (!task) return null;
+  
+  const canViewPhone = user ? canViewCustomerPhone(user.role, user.id, task.lead?.createdBy) : false;
 
   const formatBudget = (min: number, max: number) => {
     const formatValue = (val: number) => {
@@ -69,7 +70,7 @@ export default function TaskDetailsModal({
                 <User className="w-5 h-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <span className="text-xl truncate block">{task.lead.name}</span>
+                <span className="text-xl truncate block">{task.lead?.name || 'Unknown Lead'}</span>
                 <div className="flex items-center gap-2 mt-1">
                   <TaskStatusChip status={task.status} />
                 </div>
@@ -95,7 +96,7 @@ export default function TaskDetailsModal({
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                   <div>
                     <p className="text-xs text-muted-foreground">Name</p>
-                    <p className="font-medium">{task.lead.name}</p>
+                    <p className="font-medium">{task.lead?.name || 'Unknown Lead'}</p>
                   </div>
                 </div>
                 {canViewPhone ? (
@@ -103,16 +104,16 @@ export default function TaskDetailsModal({
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <div>
                         <p className="text-xs text-muted-foreground">Phone</p>
-                        <p className="font-medium">{task.lead.phone}</p>
+                        <p className="font-medium">{task.lead?.phone || '-'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <div>
                         <p className="text-xs text-muted-foreground">Email</p>
-                        <p className="font-medium">{task.lead.email || 'Not provided'}</p>
+                        <p className="font-medium">{task.lead?.email || 'Not provided'}</p>
                       </div>
                     </div>
-                    {task.lead.source && (
+                    {task.lead?.source && (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                         <div>
                           <p className="text-xs text-muted-foreground">Lead Source</p>
@@ -140,7 +141,7 @@ export default function TaskDetailsModal({
                   <User className="w-4 h-4 text-primary" />
                   <div>
                     <p className="text-xs text-muted-foreground">Name</p>
-                    <p className="font-medium">{task.lead.name}</p>
+                    <p className="font-medium">{task.lead?.name || 'Unknown Lead'}</p>
                   </div>
                 </div>
                 {canViewPhone && (
@@ -149,25 +150,27 @@ export default function TaskDetailsModal({
                       <Phone className="w-5 h-5 text-primary" />
                       <div className="flex-1">
                         <p className="text-xs text-muted-foreground">Phone Number</p>
-                        <p className="font-medium text-lg">{task.lead.phone}</p>
+                        <p className="font-medium text-lg">{task.lead?.phone || '-'}</p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(`tel:${task.lead.phone}`, '_self')}
-                        className="shrink-0"
-                      >
-                        <Phone className="w-4 h-4 mr-1" />
-                        Call
-                      </Button>
+                      {task.lead?.phone && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`tel:${task.lead.phone}`, '_self')}
+                          className="shrink-0"
+                        >
+                          <Phone className="w-4 h-4 mr-1" />
+                          Call
+                        </Button>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <Mail className="w-5 h-5 text-primary" />
                       <div className="flex-1">
                         <p className="text-xs text-muted-foreground">Email Address</p>
-                        <p className="font-medium">{task.lead.email || 'Not provided'}</p>
+                        <p className="font-medium">{task.lead?.email || 'Not provided'}</p>
                       </div>
-                      {task.lead.email && (
+                      {task.lead?.email && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -179,7 +182,7 @@ export default function TaskDetailsModal({
                         </Button>
                       )}
                     </div>
-                    {task.lead.source && (
+                    {task.lead?.source && (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                         <MapPin className="w-5 h-5 text-primary" />
                         <div className="flex-1">
@@ -211,14 +214,14 @@ export default function TaskDetailsModal({
                       <Home className="w-4 h-4 text-primary" />
                       <div>
                         <p className="text-xs text-muted-foreground">Type</p>
-                        <p className="font-medium capitalize">{task.lead.requirementType || '-'}</p>
+                        <p className="font-medium capitalize">{task.lead?.requirementType || '-'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <Home className="w-4 h-4 text-primary" />
                       <div>
                         <p className="text-xs text-muted-foreground">BHK</p>
-                        <p className="font-medium">{task.lead.bhkRequirement ? `${task.lead.bhkRequirement} BHK` : '-'}</p>
+                        <p className="font-medium">{task.lead?.bhkRequirement ? `${task.lead.bhkRequirement} BHK` : '-'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 col-span-2">
@@ -226,7 +229,7 @@ export default function TaskDetailsModal({
                       <div>
                         <p className="text-xs text-muted-foreground">Budget</p>
                         <p className="font-medium">
-                          {task.lead.budgetMin && task.lead.budgetMax ? formatBudget(task.lead.budgetMin, task.lead.budgetMax) : '-'}
+                          {task.lead?.budgetMin && task.lead?.budgetMax ? formatBudget(task.lead.budgetMin, task.lead.budgetMax) : '-'}
                         </p>
                       </div>
                     </div>

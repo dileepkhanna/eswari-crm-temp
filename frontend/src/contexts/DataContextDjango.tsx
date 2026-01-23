@@ -14,6 +14,7 @@ interface DataContextType {
   leaves: Leave[];
   loading: boolean;
   refreshData: (showLoading?: boolean) => Promise<void>;
+  addLeadToState: (lead: Lead) => void; // Add function to directly update leads state
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
@@ -51,7 +52,7 @@ const apiToLeave = (apiLeave: any): Leave => ({
 });
 
 // Helper to convert Django API response to Lead type
-const apiToLead = (apiLead: any): Lead => ({
+export const apiToLead = (apiLead: any): Lead => ({
   id: apiLead.id.toString(),
   name: apiLead.name,
   phone: apiLead.phone || '',
@@ -68,6 +69,7 @@ const apiToLead = (apiLead: any): Lead => ({
   followUpDate: apiLead.follow_up_date ? new Date(apiLead.follow_up_date) : undefined,
   notes: [],
   createdBy: apiLead.created_by_detail?.id?.toString() || apiLead.created_by?.toString() || '',
+  assignedTo: apiLead.assigned_to_detail?.id?.toString() || apiLead.assigned_to?.toString() || undefined,
   assignedProjects: apiLead.assigned_projects || [], // New multiple projects field
   assignedProject: apiLead.assigned_project || '', // Keep for backward compatibility
   createdAt: new Date(apiLead.created_at),
@@ -357,8 +359,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, refreshData]);
 
+  // Function to add lead directly to state (for customer-to-lead conversion)
+  const addLeadToState = useCallback((lead: Lead) => {
+    setLeads(prev => [lead, ...prev]);
+  }, []);
+
   const addLead = useCallback(async (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+    // Generate temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const tempLead: Lead = {
+      ...lead,
+      id: tempId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
     try {
+      // Optimistic update - add lead immediately to UI
+      setLeads(prev => [tempLead, ...prev]);
+
       const leadData: any = {
         name: lead.name,
         phone: lead.phone,
@@ -372,48 +391,63 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         preferred_location: lead.preferredLocation || '',
         status: lead.status,
         source: lead.source || 'website',
+        assigned_to: lead.assignedTo || null, // Employee assignment
         assigned_projects: lead.assignedProjects || [], // New multiple projects field
         assigned_project: lead.assignedProject || null, // Keep for backward compatibility
         follow_up_date: lead.followUpDate?.toISOString() || null,
       };
 
+      // Create lead on server
       const newLead = await apiClient.createLead(leadData);
       const convertedLead = apiToLead(newLead);
-      setLeads(prev => [convertedLead, ...prev]);
+      
+      // Replace temporary lead with real lead
+      setLeads(prev => prev.map(l => l.id === tempId ? convertedLead : l));
 
-      // Log activity
-      if (user) {
-        console.log('Logging lead creation activity for user:', user);
-        console.log('User structure:', { id: user.id, name: user.name, role: user.role });
-        try {
-          await logLeadActivity(user, 'created', lead.name);
-          console.log('Lead activity logged successfully');
-        } catch (activityError) {
-          console.error('Failed to log lead activity:', activityError);
-        }
-      } else {
-        console.warn('No user found for activity logging');
-      }
-
-      if (notificationContext?.addNotification) {
-        notificationContext.addNotification({
-          title: 'New Lead Created',
-          message: `Lead "${lead.name}" has been created${lead.followUpDate ? ` with follow-up on ${lead.followUpDate.toLocaleDateString()}` : ''}`,
-          type: 'lead',
-          createdAt: new Date(),
-        });
-      }
+      // Background tasks (don't await these to avoid blocking UI)
+      Promise.all([
+        // Log activity in background
+        user ? logLeadActivity(user, 'created', lead.name).catch(err => 
+          console.error('Failed to log lead activity:', err)
+        ) : Promise.resolve(),
+        
+        // Add notification in background
+        notificationContext?.addNotification ? Promise.resolve(
+          notificationContext.addNotification({
+            title: 'New Lead Created',
+            message: `Lead "${lead.name}" has been created${lead.followUpDate ? ` with follow-up on ${lead.followUpDate.toLocaleDateString()}` : ''}`,
+            type: 'lead',
+            createdAt: new Date(),
+          })
+        ) : Promise.resolve()
+      ]);
 
       toast.success('Lead created successfully');
     } catch (error) {
       console.error('Error adding lead:', error);
+      
+      // Remove optimistic update on error
+      setLeads(prev => prev.filter(l => l.id !== tempId));
+      
       toast.error('Failed to add lead');
       throw error;
     }
   }, [notificationContext, user]);
 
   const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
+    // Store original lead for rollback
+    const originalLead = leads.find(l => l.id === id);
+    if (!originalLead) {
+      toast.error('Lead not found');
+      return;
+    }
+
     try {
+      // Optimistic update - update UI immediately
+      setLeads(prev =>
+        prev.map(l => (l.id === id ? { ...l, ...data, updatedAt: new Date() } : l))
+      );
+
       const updateData: any = {};
       if (data.name !== undefined) updateData.name = data.name;
       if (data.email !== undefined) updateData.email = data.email || '';
@@ -433,27 +467,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateData.follow_up_date = data.followUpDate?.toISOString() || null;
       }
 
+      // Update on server
       await apiClient.updateLead(parseInt(id), updateData);
-      
-      setLeads(prev =>
-        prev.map(l => (l.id === id ? { ...l, ...data, updatedAt: new Date() } : l))
-      );
 
-      // Log activity
+      // Background activity logging (don't await)
       if (user) {
-        const leadName = data.name || leads.find(l => l.id === id)?.name || 'Unknown Lead';
-        console.log('Logging lead update activity for user:', user);
-        try {
-          await logLeadActivity(user, 'updated', leadName);
-          console.log('Lead update activity logged successfully');
-        } catch (activityError) {
-          console.error('Failed to log lead update activity:', activityError);
-        }
+        const leadName = data.name || originalLead.name || 'Unknown Lead';
+        logLeadActivity(user, 'updated', leadName).catch(err => 
+          console.error('Failed to log lead update activity:', err)
+        );
       }
 
       toast.success('Lead updated successfully');
     } catch (error) {
       console.error('Error updating lead:', error);
+      
+      // Rollback optimistic update on error
+      setLeads(prev =>
+        prev.map(l => (l.id === id ? originalLead : l))
+      );
+      
       toast.error('Failed to update lead');
       throw error;
     }
@@ -488,12 +521,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [user, leads]);
 
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+    // Generate temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const tempTask: Task = {
+      ...task,
+      id: tempId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
     try {
       // Ensure we have a project to assign the task to
       if (!projects || projects.length === 0) {
         toast.error('No projects available. Please create a project first.');
         throw new Error('No projects available');
       }
+
+      // Optimistic update - add task immediately to UI
+      setTasks(prev => [tempTask, ...prev]);
 
       let leadId = null;
       
@@ -542,27 +587,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         due_date: task.nextActionDate?.toISOString() || null,
       };
 
+      // Create task on server
       const newTask = await apiClient.createTask(taskData);
       const convertedTask = apiToTask(newTask);
-      setTasks(prev => [convertedTask, ...prev]);
+      
+      // Replace temporary task with real task
+      setTasks(prev => prev.map(t => t.id === tempId ? convertedTask : t));
 
-      // Log activity
-      if (user) {
-        await logTaskActivity(user, 'created', `for ${task.lead?.name || 'customer'}`);
-      }
-
-      if (notificationContext?.addNotification) {
-        notificationContext.addNotification({
-          title: 'New Task Created',
-          message: `Task has been created for ${task.lead?.name || 'customer'}`,
-          type: 'task',
-          createdAt: new Date(),
-        });
-      }
+      // Background tasks (don't await these to avoid blocking UI)
+      Promise.all([
+        // Log activity in background
+        user ? logTaskActivity(user, 'created', `for ${task.lead?.name || 'customer'}`).catch(err =>
+          console.error('Failed to log task activity:', err)
+        ) : Promise.resolve(),
+        
+        // Add notification in background
+        notificationContext?.addNotification ? Promise.resolve(
+          notificationContext.addNotification({
+            title: 'New Task Created',
+            message: `Task has been created for ${task.lead?.name || 'customer'}`,
+            type: 'task',
+            createdAt: new Date(),
+          })
+        ) : Promise.resolve()
+      ]);
 
       toast.success('Task created successfully');
     } catch (error) {
       console.error('Error adding task:', error);
+      
+      // Remove optimistic update on error
+      setTasks(prev => prev.filter(t => t.id !== tempId));
+      
       toast.error('Failed to add task');
       throw error;
     }
@@ -605,11 +661,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiClient.deleteTask(parseInt(id));
       setTasks(prev => prev.filter(t => t.id !== id));
-      toast.success('Task deleted successfully');
-    } catch (error) {
+      // Don't show individual success toast for bulk operations
+    } catch (error: any) {
       console.error('Error deleting task:', error);
-      toast.error('Failed to delete task');
-      throw error;
+      
+      // Check if it's a 404 error (task not found)
+      if (error.message?.includes('404')) {
+        // Task might have been already deleted, remove it from local state
+        setTasks(prev => prev.filter(t => t.id !== id));
+        console.warn(`Task ${id} not found on server, removing from local state`);
+      } else {
+        // For other errors, show error message
+        toast.error(`Failed to delete task ${id}`);
+      }
+      
+      throw error; // Re-throw to let bulk delete handle it
     }
   }, []);
 
@@ -905,6 +971,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     leaves,
     loading,
     refreshData,
+    addLeadToState,
     addLead,
     updateLead,
     deleteLead,

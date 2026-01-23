@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Customer, CallStatus, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
 import CustomerStatusChip from './CustomerStatusChip';
 import CustomerFormModal from './CustomerFormModal';
 import CustomerExcelImportExport from './CustomerExcelImportExport';
@@ -84,6 +85,11 @@ export default function CustomerList({
 }: CustomerListProps) {
   const { user } = useAuth();
   const isPageVisible = usePageVisibility();
+  
+  // Helper function to check if current user can see a customer's phone number
+  const canSeePhoneNumber = (customer: Customer) => {
+    return canViewCustomerPhone(user?.role, user?.id, customer.createdBy);
+  };
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -652,14 +658,14 @@ export default function CustomerList({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">
-                        {isManagerView ? '***-***-****' : customer.phone}
+                        {canSeePhoneNumber(customer) ? customer.phone : maskPhoneNumber(customer.phone)}
                       </span>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                         onClick={() => handlePhoneCall(customer)}
-                        disabled={isManagerView} // Disable call button for managers
+                        disabled={!canSeePhoneNumber(customer)} // Disable call button if can't see phone
                       >
                         <Phone className="w-4 h-4" />
                       </Button>
@@ -824,14 +830,14 @@ export default function CustomerList({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-base">
-                          {isManagerView ? '***-***-****' : customer.phone}
+                          {canSeePhoneNumber(customer) ? customer.phone : maskPhoneNumber(customer.phone)}
                         </span>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                           onClick={() => handlePhoneCall(customer)}
-                          disabled={isManagerView} // Disable call button for managers
+                          disabled={!canSeePhoneNumber(customer)} // Disable call button if can't see phone
                         >
                           <Phone className="w-4 h-4" />
                         </Button>
@@ -1086,6 +1092,7 @@ export default function CustomerList({
             source: 'customer_conversion',
             status: 'new',
             followUpDate: undefined,
+            assignedTo: user?.role === 'employee' ? user.id : undefined, // Only auto-assign for employees
             notes: [],
             createdBy: '',
             assignedProjects: [], // Initialize as empty array
@@ -1094,6 +1101,8 @@ export default function CustomerList({
             updatedAt: new Date(),
           } : null}
           projects={projects || []}
+          employees={employees}
+          showAssignment={user?.role !== 'manager'} // Hide assignment section for managers
         />
       )}
     </div>

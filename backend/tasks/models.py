@@ -28,6 +28,7 @@ class Task(models.Model):
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_tasks', null=True, blank=True)
     due_date = models.DateTimeField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     actual_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)

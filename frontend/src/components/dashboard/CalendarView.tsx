@@ -58,7 +58,6 @@ const taskStatusIcons: Record<string, React.ElementType> = {
 
 export default function CalendarView({ leads, tasks, title = "Calendar" }: CalendarViewProps) {
   const { user } = useAuth();
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
@@ -85,7 +84,7 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
         allEvents.push({
           id: `task-${task.id}`,
           type: 'task',
-          title: task.lead.name,
+          title: task.lead?.name || 'Unknown Lead',
           date: new Date(task.nextActionDate),
           data: task,
         });
@@ -326,7 +325,7 @@ export default function CalendarView({ leads, tasks, title = "Calendar" }: Calen
 
 function LeadEventCard({ lead }: { lead: Lead }) {
   const { user } = useAuth();
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
+  const canViewPhone = user ? canViewCustomerPhone(user.role, user.id, lead.createdBy) : false;
   
   // For reminder leads, show urgency
   const isOverdue = lead.followUpDate && new Date(lead.followUpDate) < new Date() && !isToday(new Date(lead.followUpDate));
@@ -406,7 +405,7 @@ function LeadEventCard({ lead }: { lead: Lead }) {
 
 function TaskEventCard({ task }: { task: Task }) {
   const { user } = useAuth();
-  const canViewPhone = user ? canViewCustomerPhone(user.role) : false;
+  const canViewPhone = user ? canViewCustomerPhone(user.role, user.id, task.lead?.createdBy) : false;
   const Icon = taskStatusIcons[task.status] || Clock;
   
   return (
@@ -417,7 +416,7 @@ function TaskEventCard({ task }: { task: Task }) {
             <Icon className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-semibold text-base text-foreground">{task.lead.name}</p>
+            <p className="font-semibold text-base text-foreground">{task.lead?.name || 'Unknown Lead'}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline" className="text-xs">
                 TASK DEADLINE
@@ -431,31 +430,31 @@ function TaskEventCard({ task }: { task: Task }) {
       </div>
       
       <div className="grid grid-cols-1 gap-2 text-sm">
-        {task.lead.phone && (
+        {task.lead?.phone && (
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="font-medium truncate">
-              {canViewPhone ? task.lead.phone : maskPhoneNumber(task.lead.phone)}
+              {canViewPhone ? task.lead?.phone : maskPhoneNumber(task.lead?.phone || '')}
             </span>
           </div>
         )}
-        {task.lead.email && (
+        {task.lead?.email && (
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="truncate">{task.lead.email}</span>
+            <span className="truncate">{task.lead?.email || '-'}</span>
           </div>
         )}
       </div>
       
-      {task.lead.description && (
+      {task.lead?.description && (
         <div className="p-3 bg-muted/50 rounded-md">
-          <p className="text-sm text-muted-foreground">{task.lead.description}</p>
+          <p className="text-sm text-muted-foreground">{task.lead?.description || '-'}</p>
         </div>
       )}
       
       <div className="flex items-center justify-between pt-2 border-t">
         <div className="text-xs text-muted-foreground">
-          {task.lead.requirementType} • {task.lead.bhkRequirement} BHK
+          {task.lead?.requirementType || '-'} • {task.lead?.bhkRequirement || '-'} BHK
         </div>
         <TaskStatusChip status={task.status} />
       </div>

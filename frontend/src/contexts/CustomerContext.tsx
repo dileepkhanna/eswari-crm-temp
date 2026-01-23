@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Customer, CallAllocation, User } from '@/types';
+import { Customer, CallAllocation, User, Lead } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useData, apiToLead } from '@/contexts/DataContextDjango';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { CallStatus } from '@/types/customer';
@@ -35,6 +36,7 @@ interface CustomerProviderProps {
 
 export function CustomerProvider({ children }: CustomerProviderProps) {
   const { user } = useAuth();
+  const { addLeadToState } = useData(); // Use addLeadToState for immediate state update
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<User[]>([]);
   const [callAllocations, setCallAllocations] = useState<CallAllocation[]>([]);
@@ -169,12 +171,19 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     try {
       console.log('🔄 Creating customer with data:', customerData);
       
+      // Auto-assign to current user if they are a manager and no assignment is specified
+      let assignedTo = customerData.assignedTo;
+      if (!assignedTo && user?.role === 'manager') {
+        assignedTo = user.id;
+        console.log('🎯 Auto-assigning customer to manager:', user.id);
+      }
+      
       const apiData = {
         name: customerData.name,
         phone: customerData.phone!,
         call_status: customerData.callStatus || 'pending',
         custom_call_status: customerData.customCallStatus,
-        assigned_to: customerData.assignedTo ? parseInt(customerData.assignedTo) : null,
+        assigned_to: assignedTo ? parseInt(assignedTo) : null,
         scheduled_date: customerData.scheduledDate?.toISOString(),
         notes: customerData.notes,
       };
@@ -207,7 +216,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         console.error('Error stack:', error.stack);
       }
     }
-  }, [fetchCustomers]);
+  }, [fetchCustomers, user]);
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
     try {
@@ -293,12 +302,12 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   const bulkImportCustomers = useCallback(async (customersData: Partial<Customer>[]) => {
     try {
       const apiCustomers = customersData.map(customer => {
-        // For employees, automatically assign imported customers to themselves
+        // Auto-assign imported customers to current user if they are employee or manager
         let assignedTo = customer.assignedTo ? parseInt(customer.assignedTo) : null;
         
-        if (user?.role === 'employee') {
+        if (user?.role === 'employee' || user?.role === 'manager') {
           assignedTo = parseInt(user.id);
-          console.log(`🔄 Auto-assigning imported customer ${customer.phone} to employee ${user.name} (ID: ${user.id})`);
+          console.log(`🔄 Auto-assigning imported customer ${customer.phone} to ${user.role} ${user.name} (ID: ${user.id})`);
         }
         
         return {
@@ -335,7 +344,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       }
       
       if (response.created > 0) {
-        const successMessage = user?.role === 'employee' 
+        const successMessage = (user?.role === 'employee' || user?.role === 'manager')
           ? `${response.created} customers imported and assigned to you successfully`
           : `${response.created} customers imported successfully`;
         toast.success(successMessage);
@@ -363,6 +372,13 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     try {
       console.log('🔄 Creating lead from customer with data:', leadData);
       
+      // Auto-assign to current user if they are an employee and no assignment is specified
+      let assignedTo = leadData.assignedTo;
+      if (!assignedTo && user?.role === 'employee') {
+        assignedTo = parseInt(user.id);
+        console.log('🎯 Auto-assigning lead to employee:', user.id);
+      }
+      
       const apiData = {
         name: leadData.name,
         phone: leadData.phone,
@@ -376,6 +392,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         preferred_location: leadData.preferredLocation || '',
         status: leadData.status || 'new',
         source: leadData.source || 'customer_conversion',
+        assigned_to: assignedTo, // Use the auto-assigned value
         assigned_projects: leadData.assignedProjects || [], // New multiple projects field
         assigned_project: leadData.assignedProject || null, // Keep for backward compatibility
         follow_up_date: leadData.followUpDate?.toISOString() || null,
@@ -386,12 +403,20 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       const response = await apiClient.createLead(apiData);
       console.log('✅ Lead creation response:', response);
       
+      // Convert API response to Lead object and add directly to DataContext state
+      const convertedLead = apiToLead(response);
+      
+      // Use addLeadToState for immediate state update without optimistic loading
+      addLeadToState(convertedLead);
+      
+      console.log('✅ Lead added to DataContext state immediately');
+      
       // Don't show success toast here as it will be shown by the calling component
     } catch (error) {
       console.error('❌ Error creating lead from customer:', error);
       throw error; // Re-throw to let the calling component handle the error
     }
-  }, []);
+  }, [addLeadToState, user]);
 
   const refreshCustomers = useCallback(async () => {
     try {
