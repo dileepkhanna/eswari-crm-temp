@@ -209,6 +209,7 @@ dist-ssr/
 
 # AWS deployment files
 *.pem
+LightsailDefaultKey-ap-south-1.pem
 deploy-keys/
 aws-config.local
 
