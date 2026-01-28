@@ -34,5 +34,6 @@ urlpatterns = [
     path("api/", include("customers.urls")),
 ]
 
+# Add media URLs at the beginning to avoid conflicts
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + urlpatterns

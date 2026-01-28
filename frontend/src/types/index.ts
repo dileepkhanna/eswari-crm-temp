@@ -103,8 +103,8 @@ export interface Project {
   description: string;
   towerDetails?: string;
   nearbyLandmarks: string[];
-  photos: string[];
-  coverImage: string;
+  coverImage: string; // Cover/Project image (same image)
+  blueprintImage: string; // Blueprint/Plan image
   status: ProjectStatus;
   createdAt: Date;
 }

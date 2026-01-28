@@ -39,7 +39,7 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
         <img
-          src={project.coverImage || project.photos?.[0] || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800'}
+          src={project.coverImage || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800'}
           alt={project.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           onError={(e) => {

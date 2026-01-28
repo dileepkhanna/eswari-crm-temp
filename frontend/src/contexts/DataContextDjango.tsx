@@ -90,8 +90,8 @@ const apiToProject = (apiProject: any): Project => ({
   description: apiProject.description || '',
   towerDetails: '',
   nearbyLandmarks: [],
-  photos: apiProject.photos || [], // Serializer already converts JSON to array
   coverImage: apiProject.cover_image || '',
+  blueprintImage: apiProject.blueprint_image || '',
   status: apiProject.status,
   createdAt: new Date(apiProject.created_at),
 });
@@ -701,17 +701,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      // Filter valid photo URLs - send as array, not JSON string
-      const validPhotos = (project.photos || []).filter(photo => {
-        const isValid = isValidUrl(photo);
-        if (!isValid && photo) {
-          console.warn('Invalid photo URL filtered out:', photo);
-        }
-        return isValid;
-      });
-
-      console.log('Sending photos to backend:', validPhotos); // Debug log
-
       const projectData = {
         name: project.name,
         description: project.description,
@@ -719,8 +708,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         start_date: project.launchDate.toISOString().split('T')[0],
         end_date: project.possessionDate?.toISOString().split('T')[0],
         budget: project.priceMax || 0,
-        photos: validPhotos, // Send as array - serializer handles JSON conversion
         cover_image: project.coverImage && isValidUrl(project.coverImage) ? project.coverImage : '',
+        blueprint_image: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
       };
 
       const newProject = await apiClient.createProject(projectData);
@@ -730,24 +719,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.success('Project created successfully');
     } catch (error: any) {
       console.error('Error adding project:', error);
-      
-      // Check if it's a photo URL validation error
-      if (error.details?.photos) {
-        const photoErrors = error.details.photos;
-        if (typeof photoErrors === 'object') {
-          // Handle individual photo URL errors
-          Object.keys(photoErrors).forEach(index => {
-            const photoError = photoErrors[index];
-            if (Array.isArray(photoError) && photoError.includes('Enter a valid URL.')) {
-              toast.error(`Photo URL at position ${parseInt(index) + 1} is invalid. Please use a valid http:// or https:// URL.`);
-            }
-          });
-        } else {
-          toast.error('Invalid photo URLs. Please ensure all URLs start with http:// or https://');
-        }
-      } else {
-        toast.error('Failed to add project');
-      }
+      toast.error('Failed to add project');
       throw error;
     }
   }, []);
@@ -761,8 +733,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.launchDate !== undefined) updateData.start_date = data.launchDate.toISOString().split('T')[0];
       if (data.possessionDate !== undefined) updateData.end_date = data.possessionDate.toISOString().split('T')[0];
       if (data.priceMax !== undefined) updateData.budget = data.priceMax;
-      if (data.photos !== undefined) updateData.photos = data.photos;
       if (data.coverImage !== undefined) updateData.cover_image = data.coverImage;
+      if (data.blueprintImage !== undefined) updateData.blueprint_image = data.blueprintImage;
 
       await apiClient.updateProject(parseInt(id), updateData);
       

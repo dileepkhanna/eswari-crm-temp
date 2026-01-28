@@ -19,10 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Upload, Building, MapPin, IndianRupee, Calendar, Image, Loader2, Link } from 'lucide-react';
+import { X, Plus, Upload, Building, MapPin, IndianRupee, Calendar, Image, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-// import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ProjectFormModalProps {
   open: boolean;
@@ -37,8 +35,9 @@ export default function ProjectFormModal({
   onSubmit,
   project,
 }: ProjectFormModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const blueprintInputRef = useRef<HTMLInputElement>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   const [formData, setFormData] = useState({
     name: project?.name || '',
@@ -57,11 +56,13 @@ export default function ProjectFormModal({
   const [newAmenity, setNewAmenity] = useState('');
   const [nearbyLandmarks, setNearbyLandmarks] = useState<string[]>(project?.nearbyLandmarks || []);
   const [newLandmark, setNewLandmark] = useState('');
-  const [photos, setPhotos] = useState<string[]>(project?.photos || []);
-  const [newPhoto, setNewPhoto] = useState('');
   const [coverImage, setCoverImage] = useState(project?.coverImage || '');
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [blueprintImage, setBlueprintImage] = useState(project?.blueprintImage || '');
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingBlueprint, setIsUploadingBlueprint] = useState(false);
+
+  // Create images array for sliding gallery
+  const images = [coverImage, blueprintImage].filter(Boolean);
 
   // Reset form when project changes or modal opens
   useEffect(() => {
@@ -81,8 +82,9 @@ export default function ProjectFormModal({
         });
         setAmenities(project.amenities || []);
         setNearbyLandmarks(project.nearbyLandmarks || []);
-        setPhotos(project.photos || []);
         setCoverImage(project.coverImage || '');
+        setBlueprintImage(project.blueprintImage || '');
+        setCurrentImageIndex(0);
       } else {
         setFormData({
           name: '',
@@ -98,8 +100,9 @@ export default function ProjectFormModal({
         });
         setAmenities([]);
         setNearbyLandmarks([]);
-        setPhotos([]);
         setCoverImage('');
+        setBlueprintImage('');
+        setCurrentImageIndex(0);
       }
     }
   }, [project, open]);
@@ -124,8 +127,8 @@ export default function ProjectFormModal({
       description: formData.description,
       towerDetails: formData.towerDetails,
       nearbyLandmarks,
-      photos,
-      coverImage: coverImage || photos[0] || '',
+      coverImage,
+      blueprintImage,
       status: formData.status as ProjectStatus,
     });
 
@@ -154,87 +157,6 @@ export default function ProjectFormModal({
     setNearbyLandmarks(nearbyLandmarks.filter(l => l !== landmark));
   };
 
-  const addPhoto = () => {
-    const photoUrl = newPhoto.trim();
-    if (!photoUrl) {
-      toast.error('Please enter a photo URL');
-      return;
-    }
-    
-    // Validate URL format - must start with http:// or https://
-    if (!photoUrl.startsWith('http://') && !photoUrl.startsWith('https://')) {
-      toast.error('URL must start with http:// or https://');
-      return;
-    }
-    
-    try {
-      const urlObj = new URL(photoUrl);
-      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-        toast.error('URL must use http:// or https:// protocol');
-        return;
-      }
-    } catch {
-      toast.error('Please enter a valid URL (e.g., https://example.com/image.jpg)');
-      return;
-    }
-    
-    if (photos.includes(photoUrl)) {
-      toast.error('This photo URL is already added');
-      return;
-    }
-    
-    setPhotos([...photos, photoUrl]);
-    if (!coverImage) setCoverImage(photoUrl);
-    setNewPhoto('');
-    toast.success('Photo URL added successfully');
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploadingPhoto(true);
-    try {
-      const uploadedUrls: string[] = [];
-      
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith('image/')) {
-          toast.error(`${file.name} is not an image`);
-          continue;
-        }
-        if (file.size > 10 * 1024 * 1024) {
-          toast.error(`${file.name} is too large (max 10MB)`);
-          continue;
-        }
-
-        try {
-          // Upload to Django backend
-          const { apiClient } = await import('@/lib/api');
-          const uploadResult = await apiClient.uploadProjectImage(file);
-          uploadedUrls.push(uploadResult.url);
-        } catch (uploadError) {
-          console.error(`Error uploading ${file.name}:`, uploadError);
-          toast.error(`Failed to upload ${file.name}`);
-          continue;
-        }
-      }
-
-      if (uploadedUrls.length > 0) {
-        setPhotos(prev => [...prev, ...uploadedUrls]);
-        if (!coverImage && uploadedUrls[0]) {
-          setCoverImage(uploadedUrls[0]);
-        }
-        toast.success(`${uploadedUrls.length} image(s) uploaded successfully`);
-      }
-    } catch (error) {
-      console.error('Error uploading photos:', error);
-      toast.error('Failed to upload images');
-    } finally {
-      setIsUploadingPhoto(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -250,17 +172,13 @@ export default function ProjectFormModal({
 
     setIsUploadingCover(true);
     try {
-      // Upload to Django backend
       const { apiClient } = await import('@/lib/api');
-      const uploadResult = await apiClient.uploadProjectImage(file);
+      const uploadResult = await apiClient.uploadCoverImage(file);
       
       setCoverImage(uploadResult.url);
-      if (!photos.includes(uploadResult.url)) {
-        setPhotos(prev => [...prev, uploadResult.url]);
-      }
       toast.success('Cover image uploaded successfully');
     } catch (error) {
-      console.error('Error uploading cover:', error);
+      console.error('Error uploading cover image:', error);
       toast.error('Failed to upload cover image');
     } finally {
       setIsUploadingCover(false);
@@ -268,17 +186,51 @@ export default function ProjectFormModal({
     }
   };
 
-  const removePhoto = (photo: string) => {
-    setPhotos(photos.filter(p => p !== photo));
-    if (coverImage === photo) {
-      setCoverImage(photos[0] || '');
+  const handleBlueprintUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size should be less than 10MB');
+      return;
+    }
+
+    setIsUploadingBlueprint(true);
+    try {
+      const { apiClient } = await import('@/lib/api');
+      const uploadResult = await apiClient.uploadBlueprintImage(file);
+      
+      setBlueprintImage(uploadResult.url);
+      toast.success('Blueprint image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading blueprint image:', error);
+      toast.error('Failed to upload blueprint image');
+    } finally {
+      setIsUploadingBlueprint(false);
+      if (blueprintInputRef.current) blueprintInputRef.current.value = '';
+    }
+  };
+
+  const nextImage = () => {
+    if (images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building className="w-5 h-5 text-primary" />
             {project ? 'Edit Project' : 'Add New Project'}
@@ -288,7 +240,150 @@ export default function ProjectFormModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4">
+            <form onSubmit={handleSubmit} className="space-y-6 mt-4 pb-4">
+          {/* Image Gallery Section */}
+          {images.length > 0 && (
+            <div className="space-y-3">
+              <Label>Project Images</Label>
+              <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted">
+                <img
+                  src={images[currentImageIndex]}
+                  alt={`Project image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                  }}
+                />
+                
+                {/* Navigation arrows */}
+                {images.length > 1 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white"
+                      onClick={prevImage}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white"
+                      onClick={nextImage}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+
+                {/* Image indicators */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                    {images.map((_, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                        }`}
+                        onClick={() => setCurrentImageIndex(index)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Image type badges */}
+                <div className="absolute top-2 left-2 flex gap-2">
+                  {images[currentImageIndex] === coverImage && (
+                    <Badge className="bg-primary text-xs">Cover Image</Badge>
+                  )}
+                  {images[currentImageIndex] === blueprintImage && (
+                    <Badge className="bg-blue-500 text-xs">Blueprint</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Image Upload Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cover Image Upload */}
+            <div className="space-y-3">
+              <Label>Cover/Project Image</Label>
+              <p className="text-sm text-muted-foreground">Main project image for display</p>
+              <div className="flex gap-2">
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={isUploadingCover}
+                  className="flex-1"
+                >
+                  {isUploadingCover ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4 mr-2" />
+                  )}
+                  {isUploadingCover ? 'Uploading...' : 'Upload Cover Image'}
+                </Button>
+              </div>
+              {coverImage && (
+                <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
+                  <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
+                  <Badge className="absolute top-2 left-2 bg-primary text-xs">Cover</Badge>
+                </div>
+              )}
+            </div>
+
+            {/* Blueprint Image Upload */}
+            <div className="space-y-3">
+              <Label>Blueprint Image</Label>
+              <p className="text-sm text-muted-foreground">Architectural plan or blueprint</p>
+              <div className="flex gap-2">
+                <input
+                  ref={blueprintInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBlueprintUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => blueprintInputRef.current?.click()}
+                  disabled={isUploadingBlueprint}
+                  className="flex-1"
+                >
+                  {isUploadingBlueprint ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4 mr-2" />
+                  )}
+                  {isUploadingBlueprint ? 'Uploading...' : 'Upload Blueprint'}
+                </Button>
+              </div>
+              {blueprintImage && (
+                <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
+                  <img src={blueprintImage} alt="Blueprint" className="w-full h-full object-cover" />
+                  <Badge className="absolute top-2 left-2 bg-blue-500 text-xs">Blueprint</Badge>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -320,28 +415,28 @@ export default function ProjectFormModal({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Property Type *</Label>
-            <Select
-              value={formData.type}
-              onValueChange={(value: 'apartment' | 'villa' | 'plots') => setFormData({ ...formData, type: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="apartment">Apartment</SelectItem>
-                <SelectItem value="villa">Villa</SelectItem>
-                <SelectItem value="plots">Plots</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <Select
+                value={formData.type}
+                onValueChange={(value: 'apartment' | 'villa' | 'plots') => setFormData({ ...formData, type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="apartment">Apartment</SelectItem>
+                  <SelectItem value="villa">Villa</SelectItem>
+                  <SelectItem value="plots">Plots</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value: ProjectStatus) => setFormData({ ...formData, status: value })}
-            >
-              <SelectTrigger>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value: ProjectStatus) => setFormData({ ...formData, status: value })}
+              >
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -500,129 +595,6 @@ export default function ProjectFormModal({
             </div>
           </div>
 
-          {/* Photos */}
-          <div className="space-y-3">
-            <Label>Project Photos</Label>
-            <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="upload">Upload</TabsTrigger>
-                <TabsTrigger value="url">URL</TabsTrigger>
-              </TabsList>
-              <TabsContent value="upload" className="mt-3">
-                <div className="flex gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingPhoto}
-                    className="flex-1"
-                  >
-                    {isUploadingPhoto ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4 mr-2" />
-                    )}
-                    {isUploadingPhoto ? 'Uploading...' : 'Upload Photos'}
-                  </Button>
-                </div>
-              </TabsContent>
-              <TabsContent value="url" className="mt-3">
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Paste image URL (e.g., https://example.com/image.jpg)"
-                      value={newPhoto}
-                      onChange={(e) => setNewPhoto(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPhoto())}
-                      className="input-field flex-1"
-                    />
-                    <Button type="button" variant="secondary" onClick={addPhoto}>
-                      <Link className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter a valid image URL starting with https:// or http://
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {photos.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border">
-                    <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="secondary"
-                        className="h-8 w-8"
-                        onClick={() => setCoverImage(photo)}
-                      >
-                        <Image className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="destructive"
-                        className="h-8 w-8"
-                        onClick={() => removePhoto(photo)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    {coverImage === photo && (
-                      <Badge className="absolute top-2 left-2 bg-primary text-xs">Cover</Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Cover Image */}
-          <div className="space-y-3">
-            <Label>Cover Image</Label>
-            <div className="flex gap-2">
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleCoverUpload}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => coverInputRef.current?.click()}
-                disabled={isUploadingCover}
-                className="flex-1"
-              >
-                {isUploadingCover ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                {isUploadingCover ? 'Uploading...' : 'Upload Cover'}
-              </Button>
-            </div>
-            {coverImage && (
-              <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
-                <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
-                <Badge className="absolute top-2 left-2 bg-primary text-xs">Current Cover</Badge>
-              </div>
-            )}
-          </div>
-
           {/* Submit */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -632,7 +604,9 @@ export default function ProjectFormModal({
               {project ? 'Update Project' : 'Add Project'}
             </Button>
           </div>
-        </form>
+            </form>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

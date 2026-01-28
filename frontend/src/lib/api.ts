@@ -388,12 +388,43 @@ class ApiClient {
     });
   }
 
-  // Project image upload
-  async uploadProjectImage(imageFile: File): Promise<{ url: string; filename: string }> {
+  // Upload cover/project image
+  async uploadCoverImage(imageFile: File): Promise<{ url: string; filename: string; type: string }> {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const url = `${this.baseURL}/projects/upload_image/`;
+    const url = `${this.baseURL}/projects/upload_cover_image/`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+      }
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  }
+
+  // Upload blueprint image
+  async uploadBlueprintImage(imageFile: File): Promise<{ url: string; filename: string; type: string }> {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const url = `${this.baseURL}/projects/upload_blueprint_image/`;
     const headers: Record<string, string> = {};
 
     if (this.token) {
@@ -610,6 +641,60 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ ids }),
     });
+  }
+
+  // Download project cover image (Admin only)
+  async downloadProjectCoverImage(projectId: string): Promise<Blob> {
+    const url = `${this.baseURL}/projects/${projectId}/download_cover_image/`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+      }
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.blob();
+  }
+
+  // Download project blueprint image (Admin only)
+  async downloadProjectBlueprintImage(projectId: string): Promise<Blob> {
+    const url = `${this.baseURL}/projects/${projectId}/download_blueprint_image/`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+      }
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.blob();
   }
 }
 

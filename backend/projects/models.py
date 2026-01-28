@@ -22,25 +22,12 @@ class Project(models.Model):
     manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='managed_projects')
     team_members = models.ManyToManyField(User, blank=True, related_name='projects')
     
-    # Image fields for frontend compatibility
-    photos = models.TextField(blank=True, help_text="JSON array of photo URLs")
-    cover_image = models.URLField(blank=True, help_text="Cover image URL")
+    # Image fields - simplified to 2 images only
+    cover_image = models.URLField(blank=True, help_text="Cover/Project image URL")
+    blueprint_image = models.URLField(blank=True, help_text="Blueprint/Plan image URL")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
-    
-    def get_photos(self):
-        """Return photos as a list"""
-        if self.photos:
-            try:
-                return json.loads(self.photos)
-            except json.JSONDecodeError:
-                return []
-        return []
-    
-    def set_photos(self, photos_list):
-        """Set photos from a list"""
-        self.photos = json.dumps(photos_list) if photos_list else ""
