@@ -13,11 +13,8 @@ export const clearInvalidTokens = () => {
   
   console.log('✅ Tokens cleared successfully');
   
-  // Reload the page to start fresh
-  setTimeout(() => {
-    console.log('🔄 Reloading page to start fresh...');
-    window.location.reload();
-  }, 1000);
+  // Don't automatically reload - let the app handle the state change
+  // The authentication context will handle redirecting to login
 };
 
 // Auto-detect and clear invalid tokens on 401 errors
