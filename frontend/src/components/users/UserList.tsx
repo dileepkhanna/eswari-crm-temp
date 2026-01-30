@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { apiClient } from '@/lib/api';
-// import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import UserFormModal from './UserFormModal';
-import UserDeleteConfirmDialog from './UserDeleteConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -70,10 +68,11 @@ export default function UserList() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<DBUser | null>(null);
-  const [deleteUser, setDeleteUser] = useState<DBUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [deletingUsers, setDeletingUsers] = useState<Set<string>>(new Set());
+  const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set());
 
   // Fetch users from database
   const fetchUsers = async (showLoader = true) => {
@@ -82,6 +81,8 @@ export default function UserList() {
       if (showLoader && users.length === 0) {
         setLoading(true);
       }
+      
+      console.log('🔄 Fetching users from backend...');
       
       // Fetch users from Django backend
       const response = await apiClient.getUsers();
@@ -99,6 +100,8 @@ export default function UserList() {
         usersData = [];
       }
       
+      console.log(`📊 Fetched ${usersData.length} users from backend:`, usersData.map(u => ({ id: u.id, username: u.username, name: `${u.first_name} ${u.last_name}`.trim() })));
+      
       // Transform Django user data to match frontend interface
       const transformedUsers: DBUser[] = usersData.map((user: any) => ({
         id: user.id.toString(),
@@ -115,6 +118,8 @@ export default function UserList() {
         updated_at: user.created_at, // Use created_at as updated_at for now
       }));
       
+      console.log(`✅ Transformed ${transformedUsers.length} users for UI:`, transformedUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));
+      
       setUsers(transformedUsers);
       
       // Extract managers for the form
@@ -124,7 +129,7 @@ export default function UserList() {
       setManagers(managersList);
       
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('❌ Error fetching users:', error);
       toast.error('Failed to fetch users');
       
       // Fallback to placeholder data if API fails
@@ -180,7 +185,31 @@ export default function UserList() {
     fetchUsers(true);
   }, []);
 
+  // Clear deleted users when the users list updates, but only if they're actually gone
+  useEffect(() => {
+    if (users.length > 0) {
+      setDeletedUsers(prev => {
+        const newDeletedUsers = new Set(prev);
+        // Only keep users in deletedUsers if they're actually gone from the fresh data
+        for (const deletedId of prev) {
+          const stillExists = users.some(user => user.id === deletedId);
+          if (stillExists) {
+            // User still exists in fresh data, remove from deleted set
+            newDeletedUsers.delete(deletedId);
+            console.log(`User ${deletedId} still exists after deletion attempt, removing from deleted set`);
+          }
+        }
+        return newDeletedUsers;
+      });
+    }
+  }, [users]);
+
   const filteredUsers = users.filter(user => {
+    // Filter out deleted users immediately
+    if (deletedUsers.has(user.id)) {
+      return false;
+    }
+    
     const matchesSearch = 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.user_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -217,28 +246,44 @@ export default function UserList() {
     let successCount = 0;
     let failCount = 0;
     
+    console.log('🚀 Starting bulk delete for users:', idsToDelete);
+    console.log('🚀 Selected user objects:', filteredUsers.filter(u => selectedIds.has(u.id)));
+    
     // Close dialog immediately and show progress
     setShowBulkDeleteDialog(false);
+    setDeletingUsers(new Set(idsToDelete));
     
-    // TODO: Implement bulk delete API in Django backend
-    // For now, simulate deletion
-    for (const id of idsToDelete) {
-      try {
-        // Simulate API call
-        // const { error } = await supabase.functions.invoke('delete-user', {
-        //   body: { userId: id }
-        // });
-        
-        // Simulate successful deletion
-        successCount++;
-        // Update UI immediately for each successful deletion
-        setUsers(prev => prev.filter(u => u.id !== id));
-      } catch (error) {
-        failCount++;
+    try {
+      // Delete users one by one using the working API
+      for (const id of idsToDelete) {
+        try {
+          console.log(`🗑️ Deleting user ${id} (as integer: ${parseInt(id)})...`);
+          const result = await apiClient.simpleDeleteUser(parseInt(id));
+          console.log(`✅ Successfully deleted user ${id}:`, result);
+          successCount++;
+          // Mark as deleted immediately for UI update
+          setDeletedUsers(prev => new Set(prev).add(id));
+        } catch (error) {
+          console.error(`❌ Failed to delete user ${id}:`, error);
+          failCount++;
+        }
+        // Small delay between deletions for smooth animation
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
+      
+      // Refresh the user list to ensure UI is updated
+      console.log('🔄 Refreshing user list...');
+      await fetchUsers(false);
+      
+    } catch (error) {
+      console.error('❌ Bulk delete failed:', error);
+      toast.error('Failed to delete users. Please try again.');
+    } finally {
+      setDeletingUsers(new Set());
+      setSelectedIds(new Set());
     }
     
-    setSelectedIds(new Set());
+    console.log(`📊 Bulk delete completed: ${successCount} success, ${failCount} failed`);
     
     if (successCount > 0) {
       toast.success(`${successCount} user(s) deleted successfully`);
@@ -246,6 +291,11 @@ export default function UserList() {
     if (failCount > 0) {
       toast.error(`Failed to delete ${failCount} user(s)`);
     }
+  };
+
+  const handleToggleStatus = async (user: DBUser) => {
+    // For now, just show a message that this feature is not implemented
+    toast.info(`Status toggle for ${user.name} is not implemented yet`);
   };
 
   const handleSaveUser = async (userData: {
@@ -297,103 +347,47 @@ export default function UserList() {
     try {
       setIsSubmitting(true);
       
-      // TODO: Implement update user API in Django backend
-      // const { data, error } = await supabase.functions.invoke('update-user', {
-      //   body: { userId, ...userData },
-      // });
+      // Call the real Django API to update the user
+      const response = await apiClient.adminUpdateUser(userId, userData);
 
-      // Simulate successful update
-      const error = null;
-      const data = { success: true };
-
-      if (error) {
-        toast.error('Failed to update user', { description: 'Update failed' });
+      if (response && response.message) {
+        toast.success(response.message);
+        if (response.password_changed) {
+          toast.success('Password updated successfully');
+        }
+        await fetchUsers(false);
+        return { success: true };
+      } else {
+        toast.error('Failed to update user');
         return { success: false };
       }
-
-      // Remove the data.error check since our simulated data doesn't have an error property
-      // if (data?.error) {
-      //   toast.error('Failed to update user', { description: data.error });
-      //   return { success: false };
-      // }
-
-      await fetchUsers(false);
-      return { success: true };
     } catch (error: any) {
-      toast.error('Error updating user', { description: error.message });
+      console.error('Error updating user:', error);
+      
+      // Parse error details from API response
+      let errorMessage = 'Failed to update user';
+      let errorDetails: string[] = [];
+      
+      try {
+        const errorData = JSON.parse(error.message.split('details: ')[1]);
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+        if (errorData.details && Array.isArray(errorData.details)) {
+          errorDetails = errorData.details;
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage, {
+        description: errorDetails.length > 0 ? errorDetails.join(', ') : undefined
+      });
+      
       return { success: false };
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleToggleStatus = async (user: DBUser) => {
-    try {
-      const newStatus = user.status === 'active' ? 'inactive' : 'active';
-      
-      // TODO: Implement toggle status API in Django backend
-      // const { error } = await supabase
-      //   .from('profiles')
-      //   .update({ status: newStatus })
-      //   .eq('id', user.id);
-
-      // Simulate successful update
-      const error = null;
-
-      if (error) throw error;
-
-      setUsers(prev => prev.map(u => 
-        u.id === user.id ? { ...u, status: newStatus } : u
-      ));
-      
-      const action = user.status === 'active' ? 'disabled' : 'enabled';
-      toast.success(`${user.name}'s account has been ${action}`);
-    } catch (error: any) {
-      toast.error('Failed to update user status');
-    }
-  };
-
-  const handleDeactivateUser = async () => {
-    if (!deleteUser) return;
-    
-    try {
-      // TODO: Implement deactivate user API in Django backend
-      // const { error } = await supabase
-      //   .from('profiles')
-      //   .update({ status: 'inactive' })
-      //   .eq('id', deleteUser.id);
-
-      // Simulate successful deactivation
-      const error = null;
-
-      if (error) throw error;
-
-      setUsers(prev => prev.map(u => 
-        u.id === deleteUser.id ? { ...u, status: 'inactive' } : u
-      ));
-      toast.success(`${deleteUser.name}'s account has been deactivated`);
-    } catch (error: any) {
-      toast.error('Failed to deactivate user', {
-        description: error.message
-      });
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!deleteUser) return;
-    
-    try {
-      // Call the real Django API to delete the user
-      await apiClient.deleteUser(parseInt(deleteUser.id));
-
-      // Remove from frontend state
-      setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
-      toast.success('User and all associated data deleted successfully');
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user', {
-        description: error.message
-      });
     }
   };
 
@@ -487,7 +481,11 @@ export default function UserList() {
             {filteredUsers.map((user, index) => (
               <TableRow 
                 key={user.id} 
-                className="table-row-hover animate-fade-in"
+                className={`table-row-hover animate-fade-in ${
+                  deletingUsers.has(user.id) 
+                    ? 'animate-delete-row bg-red-50 opacity-50' 
+                    : ''
+                }`}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <TableCell>
@@ -573,7 +571,20 @@ export default function UserList() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         className="text-destructive focus:text-destructive"
-                        onClick={() => setDeleteUser(user)}
+                        onClick={async () => {
+                          if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+                            try {
+                              console.log(`🗑️ Individual delete for user ${user.id} (${user.name})...`);
+                              const result = await apiClient.simpleDeleteUser(parseInt(user.id));
+                              console.log(`✅ Individual delete successful:`, result);
+                              await fetchUsers(false);
+                              toast.success(`User "${user.name}" deleted successfully`);
+                            } catch (error: any) {
+                              console.error(`❌ Individual delete failed:`, error);
+                              toast.error('Failed to delete user: ' + error.message);
+                            }
+                          }
+                        }}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete User
@@ -603,27 +614,29 @@ export default function UserList() {
         editUser={editingUser}
       />
 
-      <UserDeleteConfirmDialog
-        open={!!deleteUser}
-        onClose={() => setDeleteUser(null)}
-        onDeactivate={handleDeactivateUser}
-        onDelete={handleDeleteUser}
-        userName={deleteUser?.name || ''}
-        userId={deleteUser?.id || ''}
-      />
-
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="mx-4 sm:mx-auto max-w-md animate-scale-in">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedIds.size} user(s)? This action cannot be undone. All data created by these users will also be deleted.
+            <AlertDialogTitle className="text-lg flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-4 h-4 text-red-600" />
+              </div>
+              Delete Users
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              Are you sure you want to delete <span className="font-semibold text-red-600">{selectedIds.size}</span> user{selectedIds.size > 1 ? 's' : ''}?
+              <br />
+              <span className="text-red-500 font-medium">This action cannot be undone. All data created by these users will also be deleted.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete} 
+              className="bg-red-600 hover:bg-red-700 w-full sm:w-auto transition-all duration-200 hover:scale-105"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete {selectedIds.size > 1 ? 'All' : ''}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

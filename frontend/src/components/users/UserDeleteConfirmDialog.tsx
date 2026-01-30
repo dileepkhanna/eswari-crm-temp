@@ -70,10 +70,19 @@ export default function UserDeleteConfirmDialog({
         tasks: 0,
         leaves: 0,
         announcements: 0,
-        activityLogs: activityRes.count || 0,
+        activityLogs: 0,
       });
     } catch (error) {
       console.error('Error fetching data counts:', error);
+      // Set default counts on error
+      setDataCounts({
+        leads: 0,
+        projects: 0,
+        tasks: 0,
+        leaves: 0,
+        announcements: 0,
+        activityLogs: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -90,6 +99,8 @@ export default function UserDeleteConfirmDialog({
         await onDelete();
       }
       onClose();
+    } catch (error) {
+      console.error(`Action ${action} failed:`, error);
     } finally {
       setIsProcessing(false);
       setAction(null);

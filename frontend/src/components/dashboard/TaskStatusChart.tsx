@@ -26,7 +26,6 @@ const statusIcons: Record<string, React.ElementType> = {
   'Family Visit': Users,
   'Completed': CheckCircle,
   'Rejected': XCircle,
-  'Completed': CheckCircle,
 };
 
 export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: TaskStatusChartProps) {

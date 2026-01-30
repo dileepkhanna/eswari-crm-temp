@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Customer, CallAllocation, User, Lead } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData, apiToLead } from '@/contexts/DataContextDjango';
@@ -41,9 +41,23 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   const [employees, setEmployees] = useState<User[]>([]);
   const [callAllocations, setCallAllocations] = useState<CallAllocation[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Add caching mechanism
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const CACHE_DURATION = 30000; // 30 seconds cache
 
-  // Fetch real users from the API
-  const fetchUsers = useCallback(async () => {
+  // Fetch real users from the API with caching
+  const fetchUsers = async (forceRefresh = false) => {
+    // Check cache validity for employees
+    const now = Date.now();
+    const isCacheValid = !forceRefresh && (now - lastFetchTime) < CACHE_DURATION && employees.length > 0;
+    
+    if (isCacheValid) {
+      console.log('✅ Using cached employee data');
+      return;
+    }
+    
     try {
       console.log('🔄 Fetching users from API...');
       const response = await apiClient.getUsers();
@@ -98,15 +112,48 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       console.log('✅ Filtered employees:', employeeUsers);
       console.log('✅ Employee details:', employeeUsers.map(emp => ({ id: emp.id, name: emp.name, userId: emp.userId })));
       setEmployees(employeeUsers);
+      
+      // Cache employees data to localStorage
+      try {
+        localStorage.setItem(`employees_${user?.id}`, JSON.stringify(employeeUsers));
+        console.log('💾 Cached employee data to localStorage');
+      } catch (error) {
+        console.error('❌ Error caching employee data:', error);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
-      setEmployees([]);
+      // Don't clear existing employees on error
+      if (employees.length === 0) {
+        setEmployees([]);
+      }
     }
-  }, []);
+  };
 
-  // Fetch customers from API
-  const fetchCustomers = useCallback(async () => {
+  // Fetch customers from API with caching
+  const fetchCustomers = async (forceRefresh = false) => {
+    if (!user) {
+      console.log('❌ No user available for fetching customers');
+      return;
+    }
+    
+    // Check cache validity
+    const now = Date.now();
+    const isCacheValid = !forceRefresh && (now - lastFetchTime) < CACHE_DURATION && customers.length > 0;
+    
+    if (isCacheValid && !isInitialLoad) {
+      console.log('✅ Using cached customer data');
+      setLoading(false);
+      return;
+    }
+    
     try {
+      console.log('🔄 Fetching customers for user:', user.id, user.role);
+      
+      // Show loading only for initial load or forced refresh
+      if (isInitialLoad || forceRefresh) {
+        setLoading(true);
+      }
+      
       const response = await apiClient.getCustomers();
       console.log('Raw customers API response:', response);
       
@@ -150,22 +197,90 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         return transformedCustomer;
       });
       
-      console.log('Transformed customers:', transformedCustomers);
+      console.log('✅ Transformed customers:', transformedCustomers.length, 'customers');
       setCustomers(transformedCustomers);
+      setLastFetchTime(now);
+      setIsInitialLoad(false);
       setLoading(false);
+      
+      // Cache data to localStorage for faster subsequent loads
+      if (user) {
+        try {
+          localStorage.setItem(`customers_${user.id}`, JSON.stringify(transformedCustomers));
+          console.log('💾 Cached customer data to localStorage');
+        } catch (error) {
+          console.error('❌ Error caching customer data:', error);
+        }
+      }
     } catch (error) {
-      console.error('Error fetching customers:', error);
-      setCustomers([]);
+      console.error('❌ Error fetching customers:', error);
+      
+      // Handle authentication errors
+      if (error instanceof Error && error.message.includes('401')) {
+        console.warn('Authentication failed while fetching customers. Clearing tokens.');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      }
+      
+      // Don't clear existing data on error unless it's initial load
+      if (isInitialLoad) {
+        setCustomers([]);
+      }
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     if (user) {
-      fetchUsers();
-      fetchCustomers();
+      console.log('🔄 User authenticated, loading customer data...');
+      
+      // Show cached data immediately if available
+      const cachedCustomers = localStorage.getItem(`customers_${user.id}`);
+      const cachedEmployees = localStorage.getItem(`employees_${user.id}`);
+      
+      if (cachedCustomers && cachedEmployees) {
+        try {
+          const parsedCustomers = JSON.parse(cachedCustomers);
+          const parsedEmployees = JSON.parse(cachedEmployees);
+          
+          // Convert date strings back to Date objects
+          const restoredCustomers = parsedCustomers.map((customer: any) => ({
+            ...customer,
+            createdAt: new Date(customer.createdAt),
+            updatedAt: new Date(customer.updatedAt),
+            scheduledDate: customer.scheduledDate ? new Date(customer.scheduledDate) : undefined,
+            callDate: customer.callDate ? new Date(customer.callDate) : undefined,
+          }));
+          
+          const restoredEmployees = parsedEmployees.map((employee: any) => ({
+            ...employee,
+            createdAt: new Date(employee.createdAt),
+          }));
+          
+          console.log('✅ Restored cached data:', restoredCustomers.length, 'customers,', restoredEmployees.length, 'employees');
+          setCustomers(restoredCustomers);
+          setEmployees(restoredEmployees);
+          setLoading(false);
+          setIsInitialLoad(false);
+        } catch (error) {
+          console.error('❌ Error parsing cached data:', error);
+        }
+      }
+      
+      // Fetch fresh data in parallel (will update cache) - only once per user
+      Promise.all([
+        fetchUsers(),
+        fetchCustomers()
+      ]).catch(error => {
+        console.error('❌ Error during parallel data fetch:', error);
+      });
+    } else {
+      console.log('❌ No user authenticated, clearing customer data');
+      setCustomers([]);
+      setEmployees([]);
+      setLoading(false);
     }
-  }, [user, fetchUsers, fetchCustomers]);
+  }, [user?.id]); // Only depend on user.id to prevent infinite loops
 
   const addCustomer = useCallback(async (customerData: Partial<Customer>) => {
     try {
@@ -216,7 +331,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         console.error('Error stack:', error.stack);
       }
     }
-  }, [fetchCustomers, user]);
+  }, [user]);
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
     try {
@@ -286,7 +401,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         toast.error('Failed to update customer');
       }
     }
-  }, [fetchCustomers, customers]);
+  }, [customers]);
 
   const deleteCustomer = useCallback(async (id: string) => {
     try {
@@ -297,7 +412,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       console.error('Error deleting customer:', error);
       toast.error('Failed to delete customer');
     }
-  }, [fetchCustomers]);
+  }, []);
 
   const bulkImportCustomers = useCallback(async (customersData: Partial<Customer>[]) => {
     try {
@@ -355,7 +470,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       console.error('Error importing customers:', error);
       toast.error('Failed to import customers');
     }
-  }, [fetchCustomers, user]);
+  }, [user]);
 
   const convertToLead = useCallback(async (customerId: string) => {
     try {
@@ -366,7 +481,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       console.error('Error converting customer to lead:', error);
       toast.error('Failed to convert customer to lead');
     }
-  }, [fetchCustomers]);
+  }, []);
 
   const createLeadFromCustomer = useCallback(async (leadData: any) => {
     try {
@@ -419,16 +534,27 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   }, [addLeadToState, user]);
 
   const refreshCustomers = useCallback(async () => {
+    if (!user) {
+      console.log('❌ Cannot refresh customers: no user authenticated');
+      return;
+    }
+    
     try {
+      console.log('🔄 Force refreshing customer data...');
       setLoading(true);
-      await fetchCustomers();
+      // Force refresh both users and customers
+      await Promise.all([
+        fetchUsers(true), // Force refresh
+        fetchCustomers(true) // Force refresh
+      ]);
+      console.log('✅ Customer data refreshed successfully');
     } catch (error) {
-      console.error('Error refreshing customers:', error);
+      console.error('❌ Error refreshing customers:', error);
       toast.error('Failed to refresh customer data');
     } finally {
       setLoading(false);
     }
-  }, [fetchCustomers]);
+  }, [user?.id]); // Only depend on user.id
 
   const value: CustomerContextType = {
     customers,

@@ -32,6 +32,7 @@ urlpatterns = [
     path("api/activity-logs/", include("activity_logs.urls")),
     path("api/", include("holidays.urls")),
     path("api/", include("customers.urls")),
+    path("api/app-settings/", include("app_settings.urls")),
 ]
 
 # Add media URLs at the beginning to avoid conflicts

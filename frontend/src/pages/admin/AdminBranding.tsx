@@ -1,17 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppSettings } from '@/contexts/AppSettingsContext';
+import { apiClient } from '@/lib/api';
 import TopBar from '@/components/layout/TopBar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-// import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { Upload, Palette, Code, Building2, Loader2, Globe } from 'lucide-react';
 
 const AdminBranding = () => {
-  const { settings, updateSettings, isLoading } = useAppSettings();
+  const { settings, updateSettings, isLoading, refreshSettings } = useAppSettings();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -28,8 +29,169 @@ const AdminBranding = () => {
     custom_css: '',
   });
 
+  // Real-time color preview with robust style recalculation
+  useEffect(() => {
+    if (formData.primary_color || formData.accent_color || formData.sidebar_color) {
+      const root = document.documentElement;
+      
+      // Apply primary color preview
+      if (formData.primary_color) {
+        root.style.setProperty('--primary', formData.primary_color);
+        root.style.setProperty('--gradient-primary', `linear-gradient(135deg, hsl(${formData.primary_color}) 0%, hsl(${formData.primary_color}) 100%)`);
+        console.log('🎨 Preview: Set --primary to:', formData.primary_color);
+      }
+      
+      // Apply accent color preview
+      if (formData.accent_color) {
+        root.style.setProperty('--accent', formData.accent_color);
+        root.style.setProperty('--sidebar-primary', formData.accent_color);
+        root.style.setProperty('--sidebar-ring', formData.accent_color);
+        root.style.setProperty('--gradient-accent', `linear-gradient(135deg, hsl(${formData.accent_color}) 0%, hsl(${formData.accent_color}) 100%)`);
+        console.log('🎨 Preview: Set --accent to:', formData.accent_color);
+      }
+      
+      // Apply sidebar color preview
+      if (formData.sidebar_color) {
+        root.style.setProperty('--sidebar-background', formData.sidebar_color);
+        // Update gradient sidebar
+        try {
+          const [h, s_val, l_val] = formData.sidebar_color.split(' ');
+          const lightness = parseInt(l_val.replace('%', ''));
+          const darkerLightness = Math.max(lightness - 5, 0);
+          const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
+          root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${formData.sidebar_color}) 0%, hsl(${gradientColor}) 100%)`);
+          console.log('🎨 Preview: Set --sidebar-background to:', formData.sidebar_color);
+        } catch (error) {
+          console.warn('Error updating sidebar gradient:', error);
+        }
+      }
+      
+      // CRITICAL FIX: Force Tailwind CSS to recognize the new colors for preview
+      const forcePreviewColorUpdate = () => {
+        // Remove old preview style if exists
+        const oldPreviewStyle = document.getElementById('preview-color-overrides');
+        if (oldPreviewStyle) {
+          oldPreviewStyle.remove();
+        }
+        
+        // Create comprehensive CSS overrides for preview
+        const previewCSS = `
+          /* Primary color preview overrides */
+          .bg-primary { background-color: hsl(${formData.primary_color || '152 45% 28%'}) !important; }
+          .text-primary { color: hsl(${formData.primary_color || '152 45% 28%'}) !important; }
+          .border-primary { border-color: hsl(${formData.primary_color || '152 45% 28%'}) !important; }
+          .btn-primary { 
+            background-color: hsl(${formData.primary_color || '152 45% 28%'}) !important; 
+            color: hsl(var(--primary-foreground)) !important;
+          }
+          .btn-primary:hover { 
+            background-color: hsl(${formData.primary_color || '152 45% 28%'} / 0.9) !important; 
+          }
+          
+          /* Accent color preview overrides */
+          .bg-accent { background-color: hsl(${formData.accent_color || '45 90% 50%'}) !important; }
+          .text-accent { color: hsl(${formData.accent_color || '45 90% 50%'}) !important; }
+          .border-accent { border-color: hsl(${formData.accent_color || '45 90% 50%'}) !important; }
+          .btn-accent { 
+            background: linear-gradient(135deg, hsl(${formData.accent_color || '45 90% 50%'}) 0%, hsl(${formData.accent_color || '45 90% 50%'}) 100%) !important;
+            color: hsl(var(--accent-foreground)) !important;
+          }
+          .btn-accent:hover { 
+            opacity: 0.9 !important;
+          }
+          
+          /* Sidebar color preview overrides */
+          .glass-sidebar { 
+            background: linear-gradient(180deg, hsl(${formData.sidebar_color || '152 35% 15%'}) 0%, hsl(${formData.sidebar_color || '152 35% 15%'} / 0.95) 100%) !important;
+          }
+          .bg-sidebar { background-color: hsl(${formData.sidebar_color || '152 35% 15%'}) !important; }
+          
+          /* Navigation link preview overrides */
+          .nav-link-active { 
+            background-color: hsl(${formData.accent_color || '45 90% 50%'} / 0.15) !important;
+            color: hsl(${formData.accent_color || '45 90% 50%'}) !important;
+          }
+          .nav-link:hover { 
+            background-color: hsl(${formData.accent_color || '45 90% 50%'} / 0.1) !important;
+          }
+          
+          /* Status and badge preview overrides */
+          .status-interested { 
+            background-color: hsl(${formData.primary_color || '152 45% 28%'} / 0.15) !important;
+            color: hsl(${formData.primary_color || '152 45% 28%'}) !important;
+            border-color: hsl(${formData.primary_color || '152 45% 28%'} / 0.3) !important;
+          }
+          
+          /* Gradient preview overrides */
+          .gradient-primary { 
+            background: linear-gradient(135deg, hsl(${formData.primary_color || '152 45% 28%'}) 0%, hsl(${formData.primary_color || '152 45% 28%'}) 100%) !important;
+          }
+          .gradient-accent { 
+            background: linear-gradient(135deg, hsl(${formData.accent_color || '45 90% 50%'}) 0%, hsl(${formData.accent_color || '45 90% 50%'}) 100%) !important;
+          }
+          
+          /* Force all elements with these classes to update immediately */
+          [class*="bg-primary"], [class*="text-primary"], [class*="border-primary"],
+          [class*="bg-accent"], [class*="text-accent"], [class*="border-accent"],
+          [class*="bg-sidebar"], [class*="text-sidebar"],
+          .btn-primary, .btn-accent, .nav-link, .nav-link-active,
+          .glass-sidebar, .gradient-primary, .gradient-accent {
+            transition: all 0.3s ease !important;
+          }
+        `;
+        
+        // Inject the preview CSS
+        const styleElement = document.createElement('style');
+        styleElement.id = 'preview-color-overrides';
+        styleElement.textContent = previewCSS;
+        document.head.appendChild(styleElement);
+        
+        console.log('🎨 Preview CSS overrides applied');
+      };
+      
+      // Apply preview color updates immediately
+      forcePreviewColorUpdate();
+      
+      // Force comprehensive style recalculation
+      const forceStyleUpdate = () => {
+        // Method 1: Force reflow
+        document.body.style.display = 'none';
+        document.body.offsetHeight;
+        document.body.style.display = '';
+        
+        // Method 2: Force repaint on color-related elements
+        const colorElements = document.querySelectorAll(`
+          .btn-primary, .btn-accent, 
+          [class*="bg-primary"], [class*="bg-accent"], [class*="bg-sidebar"],
+          [class*="text-primary"], [class*="text-accent"], [class*="text-sidebar"],
+          [class*="border-primary"], [class*="border-accent"],
+          .nav-link, .nav-link-active, .glass-sidebar, .gradient-primary, .gradient-accent,
+          .stat-card, .status-interested, .status-pending
+        `);
+        
+        colorElements.forEach(el => {
+          const element = el as HTMLElement;
+          element.style.transform = 'translateZ(0)';
+          setTimeout(() => {
+            element.style.transform = '';
+          }, 10);
+        });
+        
+        // Method 3: Add/remove class to trigger recalculation
+        document.documentElement.classList.add('force-recalc');
+        setTimeout(() => {
+          document.documentElement.classList.remove('force-recalc');
+        }, 50);
+      };
+      
+      // Apply force update after a short delay
+      setTimeout(forceStyleUpdate, 10);
+    }
+  }, [formData.primary_color, formData.accent_color, formData.sidebar_color]);
+
   useEffect(() => {
     if (settings) {
+      console.log('🖼️ Settings received in AdminBranding:', settings); // Debug log
       setFormData({
         app_name: settings.app_name || '',
         logo_url: settings.logo_url || '',
@@ -41,6 +203,38 @@ const AdminBranding = () => {
       });
     }
   }, [settings]);
+
+  // Auto-save functionality for colors
+  useEffect(() => {
+    if (!settings) return;
+    
+    // Only auto-save if colors have actually changed from the saved settings
+    const colorsChanged = 
+      formData.primary_color !== settings.primary_color ||
+      formData.accent_color !== settings.accent_color ||
+      formData.sidebar_color !== settings.sidebar_color;
+    
+    if (colorsChanged && formData.primary_color && formData.accent_color && formData.sidebar_color) {
+      // Debounce auto-save to avoid too many API calls
+      const autoSaveTimer = setTimeout(async () => {
+        try {
+          console.log('🔄 Auto-saving color changes...');
+          await updateSettings({
+            primary_color: formData.primary_color,
+            accent_color: formData.accent_color,
+            sidebar_color: formData.sidebar_color,
+          });
+          console.log('✅ Colors auto-saved successfully');
+          toast.success('Colors saved automatically', { duration: 2000 });
+        } catch (error: any) {
+          console.error('❌ Auto-save failed:', error);
+          toast.error('Auto-save failed. Please save manually.', { duration: 3000 });
+        }
+      }, 1500); // Wait 1.5 seconds after last change
+      
+      return () => clearTimeout(autoSaveTimer);
+    }
+  }, [formData.primary_color, formData.accent_color, formData.sidebar_color, settings, updateSettings]);
 
   const handleImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -64,34 +258,53 @@ const AdminBranding = () => {
     else setIsUploadingFavicon(true);
 
     try {
-      // TODO: Implement file upload API in Django backend
-      // const fileExt = file.name.split('.').pop();
-      // const fileName = `${type}-${Date.now()}.${fileExt}`;
-
-      // const { error: uploadError } = await supabase.storage
-      //   .from('project-images')
-      //   .upload(fileName, file, { upsert: true });
-
-      // if (uploadError) throw uploadError;
-
-      // const { data: urlData } = supabase.storage
-      //   .from('project-images')
-      //   .getPublicUrl(fileName);
-
-      // const fieldName = type === 'logo' ? 'logo_url' : 'favicon_url';
-      // setFormData(prev => ({ ...prev, [fieldName]: urlData.publicUrl }));
-      toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} upload not implemented yet`);
+      let response;
+      if (type === 'logo') {
+        response = await apiClient.uploadLogo(file);
+      } else {
+        response = await apiClient.uploadFavicon(file);
+      }
+      
+      const fieldName = type === 'logo' ? 'logo_url' : 'favicon_url';
+      setFormData(prev => ({ ...prev, [fieldName]: response[fieldName] }));
+      
+      toast.success(response.message);
+      
+      // Refresh settings to get the updated data
+      await refreshSettings();
     } catch (error: any) {
-      toast.error(`Upload failed: ${error.message}`);
+      console.error(`${type} upload error:`, error);
+      
+      // Parse error details from API response
+      let errorMessage = `Failed to upload ${type}`;
+      try {
+        const errorData = JSON.parse(error.message.split('details: ')[1]);
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (parseError) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       if (type === 'logo') setIsUploadingLogo(false);
       else setIsUploadingFavicon(false);
     }
   };
 
+
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Remove preview styles before saving to avoid conflicts
+      const previewStyle = document.getElementById('preview-color-overrides');
+      if (previewStyle) {
+        previewStyle.remove();
+      }
+      
+      // Save all settings to database
       await updateSettings({
         app_name: formData.app_name,
         logo_url: formData.logo_url || null,
@@ -101,6 +314,10 @@ const AdminBranding = () => {
         sidebar_color: formData.sidebar_color,
         custom_css: formData.custom_css || null,
       });
+      
+      // Force refresh settings to ensure colors are applied
+      await refreshSettings();
+      
       toast.success('Branding settings saved successfully');
     } catch (error: any) {
       toast.error(`Failed to save settings: ${error.message}`);
@@ -186,7 +403,18 @@ const AdminBranding = () => {
               <Label>Logo</Label>
               <div className="flex items-center gap-4">
                 {formData.logo_url ? (
-                  <img src={formData.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded-lg border" />
+                  <img 
+                    src={formData.logo_url} 
+                    alt="Logo" 
+                    className="h-16 w-16 object-contain rounded-lg border" 
+                    onError={(e) => {
+                      console.error('❌ Logo failed to load:', formData.logo_url);
+                      console.error('Error event:', e);
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Logo loaded successfully:', formData.logo_url);
+                    }}
+                  />
                 ) : (
                   <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
                     <Building2 className="h-8 w-8 text-muted-foreground" />
@@ -213,6 +441,9 @@ const AdminBranding = () => {
                     Upload Logo
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">Recommended: 200x200px, max 2MB</p>
+                  {formData.logo_url && (
+                    <p className="text-xs text-blue-600 mt-1">Current: {formData.logo_url}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,83 +499,192 @@ const AdminBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="primary_color">Primary Color</Label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={hslToHex(formData.primary_color)}
-                    onChange={(e) => setFormData(prev => ({ ...prev, primary_color: hexToHsl(e.target.value) }))}
-                    className="h-10 w-14 rounded cursor-pointer border"
-                  />
-                  <Input
-                    id="primary_color"
-                    value={formData.primary_color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
-                    placeholder="215 80% 35%"
-                  />
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="color-picker-container">
+                      <input
+                        type="color"
+                        value={hslToHex(formData.primary_color)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setFormData(prev => ({ ...prev, primary_color: hexToHsl(e.target.value) }));
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onBlur={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        onInput={(e) => e.stopPropagation()}
+                        className="w-16 h-12 rounded-md border border-input cursor-pointer"
+                        style={{ 
+                          padding: '2px',
+                          position: 'relative',
+                          zIndex: 9999
+                        }}
+                        title="Click to select primary color"
+                        tabIndex={0}
+                      />
+                    </div>
+                    <Input
+                      id="primary_color"
+                      value={formData.primary_color}
+                      onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
+                      placeholder="215 80% 35%"
+                      className="flex-1"
+                    />
+                  </div>
+                  {/* Preset Colors */}
+                  <div className="flex gap-1 flex-wrap">
+                    <p className="text-xs text-muted-foreground w-full mb-1">Quick Colors:</p>
+                    {[
+                      { name: 'Blue', hsl: '215 80% 35%', hex: '#2563eb' },
+                      { name: 'Green', hsl: '152 45% 28%', hex: '#059669' },
+                      { name: 'Purple', hsl: '262 80% 50%', hex: '#8b5cf6' },
+                      { name: 'Red', hsl: '0 75% 55%', hex: '#ef4444' },
+                      { name: 'Orange', hsl: '25 95% 53%', hex: '#f97316' },
+                      { name: 'Teal', hsl: '173 80% 40%', hex: '#0d9488' },
+                      { name: 'Pink', hsl: '330 80% 60%', hex: '#ec4899' },
+                      { name: 'Indigo', hsl: '239 84% 67%', hex: '#6366f1' },
+                    ].map((color) => (
+                      <button
+                        key={color.name}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, primary_color: color.hsl }))}
+                        className="w-8 h-8 rounded border-2 border-border hover:border-primary transition-colors"
+                        style={{ backgroundColor: color.hex }}
+                        title={`${color.name} - ${color.hsl}`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="accent_color">Accent Color</Label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={hslToHex(formData.accent_color)}
-                    onChange={(e) => setFormData(prev => ({ ...prev, accent_color: hexToHsl(e.target.value) }))}
-                    className="h-10 w-14 rounded cursor-pointer border"
-                  />
-                  <Input
-                    id="accent_color"
-                    value={formData.accent_color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, accent_color: e.target.value }))}
-                    placeholder="38 95% 55%"
-                  />
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="color-picker-container">
+                      <input
+                        type="color"
+                        value={hslToHex(formData.accent_color)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setFormData(prev => ({ ...prev, accent_color: hexToHsl(e.target.value) }));
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onBlur={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        onInput={(e) => e.stopPropagation()}
+                        className="w-16 h-12 rounded-md border border-input cursor-pointer"
+                        style={{ 
+                          padding: '2px',
+                          position: 'relative',
+                          zIndex: 9999
+                        }}
+                        title="Click to select accent color"
+                        tabIndex={0}
+                      />
+                    </div>
+                    <Input
+                      id="accent_color"
+                      value={formData.accent_color}
+                      onChange={(e) => setFormData(prev => ({ ...prev, accent_color: e.target.value }))}
+                      placeholder="38 95% 55%"
+                      className="flex-1"
+                    />
+                  </div>
+                  {/* Preset Colors */}
+                  <div className="flex gap-1 flex-wrap">
+                    <p className="text-xs text-muted-foreground w-full mb-1">Quick Colors:</p>
+                    {[
+                      { name: 'Yellow', hsl: '45 90% 50%', hex: '#eab308' },
+                      { name: 'Orange', hsl: '25 95% 53%', hex: '#f97316' },
+                      { name: 'Pink', hsl: '330 80% 60%', hex: '#ec4899' },
+                      { name: 'Cyan', hsl: '190 70% 45%', hex: '#06b6d4' },
+                      { name: 'Lime', hsl: '84 80% 50%', hex: '#84cc16' },
+                      { name: 'Rose', hsl: '351 95% 71%', hex: '#fb7185' },
+                      { name: 'Amber', hsl: '43 96% 56%', hex: '#f59e0b' },
+                      { name: 'Emerald', hsl: '142 76% 36%', hex: '#059669' },
+                    ].map((color) => (
+                      <button
+                        key={color.name}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, accent_color: color.hsl }))}
+                        className="w-8 h-8 rounded border-2 border-border hover:border-primary transition-colors"
+                        style={{ backgroundColor: color.hex }}
+                        title={`${color.name} - ${color.hsl}`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="sidebar_color">Sidebar Color</Label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={hslToHex(formData.sidebar_color)}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sidebar_color: hexToHsl(e.target.value) }))}
-                    className="h-10 w-14 rounded cursor-pointer border"
-                  />
-                  <Input
-                    id="sidebar_color"
-                    value={formData.sidebar_color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sidebar_color: e.target.value }))}
-                    placeholder="220 30% 12%"
-                  />
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="color-picker-container">
+                      <input
+                        type="color"
+                        value={hslToHex(formData.sidebar_color)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setFormData(prev => ({ ...prev, sidebar_color: hexToHsl(e.target.value) }));
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onBlur={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        onInput={(e) => e.stopPropagation()}
+                        className="w-16 h-12 rounded-md border border-input cursor-pointer"
+                        style={{ 
+                          padding: '2px',
+                          position: 'relative',
+                          zIndex: 9999
+                        }}
+                        title="Click to select sidebar color"
+                        tabIndex={0}
+                      />
+                    </div>
+                    <Input
+                      id="sidebar_color"
+                      value={formData.sidebar_color}
+                      onChange={(e) => setFormData(prev => ({ ...prev, sidebar_color: e.target.value }))}
+                      placeholder="220 30% 12%"
+                      className="flex-1"
+                    />
+                  </div>
+                  {/* Preset Colors */}
+                  <div className="flex gap-1 flex-wrap">
+                    <p className="text-xs text-muted-foreground w-full mb-1">Quick Colors:</p>
+                    {[
+                      { name: 'Dark Blue', hsl: '220 30% 12%', hex: '#1e293b' },
+                      { name: 'Dark Green', hsl: '152 35% 15%', hex: '#064e3b' },
+                      { name: 'Dark Purple', hsl: '262 50% 15%', hex: '#2e1065' },
+                      { name: 'Dark Gray', hsl: '220 15% 15%', hex: '#374151' },
+                      { name: 'Black', hsl: '0 0% 8%', hex: '#1f2937' },
+                      { name: 'Dark Teal', hsl: '173 50% 12%', hex: '#042f2e' },
+                      { name: 'Dark Brown', hsl: '25 30% 15%', hex: '#451a03' },
+                      { name: 'Dark Slate', hsl: '215 25% 12%', hex: '#0f172a' },
+                    ].map((color) => (
+                      <button
+                        key={color.name}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, sidebar_color: color.hsl }))}
+                        className="w-8 h-8 rounded border-2 border-border hover:border-primary transition-colors"
+                        style={{ backgroundColor: color.hex }}
+                        title={`${color.name} - ${color.hsl}`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* Color Preview */}
-            <div className="mt-4 p-4 rounded-lg border">
-              <p className="text-sm text-muted-foreground mb-3">Preview</p>
-              <div className="flex gap-4">
-                <div 
-                  className="h-12 w-24 rounded-lg flex items-center justify-center text-white text-xs"
-                  style={{ backgroundColor: `hsl(${formData.primary_color})` }}
-                >
-                  Primary
-                </div>
-                <div 
-                  className="h-12 w-24 rounded-lg flex items-center justify-center text-white text-xs"
-                  style={{ backgroundColor: `hsl(${formData.accent_color})` }}
-                >
-                  Accent
-                </div>
-                <div 
-                  className="h-12 w-24 rounded-lg flex items-center justify-center text-white text-xs"
-                  style={{ backgroundColor: `hsl(${formData.sidebar_color})` }}
-                >
-                  Sidebar
-                </div>
-              </div>
-            </div>
+
           </CardContent>
         </Card>
 
@@ -371,7 +711,23 @@ const AdminBranding = () => {
         </Card>
 
         {/* Save Button */}
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              // Reset to default colors
+              setFormData(prev => ({
+                ...prev,
+                primary_color: '152 45% 28%',
+                accent_color: '45 90% 50%',
+                sidebar_color: '152 35% 15%',
+              }));
+              toast.success('Colors reset to defaults');
+            }}
+          >
+            Reset Colors
+          </Button>
+          
           <Button onClick={handleSave} disabled={isSaving} size="lg">
             {isSaving ? (
               <>

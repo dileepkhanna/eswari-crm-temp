@@ -18,6 +18,7 @@ interface DataContextType {
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
+  bulkDeleteLeads: (ids: string[]) => Promise<any>; // Add bulk delete function
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateTask: (id: string, data: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
@@ -77,24 +78,33 @@ export const apiToLead = (apiLead: any): Lead => ({
 });
 
 // Helper to convert Django API response to Project type
-const apiToProject = (apiProject: any): Project => ({
-  id: apiProject.id.toString(),
-  name: apiProject.name,
-  location: '', // You'll need to add this field to Django model
-  type: 'apartment', // Default value
-  priceMin: Number(apiProject.budget) || 0,
-  priceMax: Number(apiProject.budget) || 0,
-  launchDate: new Date(apiProject.start_date),
-  possessionDate: new Date(apiProject.end_date || apiProject.start_date),
-  amenities: [],
-  description: apiProject.description || '',
-  towerDetails: '',
-  nearbyLandmarks: [],
-  coverImage: apiProject.cover_image || '',
-  blueprintImage: apiProject.blueprint_image || '',
-  status: apiProject.status,
-  createdAt: new Date(apiProject.created_at),
-});
+const apiToProject = (apiProject: any): Project => {
+  // Helper function to safely parse dates
+  const parseDate = (dateValue: any): Date => {
+    if (!dateValue) return new Date(); // Default to current date if null/undefined
+    const parsed = new Date(dateValue);
+    return isNaN(parsed.getTime()) ? new Date() : parsed; // Return current date if invalid
+  };
+
+  return {
+    id: apiProject.id.toString(),
+    name: apiProject.name,
+    location: apiProject.location || '',
+    type: apiProject.type || 'apartment',
+    priceMin: Number(apiProject.priceMin || apiProject.budget) || 0,
+    priceMax: Number(apiProject.priceMax || apiProject.budget) || 0,
+    launchDate: parseDate(apiProject.launchDate || apiProject.start_date),
+    possessionDate: parseDate(apiProject.possessionDate || apiProject.end_date || apiProject.launchDate || apiProject.start_date),
+    amenities: Array.isArray(apiProject.amenities) ? apiProject.amenities : [],
+    description: apiProject.description || '',
+    towerDetails: apiProject.towerDetails || '',
+    nearbyLandmarks: Array.isArray(apiProject.nearbyLandmarks) ? apiProject.nearbyLandmarks : [],
+    coverImage: apiProject.coverImage || apiProject.cover_image || '',
+    blueprintImage: apiProject.blueprintImage || apiProject.blueprint_image || '',
+    status: apiProject.status,
+    createdAt: parseDate(apiProject.created_at),
+  };
+};
 
 // Helper to convert Django API response to Task type
 const apiToTask = (apiTask: any): Task => ({
@@ -155,6 +165,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDeletingLead, setIsDeletingLead] = useState(false); // Add flag to prevent refetch during deletion
   
   const notificationContext = useNotifications();
 
@@ -218,13 +229,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return [];
     }
     
+    // Don't fetch if we're in the middle of deleting a lead
+    if (isDeletingLead) {
+      console.log('🚫 Skipping leads fetch - deletion in progress');
+      return [];
+    }
+    
+    console.log('🔄 Fetching leads from API...');
+    console.trace('📍 fetchLeads called from:'); // This will show the call stack
     try {
       const response = await apiClient.getLeads();
-      const leadsList = response.results ? response.results.map(apiToLead) : [];
+      // Handle both paginated (response.results) and non-paginated (direct array) responses
+      let leadsList: Lead[];
+      if (Array.isArray(response)) {
+        // Non-paginated response (direct array)
+        leadsList = response.map(apiToLead);
+      } else if (response.results) {
+        // Paginated response
+        leadsList = response.results.map(apiToLead);
+      } else {
+        leadsList = [];
+      }
+      console.log('📥 Fetched leads from API:', leadsList.length, 'leads');
       setLeads(leadsList);
       return leadsList;
     } catch (error: any) {
-      console.error('Error fetching leads:', error);
+      console.error('❌ Error fetching leads:', error);
       
       // Handle authentication errors
       if (error.message?.includes('401')) {
@@ -235,7 +265,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       
       return [];
     }
-  }, [user]);
+  }, [user, isDeletingLead]);
 
   const fetchTasks = useCallback(async () => {
     // Don't make API calls if no user is authenticated
@@ -313,6 +343,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
+    console.log('🔄 Refreshing all data...', showLoading ? '(with loading)' : '(silent)');
     if (showLoading) {
       setLoading(true);
     }
@@ -325,8 +356,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fetchAnnouncements(),
         fetchLeaves(),
       ]);
+      console.log('✅ Data refresh completed successfully');
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error('❌ Error refreshing data:', error);
       
       // If we get authentication errors, it might mean tokens are invalid
       if (error instanceof Error && error.message.includes('401')) {
@@ -351,13 +383,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // }, [user, refreshData]);
 
   // Initial fetch
+  // Initial fetch when user changes - TEMPORARILY DISABLED TO TEST DELETION
   useEffect(() => {
     if (user) {
-      refreshData(true); // Show loading on initial fetch
+      console.log('🔄 Initial data fetch triggered by user change');
+      // Call fetch functions directly to avoid circular dependency
+      Promise.all([
+        fetchProjects(),
+        fetchLeads(),
+        fetchTasks(),
+        fetchAnnouncements(),
+        fetchLeaves(),
+      ]).then(() => {
+        console.log('✅ Initial data fetch completed');
+        setLoading(false);
+      }).catch((error) => {
+        console.error('❌ Error in initial data fetch:', error);
+        setLoading(false);
+      });
+      setLoading(true);
     } else {
       setLoading(false);
     }
-  }, [user, refreshData]);
+  }, [user]); // REMOVED OTHER DEPENDENCIES TO PREVENT REFETCH
 
   // Function to add lead directly to state (for customer-to-lead conversion)
   const addLeadToState = useCallback((lead: Lead) => {
@@ -493,13 +541,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [user, leads]);
 
   const deleteLead = useCallback(async (id: string) => {
+    console.log('🗑️ Starting lead deletion for ID:', id);
+    setIsDeletingLead(true); // Set flag to prevent refetch
     try {
       // Get lead details before deletion for activity logging
-      const leadToDelete = leads.find(l => l.id === id);
-      const leadName = leadToDelete?.name || 'Unknown Lead';
+      // Use functional update to avoid dependency on leads array
+      let leadToDelete: Lead | undefined;
+      setLeads(prev => {
+        leadToDelete = prev.find(l => l.id === id);
+        return prev; // Don't change state yet
+      });
       
-      await apiClient.deleteLead(parseInt(id));
-      setLeads(prev => prev.filter(l => l.id !== id));
+      const leadName = leadToDelete?.name || 'Unknown Lead';
+      console.log('📋 Lead to delete:', leadToDelete);
+      
+      console.log('🔄 Calling API to delete lead...');
+      const result = await apiClient.deleteLead(parseInt(id));
+      console.log('✅ API delete result:', result);
+      
+      console.log('🔄 Updating local state...');
+      setLeads(prev => {
+        const newLeads = prev.filter(l => l.id !== id);
+        console.log('📊 Leads before deletion:', prev.length);
+        console.log('📊 Leads after deletion:', newLeads.length);
+        return newLeads;
+      });
       
       // Log activity after successful deletion
       if (user) {
@@ -513,12 +579,66 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
       
       toast.success('Lead deleted successfully');
+      console.log('✅ Lead deletion completed successfully');
     } catch (error) {
-      console.error('Error deleting lead:', error);
+      console.error('❌ Error deleting lead:', error);
       toast.error('Failed to delete lead');
       throw error;
+    } finally {
+      setIsDeletingLead(false); // Clear flag
     }
-  }, [user, leads]);
+  }, [user]);
+
+  const bulkDeleteLeads = useCallback(async (ids: string[]) => {
+    console.log('🗑️ Starting bulk lead deletion for IDs:', ids);
+    setIsDeletingLead(true); // Set flag to prevent refetch
+    try {
+      console.log('🔄 Calling API to bulk delete leads...');
+      const result = await apiClient.bulkDeleteLeads(ids.map(id => parseInt(id)));
+      console.log('✅ Bulk delete API result:', result);
+      
+      console.log('🔄 Updating local state...');
+      setLeads(prev => {
+        const newLeads = prev.filter(l => !ids.includes(l.id));
+        console.log('📊 Leads before bulk deletion:', prev.length);
+        console.log('📊 Leads after bulk deletion:', newLeads.length);
+        console.log('📊 Deleted count:', prev.length - newLeads.length);
+        return newLeads;
+      });
+      
+      // Log activity after successful deletion
+      if (user && result.deleted_count > 0) {
+        console.log('Logging bulk lead deletion activity for user:', user);
+        try {
+          await logLeadActivity(user, 'deleted', `${result.deleted_count} leads (bulk)`);
+          console.log('Bulk lead deletion activity logged successfully');
+        } catch (activityError) {
+          console.error('Failed to log bulk lead deletion activity:', activityError);
+        }
+      }
+      
+      // Show appropriate success message
+      if (result.deleted_count === ids.length) {
+        toast.success(`${result.deleted_count} leads deleted successfully`);
+      } else if (result.deleted_count > 0) {
+        toast.success(`${result.deleted_count} of ${ids.length} leads deleted successfully`);
+        if (result.permission_errors?.length > 0) {
+          console.warn('Permission errors:', result.permission_errors);
+        }
+      } else {
+        toast.error('No leads could be deleted');
+      }
+      
+      console.log('✅ Bulk lead deletion completed successfully');
+      return result;
+    } catch (error) {
+      console.error('❌ Error bulk deleting leads:', error);
+      toast.error('Failed to delete leads');
+      throw error;
+    } finally {
+      setIsDeletingLead(false); // Clear flag
+    }
+  }, [user]); // Remove leads dependency to prevent recreation
 
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     // Generate temporary ID for optimistic update
@@ -703,8 +823,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const projectData = {
         name: project.name,
-        description: project.description,
+        location: project.location || '',
+        type: project.type || 'apartment',
+        description: project.description || '',
         status: project.status,
+        priceMin: project.priceMin || 0,
+        priceMax: project.priceMax || 0,
+        launchDate: project.launchDate.toISOString().split('T')[0],
+        possessionDate: project.possessionDate?.toISOString().split('T')[0],
+        towerDetails: project.towerDetails || '',
+        amenities: project.amenities || [],
+        nearbyLandmarks: project.nearbyLandmarks || [],
+        coverImage: project.coverImage && isValidUrl(project.coverImage) ? project.coverImage : '',
+        blueprintImage: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
+        // Legacy fields for backward compatibility
         start_date: project.launchDate.toISOString().split('T')[0],
         end_date: project.possessionDate?.toISOString().split('T')[0],
         budget: project.priceMax || 0,
@@ -728,8 +860,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const updateData: any = {};
       if (data.name !== undefined) updateData.name = data.name;
+      if (data.location !== undefined) updateData.location = data.location;
+      if (data.type !== undefined) updateData.type = data.type;
       if (data.description !== undefined) updateData.description = data.description;
       if (data.status !== undefined) updateData.status = data.status;
+      if (data.priceMin !== undefined) updateData.priceMin = data.priceMin;
+      if (data.priceMax !== undefined) updateData.priceMax = data.priceMax;
+      if (data.launchDate !== undefined) updateData.launchDate = data.launchDate.toISOString().split('T')[0];
+      if (data.possessionDate !== undefined) updateData.possessionDate = data.possessionDate.toISOString().split('T')[0];
+      if (data.towerDetails !== undefined) updateData.towerDetails = data.towerDetails;
+      if (data.amenities !== undefined) updateData.amenities = data.amenities;
+      if (data.nearbyLandmarks !== undefined) updateData.nearbyLandmarks = data.nearbyLandmarks;
+      if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
+      if (data.blueprintImage !== undefined) updateData.blueprintImage = data.blueprintImage;
+      
+      // Legacy fields for backward compatibility
       if (data.launchDate !== undefined) updateData.start_date = data.launchDate.toISOString().split('T')[0];
       if (data.possessionDate !== undefined) updateData.end_date = data.possessionDate.toISOString().split('T')[0];
       if (data.priceMax !== undefined) updateData.budget = data.priceMax;
@@ -947,6 +1092,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     addLead,
     updateLead,
     deleteLead,
+    bulkDeleteLeads, // Add bulk delete function
     addTask,
     updateTask,
     deleteTask,

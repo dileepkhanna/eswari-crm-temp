@@ -218,7 +218,7 @@ export default function ProjectStatusChart({ projects, title = "Projects Overvie
                   </p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
                     <Calendar className="w-3 h-3" />
-                    {format(project.possessionDate, 'MMM yyyy')}
+                    {project.possessionDate && !isNaN(project.possessionDate.getTime()) ? format(project.possessionDate, 'MMM yyyy') : 'TBD'}
                   </p>
                 </div>
               </div>

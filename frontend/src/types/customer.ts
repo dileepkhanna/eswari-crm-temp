@@ -1,4 +1,4 @@
-export type CallStatus = 'pending' | 'answered' | 'not_answered' | 'busy' | 'no_response' | 'custom';
+export type CallStatus = 'pending' | 'answered' | 'not_answered' | 'busy' | 'not_interested' | 'custom';
 
 export interface Customer {
   id: string;

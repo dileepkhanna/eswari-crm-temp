@@ -304,7 +304,134 @@
   }
 }
 
-/* Compact View Styles */
+/* Force recalculation helper */
+.force-recalc * {
+  transform: translateZ(0);
+}
+
+/* Dynamic color override helpers - ensure these have high specificity */
+#dynamic-color-overrides,
+#preview-color-overrides {
+  /* Ensure dynamic styles have high priority */
+}
+
+/* Ensure Tailwind classes can be overridden by dynamic styles */
+.bg-primary,
+.text-primary,
+.border-primary,
+.bg-accent,
+.text-accent,
+.border-accent,
+.bg-sidebar,
+.text-sidebar,
+.btn-primary,
+.btn-accent,
+.nav-link,
+.nav-link-active,
+.glass-sidebar,
+.gradient-primary,
+.gradient-accent {
+  /* Allow dynamic overrides */
+  transition: all 0.3s ease;
+}
+
+/* Customer deletion animations */
+@keyframes delete-row {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    background-color: transparent;
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(-10px) scale(0.98);
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translateX(-20px) scale(0.95);
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+}
+
+@keyframes delete-mobile {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    background-color: transparent;
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-5px) scale(0.98);
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translateY(-10px) scale(0.95);
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+}
+
+@keyframes pulse-delete {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+.animate-delete-row {
+  animation: delete-row 0.8s ease-in-out infinite alternate, pulse-delete 1.5s ease-in-out infinite;
+}
+
+.animate-delete-mobile {
+  animation: delete-mobile 0.8s ease-in-out infinite alternate, pulse-delete 1.5s ease-in-out infinite;
+}
+
+/* Enhanced toast animations */
+.toast-success {
+  animation: toast-slide-in 0.3s ease-out, toast-bounce 0.6s ease-out 0.3s;
+}
+
+.toast-error {
+  animation: toast-slide-in 0.3s ease-out, toast-shake 0.5s ease-out 0.3s;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-5px);
+  }
+  60% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes toast-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
 .compact-view .stat-card {
   @apply p-4;
 }
@@ -388,4 +515,130 @@
   .glass-card {
     @apply p-5;
   }
+}
+/* Prevent form fields from being disabled */
+.project-form-modal input[type="text"],
+.project-form-modal input[type="number"],
+.project-form-modal input[type="date"],
+.project-form-modal textarea {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  background-color: white !important;
+}
+
+.project-form-modal input[type="text"]:disabled,
+.project-form-modal input[type="number"]:disabled,
+.project-form-modal input[type="date"]:disabled,
+.project-form-modal textarea:disabled {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  background-color: white !important;
+  color: inherit !important;
+}
+
+.project-form-modal input[type="text"][readonly],
+.project-form-modal input[type="number"][readonly],
+.project-form-modal input[type="date"][readonly],
+.project-form-modal textarea[readonly] {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  background-color: white !important;
+  color: inherit !important;
+}
+
+/* Force enable all form fields */
+.project-form-modal input,
+.project-form-modal textarea,
+.project-form-modal select {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  background-color: white !important;
+}
+
+/* Override any disabled styling */
+.project-form-modal *[disabled] {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  background-color: white !important;
+  color: inherit !important;
+}
+
+/* Color picker improvements - Prevent closing issues */
+input[type="color"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: none;
+  border: 1px solid hsl(var(--border));
+  cursor: pointer;
+  border-radius: 0.375rem;
+  position: relative;
+  z-index: 1000;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border: none;
+  border-radius: 0.375rem;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 0.375rem;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 0.375rem;
+}
+
+input[type="color"]:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  z-index: 1001;
+}
+
+/* Prevent color picker from being interfered with */
+input[type="color"]:focus,
+input[type="color"]:active {
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+}
+
+/* Ensure color picker dialog stays on top */
+input[type="color"]::-webkit-color-swatch-wrapper {
+  z-index: 1002;
+}
+
+/* Fix for color picker in modal/dialog contexts */
+.color-picker-container {
+  position: relative;
+  z-index: 1000;
+  isolation: isolate;
+}
+
+.color-picker-container input[type="color"] {
+  position: relative;
+  z-index: 1001;
+  pointer-events: auto !important;
+}
+
+/* Additional fixes to prevent closing */
+input[type="color"]:active,
+input[type="color"]:focus-visible,
+input[type="color"]:focus-within {
+  z-index: 99999 !important;
+  isolation: isolate;
+}
+
+/* Prevent modal/dialog interference */
+.color-picker-container:focus-within {
+  z-index: 99999;
+  isolation: isolate;
+}
+
+/* Override any modal z-index issues */
+[role="dialog"] .color-picker-container input[type="color"]:focus,
+[role="dialog"] .color-picker-container input[type="color"]:active {
+  z-index: 999999 !important;
 }

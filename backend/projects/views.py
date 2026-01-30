@@ -71,7 +71,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response({
                 'url': image_url,
                 'filename': unique_filename,
-                'type': 'cover'
+                'type': 'cover',
+                'coverImage': image_url  # Add this for frontend compatibility
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
@@ -129,7 +130,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response({
                 'url': image_url,
                 'filename': unique_filename,
-                'type': 'blueprint'
+                'type': 'blueprint',
+                'blueprintImage': image_url  # Add this for frontend compatibility
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
@@ -148,15 +150,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         
         project = get_object_or_404(Project, pk=pk)
-        if not project.cover_image:
+        cover_image_url = project.coverImage or project.cover_image
+        if not cover_image_url:
             return Response(
                 {'error': 'No cover image available'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         
         # Extract filename from URL
-        image_url = project.cover_image
-        filename = os.path.basename(image_url.split('?')[0])  # Remove query params
+        filename = os.path.basename(cover_image_url.split('?')[0])  # Remove query params
         file_path = os.path.join(settings.MEDIA_ROOT, 'projects', filename)
         
         if not os.path.exists(file_path):
@@ -186,15 +188,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         
         project = get_object_or_404(Project, pk=pk)
-        if not project.blueprint_image:
+        blueprint_image_url = project.blueprintImage or project.blueprint_image
+        if not blueprint_image_url:
             return Response(
                 {'error': 'No blueprint image available'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         
         # Extract filename from URL
-        image_url = project.blueprint_image
-        filename = os.path.basename(image_url.split('?')[0])  # Remove query params
+        filename = os.path.basename(blueprint_image_url.split('?')[0])  # Remove query params
         file_path = os.path.join(settings.MEDIA_ROOT, 'projects', filename)
         
         if not os.path.exists(file_path):

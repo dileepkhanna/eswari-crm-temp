@@ -46,6 +46,7 @@ import StaffCustomers from '@/pages/staff/StaffCustomers';
 
 // Shared Pages
 import SettingsPage from '@/pages/settings/SettingsPage';
+import StaffSettings from '@/pages/staff/StaffSettingsTest';
 import NotFound from '@/pages/NotFound';
 
 const AppRouter = () => {
@@ -125,7 +126,7 @@ const AppRouter = () => {
         <Route path="holidays" element={<StaffHolidays />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="announcements" element={<StaffAnnouncements />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings" element={<StaffSettings />} />
       </Route>
 
       {/* Legacy redirect: /employee -> /staff */}

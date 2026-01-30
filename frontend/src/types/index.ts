@@ -13,7 +13,7 @@ export type RequirementType = 'villa' | 'apartment' | 'house' | 'plot';
 export type LeadSource = 'call' | 'walk_in' | 'website' | 'referral' | 'customer_conversion';
 
 // Customer Management Types
-export type CallStatus = 'pending' | 'answered' | 'not_answered' | 'busy' | 'no_response' | 'custom';
+export type CallStatus = 'pending' | 'answered' | 'not_answered' | 'busy' | 'not_interested' | 'custom';
 
 export interface User {
   id: string;

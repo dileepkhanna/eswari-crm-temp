@@ -165,7 +165,7 @@ export default function CustomerFormModal({
                   <SelectItem value="answered">Answered</SelectItem>
                   <SelectItem value="not_answered">Not Answered</SelectItem>
                   <SelectItem value="busy">Busy</SelectItem>
-                  <SelectItem value="no_response">No Response</SelectItem>
+                  <SelectItem value="not_interested">Not Interested</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>

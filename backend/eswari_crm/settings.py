@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "holidays",
     "activity_logs",
     "customers",
+    "app_settings",
 ]
 
 MIDDLEWARE = [

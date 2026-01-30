@@ -8,6 +8,7 @@ export default function ManagerCustomers() {
   const {
     customers,
     employees,
+    loading,
     addCustomer,
     updateCustomer,
     deleteCustomer,
@@ -28,6 +29,7 @@ export default function ManagerCustomers() {
           customers={customers}
           employees={employees}
           projects={projects}
+          loading={loading}
           onAddCustomer={addCustomer}
           onUpdateCustomer={updateCustomer}
           onDeleteCustomer={deleteCustomer}

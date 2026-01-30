@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Project } from '@/types';
 import ProjectCard from './ProjectCard';
+import ProjectListItem from './ProjectListItem';
 import ProjectFormModal from './ProjectFormModal';
 import ProjectDetailsModal from './ProjectDetailsModal';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,10 @@ export default function ProjectList({ canCreate = false, canEdit = false, canDel
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    const saved = localStorage.getItem('projects-view-mode');
+    return (saved as 'grid' | 'list') || 'grid';
+  });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [viewingProject, setViewingProject] = useState<Project | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -212,33 +216,49 @@ export default function ProjectList({ canCreate = false, canEdit = false, canDel
 
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex rounded-lg border border-border overflow-hidden">
+            {/* View Mode Toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden bg-background shadow-sm">
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="rounded-none h-9 w-9"
-                onClick={() => setViewMode('grid')}
+                size="sm"
+                className="rounded-none h-8 px-3 text-xs hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  setViewMode('grid');
+                  localStorage.setItem('projects-view-mode', 'grid');
+                }}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className="w-3.5 h-3.5 mr-1" />
+                <span className="hidden sm:inline">Grid</span>
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="rounded-none h-9 w-9"
-                onClick={() => setViewMode('list')}
+                size="sm"
+                className="rounded-none h-8 px-3 text-xs hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  setViewMode('list');
+                  localStorage.setItem('projects-view-mode', 'list');
+                }}
               >
-                <List className="w-4 h-4" />
+                <List className="w-3.5 h-3.5 mr-1" />
+                <span className="hidden sm:inline">List</span>
               </Button>
             </div>
 
+            {/* Select All Checkbox */}
             {canDelete && (
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={toggleSelectAll}
-                aria-label="Select all"
-              />
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  Select All
+                </span>
+              </div>
             )}
 
+            {/* Bulk Delete Button */}
             {someSelected && canDelete && (
               <Button 
                 variant="destructive" 
@@ -246,44 +266,81 @@ export default function ProjectList({ canCreate = false, canEdit = false, canDel
                 onClick={() => setShowDeleteDialog(true)}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete ({selectedIds.size})
+                <span className="hidden sm:inline">Delete </span>
+                ({selectedIds.size})
               </Button>
             )}
           </div>
 
+          {/* Add Project Button */}
           {canCreate && (
-            <Button className="btn-accent" onClick={() => { setEditingProject(null); setIsFormOpen(true); }}>
+            <Button 
+              className="btn-accent" 
+              size="sm"
+              onClick={() => { setEditingProject(null); setIsFormOpen(true); }}
+            >
               <Plus className="w-4 h-4 mr-2" />
-              Add Project
+              <span className="hidden sm:inline">Add Project</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredProjects.map((project, index) => (
-          <div key={project.id} className="relative">
-            {canDelete && (
-              <div className="absolute top-3 left-3 z-10">
-                <Checkbox
-                  checked={selectedIds.has(project.id)}
-                  onCheckedChange={() => toggleSelect(project.id)}
-                  className="bg-background/80 backdrop-blur-sm"
+      {/* Projects Display */}
+      <div className="transition-all duration-300 ease-in-out">
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in-0 duration-300">
+            {filteredProjects.map((project, index) => (
+              <div key={project.id} className="relative">
+                {canDelete && (
+                  <div className="absolute top-3 left-3 z-10">
+                    <Checkbox
+                      checked={selectedIds.has(project.id)}
+                      onCheckedChange={() => toggleSelect(project.id)}
+                      className="bg-background/80 backdrop-blur-sm"
+                    />
+                  </div>
+                )}
+                <ProjectCard 
+                  project={project} 
+                  delay={index * 100}
+                  onView={handleViewProject}
+                  onEdit={handleEditClick}
+                  onDelete={canDelete ? handleDeleteClick : undefined}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </div>
-            )}
-            <ProjectCard 
-              project={project} 
-              delay={index * 100}
-              onView={handleViewProject}
-              onEdit={handleEditClick}
-              onDelete={canDelete ? handleDeleteClick : undefined}
-              canEdit={canEdit}
-              canDelete={canDelete}
-            />
+            ))}
           </div>
-        ))}
+        ) : (
+          <div className="space-y-3 animate-in fade-in-0 duration-300">
+            {filteredProjects.map((project, index) => (
+              <div key={project.id} className="relative">
+                {canDelete && (
+                  <div className="absolute top-4 left-4 z-10">
+                    <Checkbox
+                      checked={selectedIds.has(project.id)}
+                      onCheckedChange={() => toggleSelect(project.id)}
+                      className="bg-background/80 backdrop-blur-sm"
+                    />
+                  </div>
+                )}
+                <div className={canDelete ? "ml-8" : ""}>
+                  <ProjectListItem
+                    project={project}
+                    onView={handleViewProject}
+                    onEdit={handleEditClick}
+                    onDelete={canDelete ? handleDeleteClick : undefined}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {filteredProjects.length === 0 && (
@@ -297,7 +354,10 @@ export default function ProjectList({ canCreate = false, canEdit = false, canDel
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingProject(null);
+          if (!open) {
+            // Delay clearing editingProject to prevent race condition
+            setTimeout(() => setEditingProject(null), 200);
+          }
         }}
         onSubmit={editingProject ? handleEditProject : handleAddProject}
         project={editingProject}

@@ -162,9 +162,9 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
       yPosition += 8;
       pdf.text(`Price Range: ₹${formatPrice(project.priceMin)} - ₹${formatPrice(project.priceMax)}`, 20, yPosition);
       yPosition += 8;
-      pdf.text(`Launch Date: ${format(project.launchDate, 'MMM dd, yyyy')}`, 20, yPosition);
+      pdf.text(`Launch Date: ${project.launchDate && !isNaN(project.launchDate.getTime()) ? format(project.launchDate, 'MMM dd, yyyy') : 'TBD'}`, 20, yPosition);
       yPosition += 8;
-      pdf.text(`Possession Date: ${format(project.possessionDate, 'MMM dd, yyyy')}`, 20, yPosition);
+      pdf.text(`Possession Date: ${project.possessionDate && !isNaN(project.possessionDate.getTime()) ? format(project.possessionDate, 'MMM dd, yyyy') : 'TBD'}`, 20, yPosition);
       yPosition += 15;
 
       // Description
@@ -444,12 +444,12 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Launch:</span>
-                <span className="font-medium">{format(project.launchDate, 'MMM yyyy')}</span>
+                <span className="font-medium">{project.launchDate && !isNaN(project.launchDate.getTime()) ? format(project.launchDate, 'MMM yyyy') : 'TBD'}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Possession:</span>
-                <span className="font-medium">{format(project.possessionDate, 'MMM yyyy')}</span>
+                <span className="font-medium">{project.possessionDate && !isNaN(project.possessionDate.getTime()) ? format(project.possessionDate, 'MMM yyyy') : 'TBD'}</span>
               </div>
             </div>
 

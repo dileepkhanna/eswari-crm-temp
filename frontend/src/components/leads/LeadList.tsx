@@ -76,7 +76,7 @@ export default function LeadList({
   employees = [],
 }: LeadListProps) {
   const { user } = useAuth();
-  const { leads, projects, addLead, updateLead, deleteLead, addTask } = useData();
+  const { leads, projects, addLead, updateLead, deleteLead, bulkDeleteLeads, addTask } = useData();
 
   // Check if user can delete leads and tasks
   const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
@@ -152,14 +152,13 @@ export default function LeadList({
 
   const handleBulkDelete = async () => {
     try {
-      for (const id of selectedIds) {
-        await deleteLead(id);
-      }
-      toast.success(`${selectedIds.size} lead(s) deleted successfully`);
+      console.log('🗑️ Starting bulk delete for selected leads:', Array.from(selectedIds));
+      await bulkDeleteLeads(Array.from(selectedIds));
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
     } catch (error) {
-      toast.error("Failed to delete some leads");
+      console.error('❌ Bulk delete failed:', error);
+      // Error toast is already shown by bulkDeleteLeads function
     }
   };
 

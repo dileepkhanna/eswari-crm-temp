@@ -7,6 +7,7 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import EmployeeRemindersWidget from '@/components/dashboard/EmployeeRemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
 import LeaveStatsWidget from '@/components/dashboard/LeaveStatsWidget';
+import QuickSettingsWidget from '@/components/staff/QuickSettingsWidget';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
 import { ClipboardList, CheckSquare, CalendarOff, Bell, Target } from 'lucide-react';
@@ -186,7 +187,7 @@ export default function StaffDashboard() {
           </div>
 
           {/* Leave Stats Widget */}
-          <LeaveStatsWidget />
+          <QuickSettingsWidget />
         </div>
       </div>
     </div>

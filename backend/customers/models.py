@@ -7,7 +7,7 @@ class Customer(models.Model):
         ('answered', 'Answered'),
         ('not_answered', 'Not Answered'),
         ('busy', 'Busy'),
-        ('no_response', 'No Response'),
+        ('not_interested', 'Not Interested'),
         ('custom', 'Custom'),
     ]
     

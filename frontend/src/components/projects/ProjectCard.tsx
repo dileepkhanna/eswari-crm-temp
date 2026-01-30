@@ -99,11 +99,15 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
         <div className="flex items-center gap-4 pt-3 border-t text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
-            Launch: {format(project.launchDate, 'MMM yyyy')}
+            Launch: {project.launchDate && !isNaN(project.launchDate.getTime()) 
+              ? format(project.launchDate, 'MMM yyyy') 
+              : 'TBD'}
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
-            Possession: {format(project.possessionDate, 'MMM yyyy')}
+            Possession: {project.possessionDate && !isNaN(project.possessionDate.getTime()) 
+              ? format(project.possessionDate, 'MMM yyyy') 
+              : 'TBD'}
           </div>
         </div>
 

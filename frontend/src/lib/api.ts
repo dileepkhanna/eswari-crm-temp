@@ -39,8 +39,14 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
+    // Always get the latest token from localStorage
+    this.token = localStorage.getItem('access_token');
+    
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+      console.log(`API Request: ${options.method || 'GET'} ${endpoint} - Token exists: ${!!this.token}`);
+    } else {
+      console.warn(`API Request: ${options.method || 'GET'} ${endpoint} - No token available`);
     }
 
     const response = await fetch(url, {
@@ -48,13 +54,19 @@ class ApiClient {
       headers,
     });
 
+    console.log(`API Response: ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`);
+
     if (response.status === 401) {
+      console.log('API: 401 Unauthorized, attempting token refresh...');
       // Token expired, try to refresh
       const refreshResult = await this.refreshToken();
       if (refreshResult) {
+        console.log('API: Token refresh successful, retrying request...');
         // Retry the request with new token
         headers['Authorization'] = `Bearer ${this.token}`;
         const retryResponse = await fetch(url, { ...options, headers });
+        console.log(`API Retry Response: ${options.method || 'GET'} ${endpoint} - Status: ${retryResponse.status}`);
+        
         if (!retryResponse.ok) {
           let errorData = {};
           try {
@@ -78,6 +90,7 @@ class ApiClient {
           return null;
         }
       } else {
+        console.error('API: Token refresh failed, clearing tokens');
         // Refresh failed, clear tokens and throw error
         this.logout();
         
@@ -125,29 +138,37 @@ class ApiClient {
 
   private async refreshToken(): Promise<boolean> {
     const refreshToken = localStorage.getItem('refresh_token');
+    console.log(`API: Attempting token refresh - Refresh token exists: ${!!refreshToken}`);
+    
     if (!refreshToken) {
+      console.warn('API: No refresh token available');
       return false;
     }
 
     try {
+      console.log('API: Making token refresh request...');
       const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh: refreshToken }),
       });
 
+      console.log(`API: Token refresh response status: ${response.status}`);
+
       if (response.ok) {
         const data = await response.json();
         this.token = data.access;
         localStorage.setItem('access_token', data.access);
+        console.log('API: Token refresh successful');
         return true;
       } else {
+        console.error('API: Token refresh failed - invalid refresh token');
         // Refresh token is invalid
         this.logout();
         return false;
       }
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error('API: Token refresh failed with error:', error);
       this.logout();
       return false;
     }
@@ -271,8 +292,78 @@ class ApiClient {
   }
 
   async deleteUser(userId: number) {
-    return this.request(`/auth/users/${userId}/delete/`, {
-      method: 'DELETE',
+    console.log(`API: Attempting to delete user ${userId}`);
+    
+    try {
+      const result = await this.request(`/auth/users/${userId}/delete/`, {
+        method: 'DELETE',
+      });
+      console.log(`API: Delete user ${userId} successful:`, result);
+      return result;
+    } catch (error) {
+      console.error(`API: Delete user ${userId} failed:`, error);
+      throw error;
+    }
+  }
+
+  async simpleDeleteUser(userId: number) {
+    console.log(`API: Attempting simple delete for user ${userId}`);
+    console.log(`API: Base URL: ${this.baseURL}`);
+    console.log(`API: Token exists: ${!!this.token}`);
+    console.log(`API: Token from localStorage: ${!!localStorage.getItem('access_token')}`);
+    
+    // Force refresh token from localStorage
+    this.token = localStorage.getItem('access_token');
+    
+    const url = `${this.baseURL}/auth/users/simple-delete/`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    
+    const body = JSON.stringify({ user_id: userId });
+    
+    console.log(`API: Making direct fetch to ${url}`);
+    console.log(`API: Headers:`, headers);
+    console.log(`API: Body:`, body);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+      });
+      
+      console.log(`API: Response status: ${response.status}`);
+      console.log(`API: Response headers:`, Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API: Error response:`, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log(`API: Simple delete user ${userId} successful:`, result);
+      return result;
+    } catch (error) {
+      console.error(`API: Simple delete user ${userId} failed:`, error);
+      throw error;
+    }
+  }
+
+  async adminUpdateUser(userId: string, userData: {
+    name: string;
+    phone: string;
+    address: string;
+    newPassword?: string;
+  }) {
+    return this.request(`/auth/users/${userId}/update/`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
     });
   }
 
@@ -359,6 +450,13 @@ class ApiClient {
   async deleteLead(id: number) {
     return this.request(`/leads/${id}/`, {
       method: 'DELETE',
+    });
+  }
+
+  async bulkDeleteLeads(leadIds: number[]) {
+    return this.request('/leads/bulk_delete/', {
+      method: 'POST',
+      body: JSON.stringify({ lead_ids: leadIds }),
     });
   }
 
@@ -640,6 +738,92 @@ class ApiClient {
     return this.request('/leaves/bulk_delete/', {
       method: 'POST',
       body: JSON.stringify({ ids }),
+    });
+  }
+
+  // App Settings
+  async getAppSettings() {
+    return this.request('/app-settings/');
+  }
+
+  async updateAppSettings(settingsData: {
+    app_name?: string;
+    logo_url?: string | null;
+    favicon_url?: string | null;
+    primary_color?: string;
+    accent_color?: string;
+    sidebar_color?: string;
+    custom_css?: string | null;
+  }) {
+    return this.request('/app-settings/update/', {
+      method: 'PUT',
+      body: JSON.stringify(settingsData),
+    });
+  }
+
+  async uploadLogo(logoFile: File): Promise<{ message: string; logo_url: string; filename: string }> {
+    const formData = new FormData();
+    formData.append('logo', logoFile);
+
+    const url = `${this.baseURL}/app-settings/upload-logo/`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+      }
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  }
+
+  async uploadFavicon(faviconFile: File): Promise<{ message: string; favicon_url: string; filename: string }> {
+    const formData = new FormData();
+    formData.append('favicon', faviconFile);
+
+    const url = `${this.baseURL}/app-settings/upload-favicon/`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+      }
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  }
+
+  async resetAppSettings() {
+    return this.request('/app-settings/reset/', {
+      method: 'POST',
     });
   }
 

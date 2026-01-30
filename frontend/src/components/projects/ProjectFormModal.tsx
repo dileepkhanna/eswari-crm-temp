@@ -8,9 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -19,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Upload, Building, MapPin, IndianRupee, Calendar, Image, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Plus, Upload, Building, MapPin, IndianRupee, Calendar, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ProjectFormModalProps {
@@ -37,19 +35,20 @@ export default function ProjectFormModal({
 }: ProjectFormModalProps) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const blueprintInputRef = useRef<HTMLInputElement>(null);
+  const lastProjectIdRef = useRef<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   const [formData, setFormData] = useState({
-    name: project?.name || '',
-    location: project?.location || '',
-    type: project?.type || 'apartment',
-    priceMin: project?.priceMin?.toString() || '',
-    priceMax: project?.priceMax?.toString() || '',
-    launchDate: project?.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : '',
-    possessionDate: project?.possessionDate ? new Date(project.possessionDate).toISOString().split('T')[0] : '',
-    description: project?.description || '',
-    towerDetails: project?.towerDetails || '',
-    status: project?.status || 'planning',
+    name: '',
+    location: '',
+    type: 'apartment' as 'apartment' | 'villa' | 'plots',
+    priceMin: '',
+    priceMax: '',
+    launchDate: '',
+    possessionDate: '',
+    description: '',
+    towerDetails: '',
+    status: 'planning' as ProjectStatus,
   });
 
   const [amenities, setAmenities] = useState<string[]>(project?.amenities || []);
@@ -67,43 +66,52 @@ export default function ProjectFormModal({
   // Reset form when project changes or modal opens
   useEffect(() => {
     if (open) {
-      if (project) {
-        setFormData({
-          name: project.name || '',
-          location: project.location || '',
-          type: project.type || 'apartment',
-          priceMin: project.priceMin?.toString() || '',
-          priceMax: project.priceMax?.toString() || '',
-          launchDate: project.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : '',
-          possessionDate: project.possessionDate ? new Date(project.possessionDate).toISOString().split('T')[0] : '',
-          description: project.description || '',
-          towerDetails: project.towerDetails || '',
-          status: project.status || 'planning',
-        });
-        setAmenities(project.amenities || []);
-        setNearbyLandmarks(project.nearbyLandmarks || []);
-        setCoverImage(project.coverImage || '');
-        setBlueprintImage(project.blueprintImage || '');
-        setCurrentImageIndex(0);
-      } else {
-        setFormData({
-          name: '',
-          location: '',
-          type: 'apartment',
-          priceMin: '',
-          priceMax: '',
-          launchDate: '',
-          possessionDate: '',
-          description: '',
-          towerDetails: '',
-          status: 'planning',
-        });
-        setAmenities([]);
-        setNearbyLandmarks([]);
-        setCoverImage('');
-        setBlueprintImage('');
+      const currentProjectId = project?.id || null;
+      
+      // Only reset form if project ID actually changed or modal just opened
+      if (lastProjectIdRef.current !== currentProjectId) {
+        lastProjectIdRef.current = currentProjectId;
+        
+        if (project) {
+          setFormData({
+            name: project.name || '',
+            location: project.location || '',
+            type: project.type || 'apartment',
+            priceMin: project.priceMin?.toString() || '',
+            priceMax: project.priceMax?.toString() || '',
+            launchDate: project.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : '',
+            possessionDate: project.possessionDate ? new Date(project.possessionDate).toISOString().split('T')[0] : '',
+            description: project.description || '',
+            towerDetails: project.towerDetails || '',
+            status: project.status || 'planning',
+          });
+          setAmenities(project.amenities || []);
+          setNearbyLandmarks(project.nearbyLandmarks || []);
+          setCoverImage(project.coverImage || '');
+          setBlueprintImage(project.blueprintImage || '');
+        } else {
+          setFormData({
+            name: '',
+            location: '',
+            type: 'apartment',
+            priceMin: '',
+            priceMax: '',
+            launchDate: '',
+            possessionDate: '',
+            description: '',
+            towerDetails: '',
+            status: 'planning',
+          });
+          setAmenities([]);
+          setNearbyLandmarks([]);
+          setCoverImage('');
+          setBlueprintImage('');
+        }
         setCurrentImageIndex(0);
       }
+    } else {
+      // Reset the ref when modal closes
+      lastProjectIdRef.current = null;
     }
   }, [project, open]);
 
@@ -229,7 +237,7 @@ export default function ProjectFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col project-form-modal">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building className="w-5 h-5 text-primary" />
@@ -242,7 +250,7 @@ export default function ProjectFormModal({
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-4">
-            <form onSubmit={handleSubmit} className="space-y-6 mt-4 pb-4">
+            <form onSubmit={handleSubmit} className="space-y-6 mt-4 pb-4" autoComplete="off">
           {/* Image Gallery Section */}
           {images.length > 0 && (
             <div className="space-y-3">
@@ -387,26 +395,35 @@ export default function ProjectFormModal({
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Project Name *</Label>
-              <Input
-                id="name"
+              <Label htmlFor="project-name-field">Project Name *</Label>
+              <input
+                id="project-name-field"
+                name="project-name"
+                type="text"
                 placeholder="e.g., Skyline Towers"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="input-field"
+                value={formData.name || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
+                autoComplete="off"
+                required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location">Location *</Label>
+              <Label htmlFor="project-location-field">Location *</Label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="location"
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+                <input
+                  id="project-location-field"
+                  name="project-location-field"
+                  type="text"
                   placeholder="e.g., Downtown Financial District"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="pl-10 input-field"
+                  value={formData.location || ''}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, location: e.target.value }));
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm pl-10"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -451,12 +468,15 @@ export default function ProjectFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="towerDetails">Tower/Building Details</Label>
-              <Input
+              <input
                 id="towerDetails"
+                name="tower-details"
+                type="text"
                 placeholder="e.g., 3 Towers, 45 floors each"
-                value={formData.towerDetails}
-                onChange={(e) => setFormData({ ...formData, towerDetails: e.target.value })}
-                className="input-field"
+                value={formData.towerDetails || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, towerDetails: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
+                autoComplete="off"
               />
             </div>
           </div>
@@ -467,13 +487,16 @@ export default function ProjectFormModal({
               <Label htmlFor="priceMin">Minimum Price (₹) *</Label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   id="priceMin"
+                  name="price-min"
                   type="number"
                   placeholder="e.g., 4500000"
                   value={formData.priceMin}
-                  onChange={(e) => setFormData({ ...formData, priceMin: e.target.value })}
-                  className="pl-10 input-field"
+                  onChange={(e) => setFormData(prev => ({ ...prev, priceMin: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm pl-10"
+                  autoComplete="off"
+                  required
                 />
               </div>
             </div>
@@ -482,13 +505,16 @@ export default function ProjectFormModal({
               <Label htmlFor="priceMax">Maximum Price (₹) *</Label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   id="priceMax"
+                  name="price-max"
                   type="number"
                   placeholder="e.g., 12000000"
                   value={formData.priceMax}
-                  onChange={(e) => setFormData({ ...formData, priceMax: e.target.value })}
-                  className="pl-10 input-field"
+                  onChange={(e) => setFormData(prev => ({ ...prev, priceMax: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm pl-10"
+                  autoComplete="off"
+                  required
                 />
               </div>
             </div>
@@ -500,13 +526,15 @@ export default function ProjectFormModal({
               <Label htmlFor="launchDate">Launch Date *</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   id="launchDate"
+                  name="launch-date"
                   type="date"
-                  required
                   value={formData.launchDate}
-                  onChange={(e) => setFormData({ ...formData, launchDate: e.target.value })}
-                  className="pl-10 input-field"
+                  onChange={(e) => setFormData(prev => ({ ...prev, launchDate: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm pl-10"
+                  autoComplete="off"
+                  required
                 />
               </div>
             </div>
@@ -515,12 +543,14 @@ export default function ProjectFormModal({
               <Label htmlFor="possessionDate">Possession Date</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   id="possessionDate"
+                  name="possession-date"
                   type="date"
                   value={formData.possessionDate}
-                  onChange={(e) => setFormData({ ...formData, possessionDate: e.target.value })}
-                  className="pl-10 input-field"
+                  onChange={(e) => setFormData(prev => ({ ...prev, possessionDate: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm pl-10"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -529,13 +559,15 @@ export default function ProjectFormModal({
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea
+            <textarea
               id="description"
+              name="project-description"
               placeholder="Describe the project features, highlights, and unique selling points..."
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               rows={3}
-              className="input-field resize-none"
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm resize-none"
+              autoComplete="off"
             />
           </div>
 
@@ -543,12 +575,14 @@ export default function ProjectFormModal({
           <div className="space-y-3">
             <Label>Amenities</Label>
             <div className="flex gap-2">
-              <Input
+              <input
+                type="text"
                 placeholder="Add amenity (e.g., Swimming Pool)"
-                value={newAmenity}
+                value={newAmenity || ''}
                 onChange={(e) => setNewAmenity(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())}
-                className="input-field flex-1"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm flex-1"
+                autoComplete="off"
               />
               <Button type="button" variant="secondary" onClick={addAmenity}>
                 <Plus className="w-4 h-4" />
@@ -571,12 +605,14 @@ export default function ProjectFormModal({
           <div className="space-y-3">
             <Label>Nearby Landmarks</Label>
             <div className="flex gap-2">
-              <Input
+              <input
+                type="text"
                 placeholder="Add landmark (e.g., Central Mall)"
-                value={newLandmark}
+                value={newLandmark || ''}
                 onChange={(e) => setNewLandmark(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLandmark())}
-                className="input-field flex-1"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm flex-1"
+                autoComplete="off"
               />
               <Button type="button" variant="secondary" onClick={addLandmark}>
                 <Plus className="w-4 h-4" />

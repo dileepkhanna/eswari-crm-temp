@@ -455,6 +455,107 @@ def managers_list_view(request):
     serializer = UserSerializer(managers, many=True)
     return Response(serializer.data)
 
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def admin_update_user_view(request, user_id):
+    """Admin endpoint to update user information and password"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can update users'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user_to_update = User.objects.get(id=user_id)
+        
+        # Get update data
+        name = request.data.get('name', '').strip()
+        phone = request.data.get('phone', '').strip()
+        address = request.data.get('address', '').strip()
+        new_password = request.data.get('newPassword', '').strip()
+        
+        # Validate required fields
+        if not name:
+            return Response({
+                'error': 'Name is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not phone:
+            return Response({
+                'error': 'Phone is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Parse name into first_name and last_name
+        name_parts = name.split(' ', 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+        
+        # Update user fields
+        user_to_update.first_name = first_name
+        user_to_update.last_name = last_name
+        user_to_update.phone = phone
+        # Note: Django User model doesn't have address field by default
+        # If you need address, you'll need to add it to your custom User model
+        
+        # Update password if provided
+        if new_password:
+            # Validate new password
+            try:
+                from django.contrib.auth.password_validation import validate_password
+                from django.core.exceptions import ValidationError
+                validate_password(new_password, user_to_update)
+                user_to_update.set_password(new_password)
+            except ValidationError as e:
+                # Extract user-friendly error messages
+                error_messages = []
+                if hasattr(e, 'messages'):
+                    error_messages = e.messages
+                elif hasattr(e, 'message'):
+                    error_messages = [e.message]
+                else:
+                    error_messages = [str(e)]
+                
+                # Make error messages more user-friendly
+                friendly_messages = []
+                for msg in error_messages:
+                    if 'too similar' in msg.lower():
+                        friendly_messages.append('Password is too similar to user information. Please choose a different password.')
+                    elif 'too common' in msg.lower():
+                        friendly_messages.append('This password is too common. Please choose a more unique password.')
+                    elif 'too short' in msg.lower():
+                        friendly_messages.append('Password must be at least 8 characters long.')
+                    elif 'entirely numeric' in msg.lower():
+                        friendly_messages.append('Password cannot be entirely numeric. Please include letters.')
+                    else:
+                        friendly_messages.append(msg)
+                
+                return Response({
+                    'error': 'Password validation failed',
+                    'details': friendly_messages
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_to_update.save()
+        
+        user_name = f"{user_to_update.first_name} {user_to_update.last_name}".strip() or user_to_update.username
+        response_data = {
+            'message': f'User "{user_name}" updated successfully',
+            'user': UserSerializer(user_to_update).data
+        }
+        
+        if new_password:
+            response_data['password_changed'] = True
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to update user',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_user_view(request, user_id):
@@ -482,10 +583,72 @@ def delete_user_view(request, user_id):
                 }, status=status.HTTP_400_BAD_REQUEST)
         
         user_name = f"{user_to_delete.first_name} {user_to_delete.last_name}".strip() or user_to_delete.username
-        user_to_delete.delete()
+        
+        # Debug: Log what we're about to delete
+        print(f"DEBUG: Attempting to delete user {user_id} ({user_name})")
+        
+        # Use transaction to ensure atomic deletion
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Get counts of related objects before deletion for logging
+            related_counts = {}
+            
+            # Check related objects that will be deleted (CASCADE)
+            try:
+                from customers.models import Customer
+                related_counts['customers_created'] = Customer.objects.filter(created_by=user_to_delete).count()
+                related_counts['customers_assigned'] = Customer.objects.filter(assigned_to=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            try:
+                from leads.models import Lead
+                related_counts['leads_created'] = Lead.objects.filter(created_by=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            try:
+                from tasks.models import Task
+                related_counts['tasks_created'] = Task.objects.filter(created_by=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            try:
+                from leaves.models import Leave
+                related_counts['leaves'] = Leave.objects.filter(user=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            try:
+                from activity_logs.models import ActivityLog
+                related_counts['activity_logs'] = ActivityLog.objects.filter(user=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            try:
+                from announcements.models import Announcement, AnnouncementRead
+                related_counts['announcements'] = Announcement.objects.filter(created_by=user_to_delete).count()
+                related_counts['announcement_reads'] = AnnouncementRead.objects.filter(user=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            try:
+                from holidays.models import Holiday
+                related_counts['holidays'] = Holiday.objects.filter(created_by=user_to_delete).count()
+            except ImportError:
+                pass
+            
+            print(f"DEBUG: Related objects to be deleted: {related_counts}")
+            
+            # Perform the deletion
+            user_to_delete.delete()
+            
+            print(f"DEBUG: User {user_id} ({user_name}) deleted successfully")
         
         return Response({
-            'message': f'User "{user_name}" has been deleted successfully'
+            'message': f'User "{user_name}" has been deleted successfully',
+            'deleted_related_objects': related_counts
         }, status=status.HTTP_200_OK)
         
     except User.DoesNotExist:
@@ -493,6 +656,66 @@ def delete_user_view(request, user_id):
             'error': 'User not found'
         }, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
+        print(f"DEBUG: Error deleting user {user_id}: {str(e)}")
+        import traceback
+        print(f"DEBUG: Full traceback: {traceback.format_exc()}")
+        return Response({
+            'error': 'Failed to delete user',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def simple_delete_user_view(request):
+    """Simple user deletion endpoint that accepts user ID in request body"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can delete users'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    user_id = request.data.get('user_id')
+    if not user_id:
+        return Response({
+            'error': 'user_id is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user_to_delete = User.objects.get(id=user_id)
+        
+        # Prevent admin from deleting themselves
+        if user_to_delete.id == request.user.id:
+            return Response({
+                'error': 'You cannot delete your own account'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prevent deleting the last admin
+        if user_to_delete.role == 'admin':
+            admin_count = User.objects.filter(role='admin').count()
+            if admin_count <= 1:
+                return Response({
+                    'error': 'Cannot delete the last admin user'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_name = f"{user_to_delete.first_name} {user_to_delete.last_name}".strip() or user_to_delete.username
+        
+        print(f"DEBUG: Simple delete - Attempting to delete user {user_id} ({user_name})")
+        
+        # Perform the deletion
+        user_to_delete.delete()
+        
+        print(f"DEBUG: Simple delete - User {user_id} ({user_name}) deleted successfully")
+        
+        return Response({
+            'message': f'User "{user_name}" has been deleted successfully',
+            'user_id': user_id
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"DEBUG: Simple delete error for user {user_id}: {str(e)}")
         return Response({
             'error': 'Failed to delete user',
             'details': str(e)

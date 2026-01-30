@@ -19,15 +19,18 @@ class CustomerViewSet(viewsets.ModelViewSet):
         user = self.request.user
         print(f"DEBUG: User {user.username} (ID: {user.id}, Role: {user.role}) requesting customers")
         
+        # Base queryset with optimized database queries
+        base_queryset = Customer.objects.select_related('assigned_to', 'created_by')
+        
         # Admin and managers can see all customers
         if user.role in ['admin', 'manager']:
-            queryset = Customer.objects.all()
+            queryset = base_queryset.all()
             print(f"DEBUG: Admin/Manager - returning {queryset.count()} customers")
             return queryset
         
         # Employees can only see their assigned customers
         elif user.role == 'employee':
-            queryset = Customer.objects.filter(assigned_to=user)
+            queryset = base_queryset.filter(assigned_to=user)
             print(f"DEBUG: Employee - returning {queryset.count()} assigned customers")
             for customer in queryset:
                 print(f"DEBUG: - {customer.name or 'Unknown'} ({customer.phone})")
