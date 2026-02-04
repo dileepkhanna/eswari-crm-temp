@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Building, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getMediaUrl } from '@/lib/api';
 
 interface ProjectListItemProps {
   project: Project;
@@ -44,11 +45,11 @@ export default function ProjectListItem({
         {/* Project Image */}
         <div className="relative w-24 h-24 rounded-lg overflow-hidden shrink-0 bg-gray-100">
           <img
-            src={project.coverImage || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800'}
+            src={getMediaUrl(project.coverImage) || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800'}
             alt={project.name}
             className="w-full h-full object-contain hover:scale-105 transition-transform duration-200"
             onError={(e) => {
-              console.error('Project list item image failed to load:', project.coverImage);
+              console.error('Project list item image failed to load:', getMediaUrl(project.coverImage));
               // Hide the broken image and show placeholder
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';

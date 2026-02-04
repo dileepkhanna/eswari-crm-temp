@@ -1,4 +1,32 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '';
+
+// Utility function to construct proper media URLs
+export const getMediaUrl = (path: string): string => {
+  if (!path) return '';
+  
+  // If it's already a full URL with the wrong port (8001), fix it to use the correct port (8080)
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    // Check if it's using the Django port (8001) and convert to nginx port (8080)
+    if (path.includes(':8001/media/')) {
+      return path.replace(':8001/media/', ':8080/media/');
+    }
+    // If it's already using the correct port or a different domain, return as is
+    return path;
+  }
+  
+  // If it starts with /media/, construct the full URL using MEDIA_BASE_URL
+  if (path.startsWith('/media/')) {
+    return `${MEDIA_BASE_URL}${path}`;
+  }
+  
+  // If it doesn't start with /, add it
+  if (!path.startsWith('/')) {
+    return `${MEDIA_BASE_URL}/media/${path}`;
+  }
+  
+  return `${MEDIA_BASE_URL}${path}`;
+};
 
 interface User {
   id: string;

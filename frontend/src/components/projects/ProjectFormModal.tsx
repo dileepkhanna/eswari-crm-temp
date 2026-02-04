@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Project, ProjectStatus } from '@/types';
-import { apiClient } from '@/lib/api';
+import { apiClient, getMediaUrl } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -102,8 +102,8 @@ export default function ProjectFormModal({
           });
           setAmenities(project.amenities || []);
           setNearbyLandmarks(project.nearbyLandmarks || []);
-          setCoverImage(project.coverImage || '');
-          setBlueprintImage(project.blueprintImage || '');
+          setCoverImage(getMediaUrl(project.coverImage || ''));
+          setBlueprintImage(getMediaUrl(project.blueprintImage || ''));
           setCoverImageUrl('');
           setBlueprintImageUrl('');
         } else {
@@ -186,7 +186,8 @@ export default function ProjectFormModal({
 
   const handleCoverUrlSubmit = () => {
     if (coverImageUrl.trim()) {
-      setCoverImage(coverImageUrl.trim());
+      const fullImageUrl = getMediaUrl(coverImageUrl.trim());
+      setCoverImage(fullImageUrl);
       setCoverImageUrl('');
       toast.success('Cover image URL added successfully');
     }
@@ -194,7 +195,8 @@ export default function ProjectFormModal({
 
   const handleBlueprintUrlSubmit = () => {
     if (blueprintImageUrl.trim()) {
-      setBlueprintImage(blueprintImageUrl.trim());
+      const fullImageUrl = getMediaUrl(blueprintImageUrl.trim());
+      setBlueprintImage(fullImageUrl);
       setBlueprintImageUrl('');
       toast.success('Blueprint image URL added successfully');
     }
@@ -219,7 +221,9 @@ export default function ProjectFormModal({
       const uploadResult = await apiClient.uploadCoverImage(file);
       
       console.log('Cover upload successful:', uploadResult);
-      setCoverImage(uploadResult.url);
+      // Apply getMediaUrl to ensure proper URL formatting
+      const fullImageUrl = getMediaUrl(uploadResult.url);
+      setCoverImage(fullImageUrl);
       toast.success('Cover image uploaded successfully');
     } catch (error: any) {
       console.error('Error uploading cover image:', error);
@@ -255,7 +259,9 @@ export default function ProjectFormModal({
       const uploadResult = await apiClient.uploadBlueprintImage(file);
       
       console.log('Blueprint upload successful:', uploadResult);
-      setBlueprintImage(uploadResult.url);
+      // Apply getMediaUrl to ensure proper URL formatting
+      const fullImageUrl = getMediaUrl(uploadResult.url);
+      setBlueprintImage(fullImageUrl);
       toast.success('Blueprint image uploaded successfully');
     } catch (error: any) {
       console.error('Error uploading blueprint image:', error);

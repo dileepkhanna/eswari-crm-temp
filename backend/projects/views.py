@@ -82,10 +82,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 for chunk in image_file.chunks():
                     destination.write(chunk)
             
-            # Return the URL - construct full URL with proper scheme and host
-            scheme = 'https' if request.is_secure() else 'http'
-            host = request.get_host()
-            image_url = f"{scheme}://{host}{settings.MEDIA_URL}projects/{unique_filename}"
+            # Return relative URL - let frontend handle the proper host/port
+            image_url = f"{settings.MEDIA_URL}projects/{unique_filename}"
             
             return Response({
                 'url': image_url,
@@ -141,10 +139,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 for chunk in image_file.chunks():
                     destination.write(chunk)
             
-            # Return the URL - construct full URL with proper scheme and host
-            scheme = 'https' if request.is_secure() else 'http'
-            host = request.get_host()
-            image_url = f"{scheme}://{host}{settings.MEDIA_URL}projects/{unique_filename}"
+            # Return relative URL - let frontend handle the proper host/port
+            image_url = f"{settings.MEDIA_URL}projects/{unique_filename}"
             
             return Response({
                 'url': image_url,

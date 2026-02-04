@@ -3,6 +3,7 @@ import { Announcement, Lead, Project, Task, Leave } from '@/types';
 import { useNotifications } from './NotificationContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { apiClient } from '@/lib/api';
+import { getMediaUrl } from '@/lib/api';
 import { logLeadActivity, logTaskActivity, logProjectActivity, logLeaveActivity } from '@/lib/activityLogger';
 import { toast } from 'sonner';
 
@@ -103,8 +104,8 @@ const apiToProject = (apiProject: any): Project => {
     description: apiProject.description || '',
     towerDetails: apiProject.towerDetails || '',
     nearbyLandmarks: Array.isArray(apiProject.nearbyLandmarks) ? apiProject.nearbyLandmarks : [],
-    coverImage: apiProject.coverImage || apiProject.cover_image || '',
-    blueprintImage: apiProject.blueprintImage || apiProject.blueprint_image || '',
+    coverImage: getMediaUrl(apiProject.coverImage || apiProject.cover_image || ''),
+    blueprintImage: getMediaUrl(apiProject.blueprintImage || apiProject.blueprint_image || ''),
     status: apiProject.status,
     createdAt: parseDate(apiProject.created_at),
   };
@@ -800,9 +801,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // Map assignedProject to project field in backend
         updateData.project = data.assignedProject ? parseInt(data.assignedProject) : null;
       }
-      if (data.title !== undefined) updateData.title = data.title;
-      if (data.description !== undefined) updateData.description = data.description;
-      if (data.priority !== undefined) updateData.priority = data.priority;
       if (data.assignedTo !== undefined) updateData.assigned_to = data.assignedTo;
       
       // Handle notes - map to description field in backend

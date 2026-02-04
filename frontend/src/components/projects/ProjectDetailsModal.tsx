@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Project } from '@/types';
+import { getMediaUrl } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -41,8 +42,8 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
   // Check if user is admin
   const isAdmin = user?.role === 'admin';
 
-  // Create images array for sliding gallery
-  const images = [project.coverImage, project.blueprintImage].filter(Boolean);
+  // Create images array for sliding gallery - ensure proper URLs
+  const images = [getMediaUrl(project.coverImage || ''), getMediaUrl(project.blueprintImage || '')].filter(Boolean);
 
   const formatPrice = (val: number) => {
     // Convert to INR format (Crores and Lakhs)
