@@ -1,11 +1,12 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, memo, lazy, Suspense } from 'react';
 import { Customer, CallStatus, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
 import CustomerStatusChip from './CustomerStatusChip';
 import CustomerFormModal from './CustomerFormModal';
-import CustomerExcelImportExport from './CustomerExcelImportExport';
-import LeadFormModal from '../leads/LeadFormModal';
+// Lazy load heavy components
+const CustomerExcelImportExport = lazy(() => import('./CustomerExcelImportExport'));
+const LeadFormModal = lazy(() => import('../leads/LeadFormModal'));
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ interface CustomerListProps {
   isManagerView?: boolean;
 }
 
-export default function CustomerList({
+function CustomerList({
   customers,
   employees,
   projects,
@@ -123,8 +124,14 @@ export default function CustomerList({
   }, [searchQuery]);
   
   useEffect(() => {
+    // Always set initial load to false immediately to show UI
+    setIsInitialLoad(false);
+  }, []);
+
+  // Separate effect for tracking actual data loading
+  useEffect(() => {
     if (customers.length > 0 || !user || !loading) {
-      setIsInitialLoad(false);
+      // Data is ready or not needed
     }
   }, [customers, user, loading]);
 
@@ -221,6 +228,23 @@ export default function CustomerList({
       return matchesSearch && matchesStatus && matchesAssignee && matchesDate && hasAccess;
     });
   }, [customers, debouncedSearchQuery, statusFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
+
+  // Virtual scrolling for large lists
+  const ITEMS_PER_PAGE = 50;
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const paginatedCustomers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredCustomers.slice(startIndex, endIndex);
+  }, [filteredCustomers, currentPage]);
+  
+  const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, statusFilter, assigneeFilter, selectedDate]);
 
   const handlePhoneCall = useCallback((customer: Customer) => {
     const phoneUrl = `tel:${customer.phone}`;
@@ -537,7 +561,7 @@ export default function CustomerList({
 
   return (
     <div className="space-y-6">
-      {(isInitialLoad || loading) && customers.length === 0 && (
+      {loading && customers.length === 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {[1, 2, 3, 4].map((i) => (
@@ -562,7 +586,7 @@ export default function CustomerList({
         </div>
       )}
 
-      {(!isInitialLoad || customers.length > 0) && (
+      {(customers.length > 0 || !loading) && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             <div className="glass-card p-3 md:p-4 rounded-xl">
@@ -748,12 +772,14 @@ export default function CustomerList({
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end">
               {!isManagerView && (
                 <>
-                  <CustomerExcelImportExport
-                    customers={filteredCustomers}
-                    onImport={onBulkImport}
-                    employees={employees}
-                    canAssignToEmployee={canManageAll}
-                  />
+                  <Suspense fallback={<div className="w-32 h-10 bg-muted animate-pulse rounded"></div>}>
+                    <CustomerExcelImportExport
+                      customers={filteredCustomers}
+                      onImport={onBulkImport}
+                      employees={employees}
+                      canAssignToEmployee={canManageAll}
+                    />
+                  </Suspense>
                   
                   <Button 
                     className="btn-accent text-xs sm:text-sm" 
@@ -795,7 +821,7 @@ export default function CustomerList({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCustomers.map((customer, index) => (
+                  {paginatedCustomers.map((customer, index) => (
                     <TableRow 
                       key={customer.id} 
                       className={`table-row-hover animate-fade-in ${
@@ -968,7 +994,7 @@ export default function CustomerList({
               </div>
 
               <div className="divide-y">
-                {filteredCustomers.map((customer, index) => (
+                {paginatedCustomers.map((customer, index) => (
                   <div 
                     key={customer.id} 
                     className={`p-4 animate-fade-in ${
@@ -1132,11 +1158,45 @@ export default function CustomerList({
               </div>
             </div>
 
-            {filteredCustomers.length === 0 && !isInitialLoad && (
+            {filteredCustomers.length === 0 && customers.length === 0 && !loading && (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">
-                  {customers.length === 0 ? 'No customers available' : 'No customers found matching your filters'}
-                </p>
+                <p className="text-muted-foreground mb-4">No customers available</p>
+              </div>
+            )}
+
+            {filteredCustomers.length === 0 && customers.length > 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">No customers found matching your filters</p>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length} customers
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -1233,41 +1293,45 @@ export default function CustomerList({
       )}
 
       {!isManagerView && (
-        <LeadFormModal
-          open={isLeadFormOpen}
-          onClose={() => {
-            setIsLeadFormOpen(false);
-            setConvertingCustomer(null);
-          }}
-          onSave={handleLeadFormSave}
-          lead={convertingCustomer ? {
-            id: '',
-            name: convertingCustomer.name || '',
-            phone: convertingCustomer.phone,
-            email: '',
-            address: '',
-            requirementType: 'apartment',
-            bhkRequirement: '2',
-            budgetMin: 0,
-            budgetMax: 0,
-            description: convertingCustomer.notes || '',
-            preferredLocation: '',
-            source: 'customer_conversion',
-            status: 'new',
-            followUpDate: undefined,
-            assignedTo: user?.role === 'employee' ? user.id : undefined,
-            notes: [],
-            createdBy: '',
-            assignedProjects: [],
-            assignedProject: '',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          } : null}
-          projects={projects || []}
-          employees={employees}
-          showAssignment={user?.role !== 'manager'}
-        />
+        <Suspense fallback={<div></div>}>
+          <LeadFormModal
+            open={isLeadFormOpen}
+            onClose={() => {
+              setIsLeadFormOpen(false);
+              setConvertingCustomer(null);
+            }}
+            onSave={handleLeadFormSave}
+            lead={convertingCustomer ? {
+              id: '',
+              name: convertingCustomer.name || '',
+              phone: convertingCustomer.phone,
+              email: '',
+              address: '',
+              requirementType: 'apartment',
+              bhkRequirement: '2',
+              budgetMin: 0,
+              budgetMax: 0,
+              description: convertingCustomer.notes || '',
+              preferredLocation: '',
+              source: 'customer_conversion',
+              status: 'new',
+              followUpDate: undefined,
+              assignedTo: user?.role === 'employee' ? user.id : undefined,
+              notes: [],
+              createdBy: '',
+              assignedProjects: [],
+              assignedProject: '',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            } : null}
+            projects={projects || []}
+            employees={employees}
+            showAssignment={user?.role !== 'manager'}
+          />
+        </Suspense>
       )}
     </div>
   );
 }
+
+export default memo(CustomerList);

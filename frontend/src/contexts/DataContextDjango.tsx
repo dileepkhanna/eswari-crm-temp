@@ -262,12 +262,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     // Don't fetch if we're in the middle of deleting a lead
     if (isDeletingLead) {
-      console.log('🚫 Skipping leads fetch - deletion in progress');
       return [];
     }
     
-    console.log('🔄 Fetching leads from API...');
-    console.trace('📍 fetchLeads called from:'); // This will show the call stack
     try {
       // Fetch all pages of leads
       let allLeads: any[] = [];
@@ -299,7 +296,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      console.log(`📥 Fetched ${allLeads.length} leads across ${page - 1} pages`);
       const leadsList = allLeads.map(apiToLead);
       setLeads(leadsList);
       return leadsList;
@@ -612,7 +608,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [user, leads]);
 
   const deleteLead = useCallback(async (id: string) => {
-    console.log('🗑️ Starting lead deletion for ID:', id);
     setIsDeletingLead(true); // Set flag to prevent refetch
     try {
       // Get lead details before deletion for activity logging
@@ -624,33 +619,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
       
       const leadName = leadToDelete?.name || 'Unknown Lead';
-      console.log('📋 Lead to delete:', leadToDelete);
       
-      console.log('🔄 Calling API to delete lead...');
       const result = await apiClient.deleteLead(parseInt(id));
-      console.log('✅ API delete result:', result);
       
-      console.log('🔄 Updating local state...');
       setLeads(prev => {
         const newLeads = prev.filter(l => l.id !== id);
-        console.log('📊 Leads before deletion:', prev.length);
-        console.log('📊 Leads after deletion:', newLeads.length);
         return newLeads;
       });
       
       // Log activity after successful deletion
       if (user) {
-        console.log('Logging lead deletion activity for user:', user);
         try {
           await logLeadActivity(user, 'deleted', leadName);
-          console.log('Lead deletion activity logged successfully');
         } catch (activityError) {
           console.error('Failed to log lead deletion activity:', activityError);
         }
       }
       
       toast.success('Lead deleted successfully');
-      console.log('✅ Lead deletion completed successfully');
     } catch (error) {
       console.error('❌ Error deleting lead:', error);
       toast.error('Failed to delete lead');
@@ -661,28 +647,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const bulkDeleteLeads = useCallback(async (ids: string[]) => {
-    console.log('🗑️ Starting bulk lead deletion for IDs:', ids);
     setIsDeletingLead(true); // Set flag to prevent refetch
     try {
-      console.log('🔄 Calling API to bulk delete leads...');
       const result = await apiClient.bulkDeleteLeads(ids.map(id => parseInt(id)));
-      console.log('✅ Bulk delete API result:', result);
       
-      console.log('🔄 Updating local state...');
       setLeads(prev => {
         const newLeads = prev.filter(l => !ids.includes(l.id));
-        console.log('📊 Leads before bulk deletion:', prev.length);
-        console.log('📊 Leads after bulk deletion:', newLeads.length);
-        console.log('📊 Deleted count:', prev.length - newLeads.length);
         return newLeads;
       });
       
       // Log activity after successful deletion
       if (user && result.deleted_count > 0) {
-        console.log('Logging bulk lead deletion activity for user:', user);
         try {
           await logLeadActivity(user, 'deleted', `${result.deleted_count} leads (bulk)`);
-          console.log('Bulk lead deletion activity logged successfully');
         } catch (activityError) {
           console.error('Failed to log bulk lead deletion activity:', activityError);
         }
@@ -700,7 +677,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         toast.error('No leads could be deleted');
       }
       
-      console.log('✅ Bulk lead deletion completed successfully');
       return result;
     } catch (error) {
       console.error('❌ Error bulk deleting leads:', error);
@@ -846,10 +822,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (user && data.status) {
         const task = tasks.find(t => t.id === id);
         const taskDetails = task?.lead?.name ? `for ${task.lead.name}` : 'task';
-        console.log('Logging task update activity for user:', user);
         try {
           await logTaskActivity(user, 'updated', `${taskDetails} status to ${data.status}`);
-          console.log('Task update activity logged successfully');
         } catch (activityError) {
           console.error('Failed to log task update activity:', activityError);
         }

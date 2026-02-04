@@ -1,7 +1,7 @@
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building, MapPin, Calendar, IndianRupee, Eye, Edit, Trash2, Users } from 'lucide-react';
+import { Building, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -31,24 +31,39 @@ export default function ProjectListItem({
   canDelete = false 
 }: ProjectListItemProps) {
   const formatPrice = (val: number) => {
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`;
-    if (val >= 100000) return `₹${(val / 100000).toFixed(0)} L`;
-    if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`;
-    return `₹${val}`;
+    // Convert to INR format (Crores and Lakhs)
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`; // Crores
+    if (val >= 100000) return `₹${(val / 100000).toFixed(1)} L`; // Lakhs
+    if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`; // Thousands
+    return `₹${val.toLocaleString('en-IN')}`; // Regular formatting with commas
   };
 
   return (
     <div className="glass-card rounded-lg p-4 hover:shadow-md transition-all duration-200">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         {/* Project Image */}
-        <div className="relative w-20 h-20 rounded-lg overflow-hidden shrink-0">
+        <div className="relative w-24 h-24 rounded-lg overflow-hidden shrink-0 bg-gray-100">
           <img
             src={project.coverImage || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800'}
             alt={project.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain hover:scale-105 transition-transform duration-200"
             onError={(e) => {
+              console.error('Project list item image failed to load:', project.coverImage);
+              // Hide the broken image and show placeholder
               const target = e.target as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent && !parent.querySelector('.image-placeholder')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-600';
+                placeholder.innerHTML = `
+                  <div class="text-center p-2">
+                    <div class="text-lg mb-1">🏢</div>
+                    <div class="text-xs font-medium">Project</div>
+                  </div>
+                `;
+                parent.appendChild(placeholder);
+              }
             }}
           />
           <Badge 
@@ -81,7 +96,6 @@ export default function ProjectListItem({
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-2 text-sm">
                 <div className="flex items-center gap-1 font-medium text-primary">
-                  <IndianRupee className="w-3.5 h-3.5" />
                   <span>{formatPrice(project.priceMin)} - {formatPrice(project.priceMax)}</span>
                 </div>
                 

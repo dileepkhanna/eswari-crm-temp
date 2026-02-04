@@ -1,7 +1,7 @@
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building, MapPin, Calendar, IndianRupee, Eye, Edit, Trash2 } from 'lucide-react';
+import { Building, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -25,10 +25,11 @@ const statusColors: Record<string, string> = {
 
 export default function ProjectCard({ project, delay = 0, onView, onEdit, onDelete, canEdit = false, canDelete = false }: ProjectCardProps) {
   const formatPrice = (val: number) => {
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`;
-    if (val >= 100000) return `₹${(val / 100000).toFixed(0)} L`;
-    if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`;
-    return `₹${val}`;
+    // Convert to INR format (Crores and Lakhs)
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`; // Crores
+    if (val >= 100000) return `₹${(val / 100000).toFixed(1)} L`; // Lakhs
+    if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`; // Thousands
+    return `₹${val.toLocaleString('en-IN')}`; // Regular formatting with commas
   };
 
   return (
@@ -37,18 +38,32 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* Image */}
-      <div className="relative h-48 overflow-hidden flex-shrink-0">
+      <div className="relative h-48 overflow-hidden flex-shrink-0 bg-gray-100">
         <img
           src={project.coverImage || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800'}
           alt={project.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           onError={(e) => {
-            // Fallback to default image if the image fails to load
+            console.error('Project card image failed to load:', project.coverImage);
+            // Hide the broken image and show placeholder
             const target = e.target as HTMLImageElement;
-            target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+            target.style.display = 'none';
+            const parent = target.parentElement;
+            if (parent && !parent.querySelector('.image-placeholder')) {
+              const placeholder = document.createElement('div');
+              placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-600';
+              placeholder.innerHTML = `
+                <div class="text-center p-4">
+                  <div class="text-3xl mb-2">🏢</div>
+                  <div class="text-sm font-medium">Project Image</div>
+                  <div class="text-xs text-gray-500 mt-1">Failed to load</div>
+                </div>
+              `;
+              parent.appendChild(placeholder);
+            }
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
         <Badge 
           className={cn(
             "absolute top-4 right-4 capitalize border",
@@ -58,8 +73,8 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
           {project.status.replace(/_/g, ' ')}
         </Badge>
         <div className="absolute bottom-4 left-4 right-4">
-          <h3 className="text-xl font-bold text-white mb-1 line-clamp-1">{project.name}</h3>
-          <div className="flex items-center gap-1 text-white/80 text-sm">
+          <h3 className="text-xl font-bold text-white mb-1 line-clamp-1 drop-shadow-lg">{project.name}</h3>
+          <div className="flex items-center gap-1 text-white/90 text-sm drop-shadow">
             <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">{project.location || 'Location not specified'}</span>
           </div>
@@ -74,7 +89,6 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
             <span className="capitalize">{project.type}</span>
           </div>
           <div className="flex items-center gap-1 font-semibold text-primary">
-            <IndianRupee className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">{formatPrice(project.priceMin)} - {formatPrice(project.priceMax)}</span>
           </div>
         </div>

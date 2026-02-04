@@ -3,12 +3,13 @@ import { Project } from '@/types';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building, MapPin, Calendar, DollarSign, Home, Landmark, Camera, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
+import { Building, MapPin, Calendar, Home, Landmark, Camera, ChevronLeft, ChevronRight, Download, FileText, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContextDjango';
@@ -32,6 +33,7 @@ const statusColors: Record<string, string> = {
 export default function ProjectDetailsModal({ project, open, onClose }: ProjectDetailsModalProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const { user } = useAuth();
 
   if (!project) return null;
@@ -43,9 +45,11 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
   const images = [project.coverImage, project.blueprintImage].filter(Boolean);
 
   const formatPrice = (val: number) => {
-    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
-    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
-    return `${val}`;
+    // Convert to INR format (Crores and Lakhs)
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`; // Crores
+    if (val >= 100000) return `₹${(val / 100000).toFixed(1)} L`; // Lakhs
+    if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`; // Thousands
+    return `₹${val.toLocaleString('en-IN')}`; // Regular formatting with commas
   };
 
   const nextImage = () => {
@@ -159,7 +163,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
       yPosition += 8;
       pdf.text(`Status: ${project.status}`, 20, yPosition);
       yPosition += 8;
-      pdf.text(`Price Range: ₹${formatPrice(project.priceMin)} - ₹${formatPrice(project.priceMax)}`, 20, yPosition);
+      pdf.text(`Price Range: ${formatPrice(project.priceMin)} - ${formatPrice(project.priceMax)}`, 20, yPosition);
       yPosition += 8;
       pdf.text(`Launch Date: ${project.launchDate && !isNaN(project.launchDate.getTime()) ? format(project.launchDate, 'MMM dd, yyyy') : 'TBD'}`, 20, yPosition);
       yPosition += 8;
@@ -283,58 +287,108 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
           <div className="p-0">
           {/* Hero Image Gallery */}
           {images.length > 0 ? (
-            <div className="relative h-48 md:h-64 overflow-hidden">
+            <div className="relative h-64 md:h-80 lg:h-96 overflow-hidden">
               <img
                 src={images[currentImageIndex]}
                 alt={project.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain bg-gray-100"
                 onError={(e) => {
+                  console.error('Project image failed to load:', images[currentImageIndex]);
+                  // Hide the broken image and show placeholder
                   const target = e.target as HTMLImageElement;
-                  target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.image-placeholder')) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-700 z-10';
+                    const imageType = images[currentImageIndex] === project.coverImage ? 'Cover Image' : 'Blueprint Image';
+                    const imageIcon = images[currentImageIndex] === project.coverImage ? '🏢' : '📋';
+                    placeholder.innerHTML = `
+                      <div class="text-center p-6">
+                        <div class="text-4xl mb-3">${imageIcon}</div>
+                        <div class="text-xl font-medium">${imageType}</div>
+                        <div class="text-sm text-gray-500 mt-2">Failed to load</div>
+                      </div>
+                    `;
+                    parent.appendChild(placeholder);
+                  }
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" style={{ zIndex: 1 }} />
+              
+              {/* Zoom button - bottom right */}
+              <div className="absolute bottom-4 right-4 z-50">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-md shadow-lg transition-all duration-200"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowImageModal(true);
+                  }}
+                  aria-label="Zoom image to full screen"
+                >
+                  Zoom
+                </Button>
+              </div>
               
               {/* Navigation arrows */}
               {images.length > 1 && (
                 <>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white"
-                    onClick={prevImage}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white"
-                    onClick={nextImage}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 z-40">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-10 w-10 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        prevImage();
+                      }}
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 z-40">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-10 w-10 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nextImage();
+                      }}
+                      aria-label="Next image"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </>
               )}
 
               {/* Image indicators */}
               {images.length > 1 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-2 z-40">
                   {images.map((_, index) => (
                     <button
                       key={index}
-                      className={`w-2 h-2 rounded-full transition-colors ${
+                      className={`w-3 h-3 rounded-full transition-colors ${
                         index === currentImageIndex ? 'bg-white' : 'bg-white/50'
                       }`}
-                      onClick={() => setCurrentImageIndex(index)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex(index);
+                      }}
+                      aria-label={`View image ${index + 1} of ${images.length}`}
                     />
                   ))}
                 </div>
               )}
 
               {/* Status and Image type badges */}
-              <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-                <div className="flex gap-2">
+              <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-30">
+                <div className="flex gap-2 pointer-events-auto">
                   {images[currentImageIndex] === project.coverImage && (
                     <Badge className="bg-primary text-xs">Cover Image</Badge>
                   )}
@@ -342,7 +396,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                     <Badge className="bg-blue-500 text-xs">Blueprint</Badge>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 pointer-events-auto">
                   <Badge 
                     className={cn(
                       "capitalize border",
@@ -354,7 +408,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                 </div>
               </div>
 
-              <div className="absolute bottom-4 left-4 right-4">
+              <div className="absolute bottom-4 left-4 right-20 z-30">
                 <h2 className="text-2xl font-bold text-white mb-1">{project.name}</h2>
                 <div className="flex items-center gap-1 text-white/80 text-sm">
                   <MapPin className="w-4 h-4" />
@@ -387,8 +441,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                 <span className="capitalize font-medium">{project.type}</span>
               </div>
               <div className="flex items-center gap-1 text-xl font-bold text-primary">
-                <DollarSign className="w-5 h-5" />
-                {formatPrice(project.priceMin)} - {formatPrice(project.priceMax)}
+                <span>{formatPrice(project.priceMin)} - {formatPrice(project.priceMax)}</span>
               </div>
             </div>
 
@@ -508,6 +561,96 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
           </div>
         </div>
       </DialogContent>
+
+      {/* Full-screen Image Modal */}
+      {showImageModal && (
+        <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] p-2 bg-black/90">
+            <DialogHeader className="sr-only">
+              <DialogTitle>
+                {project.name} - {images[currentImageIndex] === project.coverImage ? 'Cover Image' : 'Blueprint'}
+              </DialogTitle>
+              <DialogDescription>
+                Full-screen view of project image. Use arrow keys or buttons to navigate between images.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="relative w-full h-full flex items-center justify-center">
+              <img
+                src={images[currentImageIndex]}
+                alt={project.name}
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  console.error('Full-screen image failed to load:', images[currentImageIndex]);
+                  // Hide the broken image and show placeholder
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.image-placeholder')) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-800 text-white';
+                    const imageType = images[currentImageIndex] === project.coverImage ? 'Cover Image' : 'Blueprint Image';
+                    const imageIcon = images[currentImageIndex] === project.coverImage ? '🏢' : '📋';
+                    placeholder.innerHTML = `
+                      <div class="text-center p-8">
+                        <div class="text-6xl mb-4">${imageIcon}</div>
+                        <div class="text-2xl font-medium">${imageType}</div>
+                        <div class="text-lg text-gray-300 mt-3">Failed to load</div>
+                      </div>
+                    `;
+                    parent.appendChild(placeholder);
+                  }
+                }}
+              />
+              
+              {/* Navigation arrows for full-screen */}
+              {images.length > 1 && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 bg-black/50 hover:bg-black/70 text-white"
+                    onClick={prevImage}
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 bg-black/50 hover:bg-black/70 text-white"
+                    onClick={nextImage}
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </Button>
+                </>
+              )}
+
+              {/* Close button */}
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute top-4 right-4 h-10 w-10 bg-black/50 hover:bg-black/70 text-white"
+                onClick={() => setShowImageModal(false)}
+                aria-label="Close image viewer"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+
+              {/* Image info */}
+              <div className="absolute bottom-4 left-4 right-4 text-center">
+                <div className="bg-black/50 text-white px-4 py-2 rounded-lg inline-block">
+                  <p className="font-medium">{project.name}</p>
+                  <p className="text-sm opacity-80">
+                    {images[currentImageIndex] === project.coverImage ? 'Cover Image' : 'Blueprint'}
+                    {images.length > 1 && ` (${currentImageIndex + 1} of ${images.length})`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }

@@ -61,6 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "eswari_crm.middleware.MediaCORSMiddleware",  # Custom CORS middleware for media files
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # For serving static files
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -213,6 +214,14 @@ CORS_ALLOWED_ORIGINS = config(
 )
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Additional CORS settings for media files
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\d+$",
+    r"^http://127\.0\.0\.1:\d+$",
+    r"^http://13\.205\.34\.169:\d+$",
+]
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'

@@ -218,6 +218,7 @@ export default function ProjectFormModal({
       // Use the existing apiClient instance instead of dynamic import
       const uploadResult = await apiClient.uploadCoverImage(file);
       
+      console.log('Cover upload successful:', uploadResult);
       setCoverImage(uploadResult.url);
       toast.success('Cover image uploaded successfully');
     } catch (error: any) {
@@ -253,6 +254,7 @@ export default function ProjectFormModal({
       // Use the existing apiClient instance instead of dynamic import
       const uploadResult = await apiClient.uploadBlueprintImage(file);
       
+      console.log('Blueprint upload successful:', uploadResult);
       setBlueprintImage(uploadResult.url);
       toast.success('Blueprint image uploaded successfully');
     } catch (error: any) {
@@ -306,10 +308,27 @@ export default function ProjectFormModal({
                 <img
                   src={images[currentImageIndex]}
                   alt={`Project image ${currentImageIndex + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-gray-50"
                   onError={(e) => {
+                    console.error('Project image failed to load:', images[currentImageIndex]);
+                    // Hide the broken image and show placeholder
                     const target = e.target as HTMLImageElement;
-                    target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector('.image-placeholder')) {
+                      const placeholder = document.createElement('div');
+                      placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-600';
+                      const imageType = images[currentImageIndex] === coverImage ? 'Cover Image' : 'Blueprint Image';
+                      const imageIcon = images[currentImageIndex] === coverImage ? '🏢' : '📋';
+                      placeholder.innerHTML = `
+                        <div class="text-center p-4">
+                          <div class="text-3xl mb-2">${imageIcon}</div>
+                          <div class="text-lg font-medium">${imageType}</div>
+                          <div class="text-sm text-gray-500 mt-1">Failed to load</div>
+                        </div>
+                      `;
+                      parent.appendChild(placeholder);
+                    }
                   }}
                 />
                 
@@ -425,14 +444,29 @@ export default function ProjectFormModal({
               </div>
 
               {coverImage && (
-                <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
+                <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs bg-gray-100">
                   <img 
                     src={coverImage} 
                     alt="Cover" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onError={(e) => {
+                      console.error('Cover image failed to load:', coverImage);
+                      // Hide the broken image and show placeholder
                       const target = e.target as HTMLImageElement;
-                      target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.image-placeholder')) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-600';
+                        placeholder.innerHTML = `
+                          <div class="text-center p-4">
+                            <div class="text-2xl mb-2">🏢</div>
+                            <div class="text-sm font-medium">Cover Image</div>
+                            <div class="text-xs text-gray-500 mt-1">Failed to load</div>
+                          </div>
+                        `;
+                        parent.appendChild(placeholder);
+                      }
                     }}
                   />
                   <Badge className="absolute top-2 left-2 bg-primary text-xs">Cover</Badge>
@@ -506,14 +540,29 @@ export default function ProjectFormModal({
               </div>
 
               {blueprintImage && (
-                <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
+                <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs bg-gray-100">
                   <img 
                     src={blueprintImage} 
                     alt="Blueprint" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onError={(e) => {
+                      console.error('Blueprint image failed to load:', blueprintImage);
+                      // Hide the broken image and show placeholder
                       const target = e.target as HTMLImageElement;
-                      target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.image-placeholder')) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-600';
+                        placeholder.innerHTML = `
+                          <div class="text-center p-4">
+                            <div class="text-2xl mb-2">📋</div>
+                            <div class="text-sm font-medium">Blueprint Image</div>
+                            <div class="text-xs text-gray-500 mt-1">Failed to load</div>
+                          </div>
+                        `;
+                        parent.appendChild(placeholder);
+                      }
                     }}
                   />
                   <Badge className="absolute top-2 left-2 bg-blue-500 text-xs">Blueprint</Badge>

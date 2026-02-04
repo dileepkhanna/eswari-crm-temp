@@ -18,7 +18,25 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponse, Http404
+from django.views.static import serve
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import cache_control
+import os
 from . import views
+
+def serve_media_with_cors(request, path):
+    """Serve media files with CORS headers"""
+    try:
+        response = serve(request, path, document_root=settings.MEDIA_ROOT)
+        # Add CORS headers for media files
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+    except Http404:
+        raise Http404("Media file not found")
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -35,6 +53,11 @@ urlpatterns = [
     path("api/app-settings/", include("app_settings.urls")),
 ]
 
-# Add media URLs at the beginning to avoid conflicts
+# Add media URLs with CORS support
 if settings.DEBUG:
     urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + urlpatterns
+else:
+    # In production, serve media files with CORS headers
+    urlpatterns += [
+        path(f'{settings.MEDIA_URL.lstrip("/")}/<path:path>', serve_media_with_cors, name='media'),
+    ]

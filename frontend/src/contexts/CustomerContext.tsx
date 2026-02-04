@@ -40,11 +40,11 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<User[]>([]);
   const [callAllocations, setCallAllocations] = useState<CallAllocation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false for immediate UI
   
   // Add caching mechanism
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(false); // Start with false
   const CACHE_DURATION = 30000; // 30 seconds cache
 
   // Fetch real users from the API with caching
@@ -54,14 +54,11 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     const isCacheValid = !forceRefresh && (now - lastFetchTime) < CACHE_DURATION && employees.length > 0;
     
     if (isCacheValid) {
-      console.log('✅ Using cached employee data');
       return;
     }
     
     try {
-      console.log('🔄 Fetching users from API...');
       const response = await apiClient.getUsers();
-      console.log('📥 Raw API response:', response);
       
       // Handle both paginated and non-paginated responses
       let usersData: any[];
@@ -73,11 +70,8 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         usersData = [];
       }
       
-      console.log('👥 All users:', usersData);
-      
       // Transform Django user data to match frontend interface
       const transformedUsers: User[] = usersData.map((user: any) => {
-        console.log('👤 User:', user.username, 'Role:', user.role, 'ID:', user.id);
         
         // Create a fallback name if username is missing
         let displayName = '';
@@ -109,14 +103,11 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       
       // Filter only employees
       const employeeUsers = transformedUsers.filter((u: User) => u.role === 'employee');
-      console.log('✅ Filtered employees:', employeeUsers);
-      console.log('✅ Employee details:', employeeUsers.map(emp => ({ id: emp.id, name: emp.name, userId: emp.userId })));
       setEmployees(employeeUsers);
       
       // Cache employees data to localStorage
       try {
         localStorage.setItem(`employees_${user?.id}`, JSON.stringify(employeeUsers));
-        console.log('💾 Cached employee data to localStorage');
       } catch (error) {
         console.error('❌ Error caching employee data:', error);
       }
@@ -132,7 +123,6 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   // Fetch customers from API with caching
   const fetchCustomers = async (forceRefresh = false) => {
     if (!user) {
-      console.log('❌ No user available for fetching customers');
       return;
     }
     
@@ -140,22 +130,17 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     const now = Date.now();
     const isCacheValid = !forceRefresh && (now - lastFetchTime) < CACHE_DURATION && customers.length > 0;
     
-    if (isCacheValid && !isInitialLoad) {
-      console.log('✅ Using cached customer data');
-      setLoading(false);
+    if (isCacheValid) {
       return;
     }
     
     try {
-      console.log('🔄 Fetching customers for user:', user.id, user.role);
-      
-      // Show loading only for initial load or forced refresh
-      if (isInitialLoad || forceRefresh) {
+      // Only show loading for forced refresh or when no cached data exists
+      if (forceRefresh && customers.length === 0) {
         setLoading(true);
       }
       
       const response = await apiClient.getCustomers();
-      console.log('Raw customers API response:', response);
       
       // Handle paginated response from Django REST Framework
       let customersData: any[];
@@ -169,8 +154,6 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         console.warn('Unexpected API response structure:', response);
         customersData = [];
       }
-      
-      console.log('Customers data to transform:', customersData);
       
       // Transform API response to frontend format
       const transformedCustomers: Customer[] = customersData.map((customer: any) => {
@@ -193,21 +176,17 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
           convertedLeadId: customer.converted_lead_id,
         };
         
-        console.log(`📋 Customer ${customer.phone}: assigned_to=${customer.assigned_to}, assignedTo=${transformedCustomer.assignedTo}, assignedToName=${transformedCustomer.assignedToName}`);
         return transformedCustomer;
       });
       
-      console.log('✅ Transformed customers:', transformedCustomers.length, 'customers');
       setCustomers(transformedCustomers);
       setLastFetchTime(now);
-      setIsInitialLoad(false);
       setLoading(false);
       
       // Cache data to localStorage for faster subsequent loads
       if (user) {
         try {
           localStorage.setItem(`customers_${user.id}`, JSON.stringify(transformedCustomers));
-          console.log('💾 Cached customer data to localStorage');
         } catch (error) {
           console.error('❌ Error caching customer data:', error);
         }
@@ -232,9 +211,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
 
   useEffect(() => {
     if (user) {
-      console.log('🔄 User authenticated, loading customer data...');
-      
-      // Show cached data immediately if available
+      // Load cached data immediately for instant UI
       const cachedCustomers = localStorage.getItem(`customers_${user.id}`);
       const cachedEmployees = localStorage.getItem(`employees_${user.id}`);
       
@@ -257,40 +234,37 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
             createdAt: new Date(employee.createdAt),
           }));
           
-          console.log('✅ Restored cached data:', restoredCustomers.length, 'customers,', restoredEmployees.length, 'employees');
+          // Set cached data immediately
           setCustomers(restoredCustomers);
           setEmployees(restoredEmployees);
-          setLoading(false);
-          setIsInitialLoad(false);
+          setLastFetchTime(Date.now() - CACHE_DURATION + 5000); // Mark as slightly stale
         } catch (error) {
           console.error('❌ Error parsing cached data:', error);
         }
       }
       
-      // Fetch fresh data in parallel (will update cache) - only once per user
-      Promise.all([
-        fetchUsers(),
-        fetchCustomers()
-      ]).catch(error => {
-        console.error('❌ Error during parallel data fetch:', error);
-      });
+      // Fetch fresh data in background (non-blocking)
+      setTimeout(() => {
+        Promise.all([
+          fetchUsers(),
+          fetchCustomers()
+        ]).catch(error => {
+          console.error('❌ Error during background data fetch:', error);
+        });
+      }, 100); // Small delay to allow UI to render first
     } else {
-      console.log('❌ No user authenticated, clearing customer data');
       setCustomers([]);
       setEmployees([]);
-      setLoading(false);
     }
   }, [user?.id]); // Only depend on user.id to prevent infinite loops
 
   const addCustomer = useCallback(async (customerData: Partial<Customer>) => {
     try {
-      console.log('🔄 Creating customer with data:', customerData);
       
       // Auto-assign to current user if they are a manager and no assignment is specified
       let assignedTo = customerData.assignedTo;
       if (!assignedTo && user?.role === 'manager') {
         assignedTo = user.id;
-        console.log('🎯 Auto-assigning customer to manager:', user.id);
       }
       
       const apiData = {
@@ -303,10 +277,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         notes: customerData.notes,
       };
       
-      console.log('📤 Sending API request with:', apiData);
-      
       const response = await apiClient.createCustomer(apiData);
-      console.log('✅ Customer creation response:', response);
 
       // Refresh customers list
       await fetchCustomers();
@@ -335,8 +306,6 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
     try {
-      console.log('🔄 Updating customer with ID:', id);
-      console.log('📝 Update data:', data);
       
       // Check if customer exists in our local state first
       const existingCustomer = customers.find(c => c.id === id);
@@ -379,10 +348,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       }
       if (data.notes !== undefined) apiData.notes = data.notes;
       
-      console.log('📤 Sending API update request with:', apiData);
-      
       const response = await apiClient.updateCustomer(id, apiData);
-      console.log('✅ Customer update response:', response);
 
       // Update with the actual server response
       const serverUpdatedCustomer = {
@@ -466,7 +432,6 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         
         if (user?.role === 'employee' || user?.role === 'manager') {
           assignedTo = parseInt(user.id);
-          console.log(`🔄 Auto-assigning imported customer ${customer.phone} to ${user.role} ${user.name} (ID: ${user.id})`);
         }
         
         return {
@@ -480,8 +445,6 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         };
       });
 
-      console.log(`📤 Importing ${apiCustomers.length} customers with auto-assignment for ${user?.role}`);
-      
       const response = await apiClient.bulkImportCustomers(apiCustomers);
       await fetchCustomers();
       
@@ -529,13 +492,11 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
 
   const createLeadFromCustomer = useCallback(async (leadData: any) => {
     try {
-      console.log('🔄 Creating lead from customer with data:', leadData);
       
       // Auto-assign to current user if they are an employee and no assignment is specified
       let assignedTo = leadData.assignedTo;
       if (!assignedTo && user?.role === 'employee') {
         assignedTo = parseInt(user.id);
-        console.log('🎯 Auto-assigning lead to employee:', user.id);
       }
       
       const apiData = {
@@ -557,18 +518,13 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         follow_up_date: leadData.followUpDate?.toISOString() || null,
       };
       
-      console.log('📤 Sending lead creation API request with:', apiData);
-      
       const response = await apiClient.createLead(apiData);
-      console.log('✅ Lead creation response:', response);
       
       // Convert API response to Lead object and add directly to DataContext state
       const convertedLead = apiToLead(response);
       
       // Use addLeadToState for immediate state update without optimistic loading
       addLeadToState(convertedLead);
-      
-      console.log('✅ Lead added to DataContext state immediately');
       
       // Don't show success toast here as it will be shown by the calling component
     } catch (error) {
@@ -579,19 +535,16 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
 
   const refreshCustomers = useCallback(async () => {
     if (!user) {
-      console.log('❌ Cannot refresh customers: no user authenticated');
       return;
     }
     
     try {
-      console.log('🔄 Force refreshing customer data...');
       setLoading(true);
       // Force refresh both users and customers
       await Promise.all([
         fetchUsers(true), // Force refresh
         fetchCustomers(true) // Force refresh
       ]);
-      console.log('✅ Customer data refreshed successfully');
     } catch (error) {
       console.error('❌ Error refreshing customers:', error);
       toast.error('Failed to refresh customer data');
