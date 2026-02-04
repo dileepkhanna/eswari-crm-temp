@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Customer, CallStatus, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
@@ -90,6 +90,7 @@ export default function CustomerList({
   
   // All state declarations must be at the top
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]); // Default to today
@@ -111,6 +112,15 @@ export default function CustomerList({
   const [deletedCustomers, setDeletedCustomers] = useState<Set<string>>(new Set());
   
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Debounce search query to improve performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   useEffect(() => {
     if (customers.length > 0 || !user || !loading) {
@@ -137,61 +147,70 @@ export default function CustomerList({
     }
   }, [showDatePicker]);
   
-  const canSeePhoneNumber = (customer: Customer) => {
+  const canSeePhoneNumber = useCallback((customer: Customer) => {
     return canViewCustomerPhone(user?.role, user?.id, customer.createdBy);
-  };
+  }, [user?.role, user?.id]);
 
   const uniqueCustomStatuses = useMemo(() => {
-    const customStatuses = customers
-      .filter(customer => customer.callStatus === 'custom' && customer.customCallStatus)
-      .map(customer => customer.customCallStatus!)
-      .filter((status, index, array) => array.indexOf(status) === index)
-      .sort();
+    const statusSet = new Set<string>();
     
-    return customStatuses;
+    for (const customer of customers) {
+      if (customer.callStatus === 'custom' && customer.customCallStatus) {
+        statusSet.add(customer.customCallStatus);
+      }
+    }
+    
+    return Array.from(statusSet).sort();
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
+    // Pre-calculate date strings to avoid repeated Date object creation
+    const today = new Date().toDateString();
+    const filterDateStr = selectedDate ? new Date(selectedDate).toDateString() : null;
+    const isFilterToday = filterDateStr === today;
+    
     return customers.filter(customer => {
       // Filter out deleted customers immediately
       if (deletedCustomers.has(customer.id)) {
         return false;
       }
       
-      const matchesSearch = 
-        customer.phone.includes(searchQuery) ||
-        (customer.name && customer.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      // Search filter - case insensitive
+      const searchLower = debouncedSearchQuery.toLowerCase();
+      const matchesSearch = debouncedSearchQuery === '' || 
+        customer.phone.includes(debouncedSearchQuery) ||
+        (customer.name && customer.name.toLowerCase().includes(searchLower));
 
-      let matchesStatus = false;
-      if (statusFilter === 'all') {
-        matchesStatus = true;
-      } else if (statusFilter === 'custom') {
-        matchesStatus = customer.callStatus === 'custom';
-      } else if (customer.callStatus === 'custom' && customer.customCallStatus === statusFilter) {
-        matchesStatus = true;
-      } else {
-        matchesStatus = customer.callStatus === statusFilter;
+      // Status filter - optimized logic
+      let matchesStatus = true;
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'custom') {
+          matchesStatus = customer.callStatus === 'custom';
+        } else if (customer.callStatus === 'custom') {
+          matchesStatus = customer.customCallStatus === statusFilter;
+        } else {
+          matchesStatus = customer.callStatus === statusFilter;
+        }
       }
 
+      // Assignee filter
       const matchesAssignee = assigneeFilter === 'all' || 
         (assigneeFilter === 'unassigned' && !customer.assignedTo) ||
         customer.assignedTo === assigneeFilter;
 
-      // Date filter logic - filter by specific selected date
+      // Date filter - optimized with pre-calculated strings
       let matchesDate = true;
-      if (selectedDate) {
-        const filterDate = new Date(selectedDate);
-        const isToday = filterDate.toDateString() === new Date().toDateString();
-        
+      if (filterDateStr) {
         if (customer.callDate) {
-          const callDate = new Date(customer.callDate);
-          matchesDate = callDate.toDateString() === filterDate.toDateString();
+          const callDateStr = customer.callDate.toDateString();
+          matchesDate = callDateStr === filterDateStr;
         } else {
           // If customer has no call date, include them only when viewing today
-          matchesDate = isToday;
+          matchesDate = isFilterToday;
         }
       }
 
+      // Access control
       let hasAccess = true;
       if (!canManageAll && user?.role === 'employee') {
         const customerAssignedToStr = customer.assignedTo ? customer.assignedTo.toString() : '';
@@ -201,16 +220,16 @@ export default function CustomerList({
 
       return matchesSearch && matchesStatus && matchesAssignee && matchesDate && hasAccess;
     });
-  }, [customers, searchQuery, statusFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
+  }, [customers, debouncedSearchQuery, statusFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
 
-  const handlePhoneCall = (customer: Customer) => {
+  const handlePhoneCall = useCallback((customer: Customer) => {
     const phoneUrl = `tel:${customer.phone}`;
     window.open(phoneUrl, '_self');
     onUpdateCustomer(customer.id, { callDate: new Date() });
     toast.success(`Calling ${customer.name || customer.phone}...`);
-  };
+  }, [onUpdateCustomer]);
 
-  const handleStatusChange = (customerId: string, newStatus: CallStatus, customStatus?: string) => {
+  const handleStatusChange = useCallback((customerId: string, newStatus: CallStatus, customStatus?: string) => {
     if (updatingCustomers.has(customerId)) {
       return;
     }
@@ -254,7 +273,7 @@ export default function CustomerList({
         });
       }
     })();
-  };
+  }, [customers, updatingCustomers, onUpdateCustomer]);
 
   const handleCustomStatusSubmit = (customerId: string) => {
     if (updatingCustomers.has(customerId)) {
@@ -429,23 +448,25 @@ export default function CustomerList({
     }
   };
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === filteredCustomers.length) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filteredCustomers.map(c => c.id)));
     }
-  };
+  }, [selectedIds.size, filteredCustomers]);
 
-  const toggleSelect = (id: string) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setSelectedIds(newSet);
-  };
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }, []);
 
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
@@ -453,51 +474,64 @@ export default function CustomerList({
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toDateString();
     
-    // Get the currently filtered customers (based on selected date)
-    const currentDateCustomers = filteredCustomers;
+    // Pre-calculate selected date string
+    const selectedDateStr = selectedDate ? new Date(selectedDate).toDateString() : null;
     
-    // Get specific date counts for reference
-    const todayCustomers = customers.filter(c => 
-      (c.callDate && c.callDate.toDateString() === today) || (!c.callDate)
-    );
-    
-    const yesterdayCustomers = customers.filter(c => 
-      c.callDate && c.callDate.toDateString() === yesterdayStr
-    );
-    
-    // Determine what date we're showing
+    // Determine display date
     let displayDate = 'Today';
-    const displayCount = currentDateCustomers.length;
-    
-    if (selectedDate) {
-      const selectedDateObj = new Date(selectedDate);
-      const selectedDateStr = selectedDateObj.toDateString();
-      
+    if (selectedDateStr) {
       if (selectedDateStr === today) {
         displayDate = 'Today';
       } else if (selectedDateStr === yesterdayStr) {
         displayDate = 'Yesterday';
       } else {
-        displayDate = format(selectedDateObj, 'MMM dd');
+        displayDate = format(new Date(selectedDate), 'MMM dd');
       }
     }
     
-    // Debug logging
-    console.log('📊 Customer Stats Debug:', {
-      selectedDate,
-      displayDate,
-      displayCount,
-      todayCount: todayCustomers.length,
-      yesterdayCount: yesterdayCustomers.length,
-      filteredCount: currentDateCustomers.length
-    });
+    // Single pass through customers to calculate all stats
+    let todayCalls = 0;
+    let answered = 0;
+    let pending = 0;
+    let converted = 0;
+    
+    const targetDateStr = selectedDateStr || today;
+    
+    for (const customer of filteredCustomers) {
+      // Count converted customers from filtered list
+      if (customer.isConverted) {
+        converted++;
+      }
+      
+      // Count calls for the target date
+      if (customer.callDate && customer.callDate.toDateString() === targetDateStr) {
+        todayCalls++;
+        
+        if (customer.callStatus === 'answered') {
+          answered++;
+        } else if (customer.callStatus === 'pending') {
+          pending++;
+        }
+      }
+    }
+    
+    // If no specific date selected, count all today's calls from all customers
+    if (!selectedDateStr) {
+      todayCalls = 0;
+      for (const customer of customers) {
+        if (customer.callDate && customer.callDate.toDateString() === today) {
+          todayCalls++;
+        }
+      }
+    }
     
     return {
       displayDate,
-      displayCount,
-      answered: currentDateCustomers.filter(c => c.callStatus === 'answered').length,
-      pending: currentDateCustomers.filter(c => c.callStatus === 'pending').length,
-      converted: currentDateCustomers.filter(c => c.isConverted).length,
+      displayCount: filteredCustomers.length,
+      todayCalls,
+      answered,
+      pending,
+      converted,
     };
   }, [filteredCustomers, selectedDate, customers]);
 
@@ -535,8 +569,8 @@ export default function CustomerList({
               <div className="flex items-center gap-2">
                 <PhoneIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Calls</p>
-                  <p className="text-xl md:text-2xl font-bold text-foreground">{todayStats.displayCount}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Today Calls</p>
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{todayStats.todayCalls}</p>
                 </div>
               </div>
             </div>
