@@ -9,6 +9,10 @@ interface User {
   phone: string;
   role: 'admin' | 'manager' | 'employee';
   created_at: string;
+  manager?: number | null;
+  manager_name?: string | null;
+  employees_count?: number;
+  employees_names?: string[];
 }
 
 interface AuthResponse {
@@ -134,6 +138,70 @@ class ApiClient {
       console.warn('Failed to parse JSON response, returning null:', jsonError);
       return null;
     }
+  }
+
+  private async requestBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
+    const url = `${this.baseURL}${endpoint}`;
+    const headers: Record<string, string> = {
+      ...options.headers,
+    };
+
+    // Always get the latest token from localStorage
+    this.token = localStorage.getItem('access_token');
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (response.status === 401) {
+      // Token expired, try to refresh
+      const refreshResult = await this.refreshToken();
+      if (refreshResult) {
+        // Retry the request with new token
+        headers['Authorization'] = `Bearer ${this.token}`;
+        const retryResponse = await fetch(url, { ...options, headers });
+        
+        if (!retryResponse.ok) {
+          let errorData = {};
+          try {
+            errorData = await retryResponse.json();
+          } catch (jsonError) {
+            errorData = { error: `HTTP ${retryResponse.status} ${retryResponse.statusText}` };
+          }
+          throw new Error(`HTTP error! status: ${retryResponse.status}, details: ${JSON.stringify(errorData)}`);
+        }
+        
+        return await retryResponse.blob();
+      } else {
+        // Refresh failed, clear tokens and throw error
+        this.logout();
+        
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+        }
+        throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+      }
+    }
+
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
+      }
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.blob();
   }
 
   private async refreshToken(): Promise<boolean> {
@@ -360,6 +428,7 @@ class ApiClient {
     phone: string;
     address: string;
     newPassword?: string;
+    managerId?: string;
   }) {
     return this.request(`/auth/users/${userId}/update/`, {
       method: 'PUT',
@@ -491,30 +560,10 @@ class ApiClient {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const url = `${this.baseURL}/projects/upload_cover_image/`;
-    const headers: Record<string, string> = {};
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
+    return this.request('/projects/upload_cover_image/', {
       method: 'POST',
-      headers,
       body: formData,
     });
-
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-    }
-
-    return await response.json();
   }
 
   // Upload blueprint image
@@ -522,30 +571,10 @@ class ApiClient {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const url = `${this.baseURL}/projects/upload_blueprint_image/`;
-    const headers: Record<string, string> = {};
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
+    return this.request('/projects/upload_blueprint_image/', {
       method: 'POST',
-      headers,
       body: formData,
     });
-
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-    }
-
-    return await response.json();
   }
 
   // Tasks
@@ -765,60 +794,20 @@ class ApiClient {
     const formData = new FormData();
     formData.append('logo', logoFile);
 
-    const url = `${this.baseURL}/app-settings/upload-logo/`;
-    const headers: Record<string, string> = {};
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
+    return this.request('/app-settings/upload-logo/', {
       method: 'POST',
-      headers,
       body: formData,
     });
-
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-    }
-
-    return await response.json();
   }
 
   async uploadFavicon(faviconFile: File): Promise<{ message: string; favicon_url: string; filename: string }> {
     const formData = new FormData();
     formData.append('favicon', faviconFile);
 
-    const url = `${this.baseURL}/app-settings/upload-favicon/`;
-    const headers: Record<string, string> = {};
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
+    return this.request('/app-settings/upload-favicon/', {
       method: 'POST',
-      headers,
       body: formData,
     });
-
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-    }
-
-    return await response.json();
   }
 
   async resetAppSettings() {
@@ -829,56 +818,16 @@ class ApiClient {
 
   // Download project cover image (Admin only)
   async downloadProjectCoverImage(projectId: string): Promise<Blob> {
-    const url = `${this.baseURL}/projects/${projectId}/download_cover_image/`;
-    const headers: Record<string, string> = {};
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
+    return this.requestBlob(`/projects/${projectId}/download_cover_image/`, {
       method: 'GET',
-      headers,
     });
-
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-    }
-
-    return await response.blob();
   }
 
   // Download project blueprint image (Admin only)
   async downloadProjectBlueprintImage(projectId: string): Promise<Blob> {
-    const url = `${this.baseURL}/projects/${projectId}/download_blueprint_image/`;
-    const headers: Record<string, string> = {};
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
+    return this.requestBlob(`/projects/${projectId}/download_blueprint_image/`, {
       method: 'GET',
-      headers,
     });
-
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        errorData = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-    }
-
-    return await response.blob();
   }
 }
 

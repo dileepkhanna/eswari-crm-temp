@@ -10,46 +10,46 @@ interface ProjectStatusChartProps {
 }
 
 const statusMap: Record<string, ProjectStatus> = {
-  'Planning': 'planning',
-  'Active': 'active',
-  'On Hold': 'on_hold',
-  'Completed': 'completed',
-  'Cancelled': 'cancelled',
+  'Pre Launch': 'pre_launch',
+  'Launch': 'launch',
+  'Under Construction': 'under_construction',
+  'Mid Stage': 'mid_stage',
+  'Ready to Go': 'ready_to_go',
 };
 
 const statusColors: Record<string, string> = {
-  'Planning': 'hsl(45, 93%, 47%)',
-  'Active': 'hsl(217, 91%, 60%)',
-  'On Hold': 'hsl(38, 92%, 50%)',
-  'Completed': 'hsl(152, 69%, 31%)',
-  'Cancelled': 'hsl(0, 84%, 60%)',
+  'Pre Launch': 'hsl(217, 91%, 60%)',
+  'Launch': 'hsl(152, 69%, 31%)',
+  'Under Construction': 'hsl(45, 93%, 47%)',
+  'Mid Stage': 'hsl(271, 81%, 56%)',
+  'Ready to Go': 'hsl(220, 9%, 46%)',
 };
 
 const statusGradients: Record<string, string> = {
-  'Planning': 'from-amber-400 to-orange-500',
-  'Active': 'from-blue-500 to-indigo-600',
-  'On Hold': 'from-yellow-500 to-amber-600',
-  'Completed': 'from-emerald-500 to-teal-600',
-  'Cancelled': 'from-red-500 to-rose-600',
+  'Pre Launch': 'from-blue-500 to-indigo-600',
+  'Launch': 'from-emerald-500 to-teal-600',
+  'Under Construction': 'from-amber-400 to-orange-500',
+  'Mid Stage': 'from-purple-500 to-violet-600',
+  'Ready to Go': 'from-gray-500 to-slate-600',
 };
 
 const statusIcons: Record<string, React.ElementType> = {
-  'Planning': Clock,
-  'Active': Hammer,
-  'On Hold': Pause,
-  'Completed': CheckCircle2,
-  'Cancelled': XCircle,
+  'Pre Launch': Clock,
+  'Launch': Hammer,
+  'Under Construction': Building,
+  'Mid Stage': Pause,
+  'Ready to Go': CheckCircle2,
 };
 
 export default function ProjectStatusChart({ projects, title = "Projects Overview" }: ProjectStatusChartProps) {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
   const projectsByStatus = [
-    { name: 'Planning', count: projects.filter(p => p.status === 'planning').length },
-    { name: 'Active', count: projects.filter(p => p.status === 'active').length },
-    { name: 'On Hold', count: projects.filter(p => p.status === 'on_hold').length },
-    { name: 'Completed', count: projects.filter(p => p.status === 'completed').length },
-    { name: 'Cancelled', count: projects.filter(p => p.status === 'cancelled').length },
+    { name: 'Pre Launch', count: projects.filter(p => p.status === 'pre_launch').length },
+    { name: 'Launch', count: projects.filter(p => p.status === 'launch').length },
+    { name: 'Under Construction', count: projects.filter(p => p.status === 'under_construction').length },
+    { name: 'Mid Stage', count: projects.filter(p => p.status === 'mid_stage').length },
+    { name: 'Ready to Go', count: projects.filter(p => p.status === 'ready_to_go').length },
   ].filter(item => item.count > 0);
 
   const filteredProjects = selectedStatus 

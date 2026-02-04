@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import StaffPerformanceChart from "@/components/reports/StaffPerformanceChart";
-import DailyLeadsPercentageChart from "@/components/reports/DailyLeadsPercentageChart";
 import MonthlyLeavesChart from "@/components/reports/MonthlyLeavesChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Users, ClipboardList, CheckSquare, CalendarOff, Filter, CalendarIcon, Check, ChevronsUpDown, X, FileText, Loader2, BarChart3, TrendingUp } from "lucide-react";
-import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths, setMonth, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/DataContextDjango";
 
@@ -50,6 +49,8 @@ export default function ManagerReports() {
   const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // 0-11
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -469,14 +470,13 @@ export default function ManagerReports() {
           <StaffPerformanceChart users={filteredUsers} leads={filteredLeads} tasks={filteredTasks} />
         </div>
 
-        {/* Secondary Charts */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="w-full">
-            <DailyLeadsPercentageChart users={filteredUsers} leads={filteredLeads} dailyTarget={100} />
-          </div>
-          <div className="w-full">
-            <MonthlyLeavesChart users={filteredUsers} leaves={convertedLeaves} />
-          </div>
+        {/* Monthly Leaves Chart */}
+        <div className="w-full">
+          <MonthlyLeavesChart 
+            users={filteredUsers} 
+            leaves={convertedLeaves} 
+            selectedMonth={setYear(setMonth(new Date(), selectedMonth), selectedYear)}
+          />
         </div>
       </div>
     </div>

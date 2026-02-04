@@ -81,7 +81,7 @@ export default function SettingsPage() {
     if (!password) return { score: 0, text: '', color: '' };
     
     let score = 0;
-    let feedback = [];
+    const feedback = [];
     
     if (password.length >= 8) score += 1;
     else feedback.push('at least 8 characters');

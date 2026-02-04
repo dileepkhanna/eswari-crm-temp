@@ -12,6 +12,9 @@ interface AuthUser {
   role: UserRole;
   status: string;
   managerId: string | null;
+  manager_name?: string | null;
+  employees_count?: number;
+  employees_names?: string[];
 }
 
 interface AuthContextType {
@@ -52,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user profile
   const fetchUserData = useCallback(async () => {
     try {
-      const userData = await apiClient.getProfile();
+      const userData = await apiClient.getProfile() as any;
       
       const authUser: AuthUser = {
         id: userData.id.toString(),
@@ -63,7 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         address: null, // Django model doesn't have address yet
         role: userData.role as UserRole,
         status: 'active',
-        managerId: null, // Django model doesn't have manager_id yet
+        managerId: userData.manager ? userData.manager.toString() : null,
+        manager_name: userData.manager_name,
+        employees_count: userData.employees_count,
+        employees_names: userData.employees_names,
       };
 
       setUser(authUser);
@@ -105,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const data = await apiClient.login(email, password);
+      const data = await apiClient.login(email, password) as any;
       
       const authUser: AuthUser = {
         id: data.user.id.toString(),
@@ -116,7 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         address: null,
         role: data.user.role as UserRole,
         status: 'active',
-        managerId: null,
+        managerId: data.user.manager ? data.user.manager.toString() : null,
+        manager_name: data.user.manager_name,
+        employees_count: data.user.employees_count,
+        employees_names: data.user.employees_names,
       };
 
       setUser(authUser);
@@ -155,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone,
       };
 
-      const data = await apiClient.register(userData);
+      const data = await apiClient.register(userData) as any;
       
       const authUser: AuthUser = {
         id: data.user.id.toString(),
@@ -166,7 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         address: null,
         role: data.user.role as UserRole,
         status: 'active',
-        managerId: null,
+        managerId: data.user.manager ? data.user.manager.toString() : null,
+        manager_name: data.user.manager_name,
+        employees_count: data.user.employees_count,
+        employees_names: data.user.employees_names,
       };
 
       setUser(authUser);
@@ -193,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         phone: phone || '',
-      });
+      }) as any;
       
       const authUser: AuthUser = {
         id: data.user.id.toString(),
@@ -204,7 +216,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         address: null,
         role: data.user.role as UserRole,
         status: 'active',
-        managerId: null,
+        managerId: data.user.manager ? data.user.manager.toString() : null,
+        manager_name: data.user.manager_name,
+        employees_count: data.user.employees_count,
+        employees_names: data.user.employees_names,
       };
 
       setUser(authUser);

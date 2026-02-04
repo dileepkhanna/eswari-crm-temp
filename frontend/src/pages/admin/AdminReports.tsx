@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import StaffPerformanceChart from "@/components/reports/StaffPerformanceChart";
-import DailyLeadsPercentageChart from "@/components/reports/DailyLeadsPercentageChart";
 import MonthlyLeavesChart from "@/components/reports/MonthlyLeavesChart";
+import EmployeePerformanceRanking from "@/components/reports/EmployeePerformanceRanking";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Users, ClipboardList, CheckSquare, CalendarOff, Filter, CalendarIcon, Check, ChevronsUpDown, X, FileText, Loader2, BarChart3, TrendingUp } from "lucide-react";
-import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths, setMonth, setYear, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/DataContextDjango";
 
@@ -50,6 +51,8 @@ export default function AdminReports() {
   const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // 0-11
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -250,7 +253,7 @@ export default function AdminReports() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Filter Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Team Member Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Team Member</label>
@@ -311,6 +314,45 @@ export default function AdminReports() {
                     </Button>
                   )}
                 </div>
+              </div>
+
+              {/* Month Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Month</label>
+                <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">January</SelectItem>
+                    <SelectItem value="1">February</SelectItem>
+                    <SelectItem value="2">March</SelectItem>
+                    <SelectItem value="3">April</SelectItem>
+                    <SelectItem value="4">May</SelectItem>
+                    <SelectItem value="5">June</SelectItem>
+                    <SelectItem value="6">July</SelectItem>
+                    <SelectItem value="7">August</SelectItem>
+                    <SelectItem value="8">September</SelectItem>
+                    <SelectItem value="9">October</SelectItem>
+                    <SelectItem value="10">November</SelectItem>
+                    <SelectItem value="11">December</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Year Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Year</label>
+                <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={(selectedYear - 1).toString()}>{selectedYear - 1}</SelectItem>
+                    <SelectItem value={selectedYear.toString()}>{selectedYear}</SelectItem>
+                    <SelectItem value={(selectedYear + 1).toString()}>{selectedYear + 1}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Date Range Filter */}
@@ -465,19 +507,26 @@ export default function AdminReports() {
           </Card>
         </div>
 
+        {/* Employee Performance Ranking */}
+        <div className="w-full">
+          <EmployeePerformanceRanking 
+            users={filteredUsers} 
+            tasks={filteredTasks} 
+          />
+        </div>
+
         {/* Performance Overview Chart */}
         <div className="w-full">
           <StaffPerformanceChart users={filteredUsers} leads={filteredLeads} tasks={filteredTasks} />
         </div>
 
-        {/* Secondary Charts */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="w-full">
-            <DailyLeadsPercentageChart users={filteredUsers} leads={filteredLeads} dailyTarget={100} />
-          </div>
-          <div className="w-full">
-            <MonthlyLeavesChart users={filteredUsers} leaves={convertedLeaves} />
-          </div>
+        {/* Monthly Leaves Chart - Full Width */}
+        <div className="w-full">
+          <MonthlyLeavesChart 
+            users={filteredUsers} 
+            leaves={convertedLeaves} 
+            selectedMonth={setYear(setMonth(new Date(), selectedMonth), selectedYear)}
+          />
         </div>
       </div>
     </div>

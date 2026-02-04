@@ -20,8 +20,9 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             return Announcement.objects.all()
         else:
             # Other users can only see announcements targeted to their role or all roles
+            # Use icontains for SQLite compatibility
             return Announcement.objects.filter(
-                target_roles__contains=[user.role],
+                models.Q(target_roles__icontains=f'"{user.role}"') | models.Q(target_roles='[]'),
                 is_active=True
             )
     
@@ -58,7 +59,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             queryset = Announcement.objects.exclude(id__in=read_announcement_ids)
         else:
             queryset = Announcement.objects.filter(
-                target_roles__contains=[user.role],
+                models.Q(target_roles__icontains=f'"{user.role}"') | models.Q(target_roles='[]'),
                 is_active=True
             ).exclude(id__in=read_announcement_ids)
         

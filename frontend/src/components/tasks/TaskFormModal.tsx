@@ -140,13 +140,26 @@ export default function TaskFormModal({
         attachments: [],
       });
     } else {
-      onSave({
+      // For editing existing task, create a note entry if notes were added
+      const updatedData: any = {
         ...task,
         status: formData.status,
         assignedProject,
         nextActionDate: formData.nextActionDate || undefined,
         updatedAt: new Date(),
-      });
+      };
+      
+      // If notes were added, create a note entry
+      if (formData.notes.trim()) {
+        updatedData.notes = [{
+          id: String(Date.now()),
+          content: formData.notes,
+          createdBy: user?.id || 'unknown',
+          createdAt: new Date()
+        }];
+      }
+      
+      onSave(updatedData);
     }
   };
 
@@ -292,7 +305,7 @@ export default function TaskFormModal({
           </div>
 
           <div className="space-y-2">
-            <Label>Next Action Date</Label>
+            <Label>Visit Date</Label>
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -314,7 +327,6 @@ export default function TaskFormModal({
                     setFormData({ ...formData, nextActionDate: date || null });
                     setIsDatePickerOpen(false);
                   }}
-                  disabled={(date) => date < new Date()}
                   initialFocus
                   className="p-3 pointer-events-auto"
                 />
@@ -341,7 +353,7 @@ export default function TaskFormModal({
             <Button
               type="submit"
               className="btn-primary"
-              disabled={isCreating && !formData.selectedLeadId}
+              disabled={isCreating && !formData.selectedLeadId && (!formData.leadName || !formData.leadPhone)}
             >
               {task ? 'Update Task' : 'Create Task'}
             </Button>

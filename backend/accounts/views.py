@@ -472,6 +472,7 @@ def admin_update_user_view(request, user_id):
         phone = request.data.get('phone', '').strip()
         address = request.data.get('address', '').strip()
         new_password = request.data.get('newPassword', '').strip()
+        manager_id = request.data.get('managerId')  # New field for manager assignment
         
         # Validate required fields
         if not name:
@@ -495,6 +496,20 @@ def admin_update_user_view(request, user_id):
         user_to_update.phone = phone
         # Note: Django User model doesn't have address field by default
         # If you need address, you'll need to add it to your custom User model
+        
+        # Update manager assignment if provided
+        if manager_id is not None:
+            if manager_id == '' or manager_id == 'null' or manager_id == 'none':
+                # Remove manager assignment
+                user_to_update.manager = None
+            else:
+                try:
+                    manager = User.objects.get(id=manager_id, role='manager')
+                    user_to_update.manager = manager
+                except User.DoesNotExist:
+                    return Response({
+                        'error': 'Selected manager not found'
+                    }, status=status.HTTP_400_BAD_REQUEST)
         
         # Update password if provided
         if new_password:

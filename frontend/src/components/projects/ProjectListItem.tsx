@@ -15,11 +15,11 @@ interface ProjectListItemProps {
 }
 
 const statusColors: Record<string, string> = {
-  planning: 'bg-info/15 text-info border-info/30',
-  active: 'bg-success/15 text-success border-success/30',
-  on_hold: 'bg-warning/15 text-warning border-warning/30',
-  completed: 'bg-muted text-muted-foreground border-border',
-  cancelled: 'bg-destructive/15 text-destructive border-destructive/30',
+  pre_launch: 'bg-info/15 text-info border-info/30',
+  launch: 'bg-success/15 text-success border-success/30',
+  under_construction: 'bg-warning/15 text-warning border-warning/30',
+  mid_stage: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+  ready_to_go: 'bg-green-500/15 text-green-600 border-green-500/30',
 };
 
 export default function ProjectListItem({ 
@@ -57,7 +57,7 @@ export default function ProjectListItem({
               statusColors[project.status]
             )}
           >
-            {project.status}
+            {project.status.replace(/_/g, ' ')}
           </Badge>
         </div>
 
@@ -98,13 +98,13 @@ export default function ProjectListItem({
               {/* Amenities */}
               {project.amenities.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {project.amenities.slice(0, 3).map((amenity) => (
-                    <Badge key={amenity} variant="secondary" className="text-xs">
+                  {project.amenities.slice(0, 3).map((amenity, index) => (
+                    <Badge key={`${project.id}-amenity-${index}`} variant="secondary" className="text-xs">
                       {amenity}
                     </Badge>
                   ))}
                   {project.amenities.length > 3 && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge key={`${project.id}-more-amenities`} variant="secondary" className="text-xs">
                       +{project.amenities.length - 3}
                     </Badge>
                   )}

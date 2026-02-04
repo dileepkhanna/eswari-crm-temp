@@ -3,25 +3,24 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { useAppSettings } from '@/contexts/AppSettingsContext';
 import { cn } from '@/lib/utils';
 import {
-  Building2,
-  LayoutDashboard,
-  Users,
-  UserCircle,
-  ClipboardList,
-  CheckSquare,
-  Building,
-  CalendarOff,
-  Calendar,
-  BarChart3,
-  Activity,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Megaphone,
-  Palette,
-  Phone,
-} from 'lucide-react';
+  DashboardIcon,
+  UsersIcon,
+  LeadsIcon,
+  TasksIcon,
+  ProjectsIcon,
+  CalendarIcon,
+  ReportsIcon,
+  SettingsIcon,
+  ActivityIcon,
+  LogoutIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  BuildingIcon,
+  BellIcon,
+  PhoneIcon,
+  MegaphoneIcon,
+} from '@/components/icons';
+import { UserCircle } from 'lucide-react';
 import { useState } from 'react';
 
 interface NavItem {
@@ -29,6 +28,10 @@ interface NavItem {
   icon: React.ElementType;
   href: string;
   roles: ('admin' | 'manager' | 'employee')[];
+}
+
+interface SidebarProps {
+  onNavigate?: () => void;
 }
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
@@ -39,18 +42,18 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   // Navigation items
   const navItems: NavItem[] = [
-    { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
-    { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
-    { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Holidays', icon: Calendar, href: '/holidays', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Customers', icon: Phone, href: '/customers', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Leaves', icon: CalendarOff, href: '/leaves', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin', 'manager'] },
-    { label: 'Activity', icon: Activity, href: '/activity', roles: ['admin', 'manager'] },
+    { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Users', icon: UsersIcon, href: '/users', roles: ['admin'] },
+    { label: 'Branding', icon: SettingsIcon, href: '/branding', roles: ['admin'] },
+    { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Customers', icon: PhoneIcon, href: '/customers', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Leads', icon: LeadsIcon, href: '/leads', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Tasks', icon: TasksIcon, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Projects', icon: ProjectsIcon, href: '/projects', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Reports', icon: ReportsIcon, href: '/reports', roles: ['admin', 'manager'] },
+    { label: 'Activity', icon: ActivityIcon, href: '/activity', roles: ['admin', 'manager'] },
   ];
 
   if (!user) return null;
@@ -84,10 +87,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       <div className="p-4 md:p-6 border-b border-sidebar-border">
         <Link to={basePath} className="flex items-center gap-3" onClick={handleNavClick}>
           {settings?.logo_url ? (
-            <img src={settings.logo_url} alt={settings.app_name} className="w-10 h-10 object-contain rounded-xl shrink-0" />
+            <img 
+              src={`${settings.logo_url}?t=${Date.now()}`} 
+              alt={settings.app_name} 
+              className="w-10 h-10 object-contain rounded-xl shrink-0" 
+              key={settings.logo_url} // Force re-render when URL changes
+            />
           ) : (
             <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center shrink-0">
-              <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
+              <BuildingIcon className="w-5 h-5 text-sidebar-primary-foreground" />
             </div>
           )}
           {!collapsed && (
@@ -144,16 +152,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex flex-1 nav-link justify-center"
           >
-            {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            {collapsed ? <ChevronRightIcon className="w-5 h-5" /> : <ChevronLeftIcon className="w-5 h-5" />}
           </button>
           
           {!collapsed && (
             <>
               <Link to={`${basePath}/settings`} className="nav-link flex-1 justify-center" onClick={handleNavClick}>
-                <Settings className="w-5 h-5" />
+                <SettingsIcon className="w-5 h-5" />
               </Link>
               <button onClick={handleLogout} className="nav-link flex-1 justify-center hover:text-destructive">
-                <LogOut className="w-5 h-5" />
+                <LogoutIcon className="w-5 h-5" />
               </button>
             </>
           )}

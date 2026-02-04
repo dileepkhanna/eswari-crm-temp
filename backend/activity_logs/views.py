@@ -24,17 +24,19 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
-        """Only admins can view all activity logs, others see their own"""
+        """Filter activity logs based on user role and manager-employee hierarchy"""
         user = self.request.user
         
         if user.role == 'admin':
+            # Admins can see all activity logs
             return ActivityLog.objects.all()
         elif user.role == 'manager':
-            # Managers can see their own activities and their employees' activities
-            return ActivityLog.objects.filter(
-                models.Q(user=user) | 
-                models.Q(user__role='employee', user__manager=user)
-            )
+            # Managers can only see activity logs from their assigned employees + their own
+            assigned_employees = user.employees.all()  # Using the related_name from User model
+            employee_ids = [emp.id for emp in assigned_employees]
+            employee_ids.append(user.id)  # Include manager's own logs
+            
+            return ActivityLog.objects.filter(user__id__in=employee_ids)
         else:
             # Employees can only see their own activity logs
             return ActivityLog.objects.filter(user=user)

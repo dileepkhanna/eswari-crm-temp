@@ -348,6 +348,19 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         return;
       }
       
+      // Optimistically update the local state immediately
+      const updatedCustomer = {
+        ...existingCustomer,
+        ...data,
+        updatedAt: new Date()
+      };
+      
+      setCustomers(prevCustomers => 
+        prevCustomers.map(customer => 
+          customer.id === id ? updatedCustomer : customer
+        )
+      );
+      
       // Only include fields that are actually being updated
       const apiData: any = {};
       
@@ -371,11 +384,42 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       const response = await apiClient.updateCustomer(id, apiData);
       console.log('✅ Customer update response:', response);
 
-      // Refresh customers list
-      await fetchCustomers();
+      // Update with the actual server response
+      const serverUpdatedCustomer = {
+        id: response.id.toString(),
+        name: response.name,
+        phone: response.phone,
+        callStatus: response.call_status as CallStatus,
+        customCallStatus: response.custom_call_status,
+        assignedTo: response.assigned_to ? response.assigned_to.toString() : undefined,
+        assignedToName: response.assigned_to_name,
+        createdBy: response.created_by.toString(),
+        createdByName: response.created_by_name,
+        createdAt: new Date(response.created_at),
+        updatedAt: new Date(response.updated_at),
+        scheduledDate: response.scheduled_date ? new Date(response.scheduled_date) : undefined,
+        callDate: response.call_date ? new Date(response.call_date) : undefined,
+        notes: response.notes,
+        isConverted: response.is_converted,
+        convertedLeadId: response.converted_lead_id,
+      };
+      
+      setCustomers(prevCustomers => 
+        prevCustomers.map(customer => 
+          customer.id === id ? serverUpdatedCustomer : customer
+        )
+      );
+      
       toast.success('Customer updated successfully');
     } catch (error) {
       console.error('❌ Error updating customer:', error);
+      
+      // Revert optimistic update on error
+      setCustomers(prevCustomers => 
+        prevCustomers.map(customer => 
+          customer.id === id ? (customers.find(c => c.id === id) || customer) : customer
+        )
+      );
       
       // Handle specific error cases
       if (error instanceof Error) {

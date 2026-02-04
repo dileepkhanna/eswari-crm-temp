@@ -22,14 +22,26 @@ class CustomerViewSet(viewsets.ModelViewSet):
         # Base queryset with optimized database queries
         base_queryset = Customer.objects.select_related('assigned_to', 'created_by')
         
-        # Admin and managers can see all customers
-        if user.role in ['admin', 'manager']:
+        if user.role == 'admin':
+            # Admins can see all customers
             queryset = base_queryset.all()
-            print(f"DEBUG: Admin/Manager - returning {queryset.count()} customers")
+            print(f"DEBUG: Admin - returning {queryset.count()} customers")
             return queryset
-        
-        # Employees can only see their assigned customers
+        elif user.role == 'manager':
+            # Managers can only see customers from their assigned employees + their own customers
+            # Get all employees assigned to this manager
+            assigned_employees = user.employees.all()  # Using the related_name from User model
+            employee_ids = [emp.id for emp in assigned_employees]
+            employee_ids.append(user.id)  # Include manager's own customers
+            
+            queryset = base_queryset.filter(
+                Q(assigned_to__id__in=employee_ids) | 
+                Q(created_by__id__in=employee_ids)
+            )
+            print(f"DEBUG: Manager - returning {queryset.count()} customers from assigned employees")
+            return queryset
         elif user.role == 'employee':
+            # Employees can only see their assigned customers
             queryset = base_queryset.filter(assigned_to=user)
             print(f"DEBUG: Employee - returning {queryset.count()} assigned customers")
             for customer in queryset:
@@ -214,12 +226,18 @@ class CallAllocationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         
-        # Admin and managers can see all allocations
-        if user.role in ['admin', 'manager']:
+        if user.role == 'admin':
+            # Admins can see all allocations
             return CallAllocation.objects.all()
-        
-        # Employees can only see their own allocations
+        elif user.role == 'manager':
+            # Managers can only see allocations for their assigned employees + their own
+            assigned_employees = user.employees.all()
+            employee_ids = [emp.id for emp in assigned_employees]
+            employee_ids.append(user.id)  # Include manager's own allocations
+            
+            return CallAllocation.objects.filter(employee__id__in=employee_ids)
         elif user.role == 'employee':
+            # Employees can only see their own allocations
             return CallAllocation.objects.filter(employee=user)
         
         return CallAllocation.objects.none()

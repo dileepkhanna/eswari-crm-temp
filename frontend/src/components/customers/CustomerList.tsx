@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Customer, CallStatus, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
@@ -38,17 +38,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Search, 
-  Plus, 
-  Phone, 
-  ArrowRight, 
-  Trash2, 
-  Calendar,
-  Target,
-  Edit,
-  Check,
-  X
-} from 'lucide-react';
+  SearchIcon, 
+  PlusIcon, 
+  PhoneIcon, 
+  DeleteIcon, 
+  CalendarIcon,
+  EditIcon,
+  CheckIcon,
+  XIcon,
+  ArrowRightIcon,
+  TargetIcon
+} from '@/components/icons';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
@@ -86,27 +86,14 @@ export default function CustomerList({
 }: CustomerListProps) {
   const { user } = useAuth();
   const isPageVisible = usePageVisibility();
+  const datePickerRef = useRef<HTMLDivElement>(null);
   
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  
-  useEffect(() => {
-    if (customers.length > 0 || !user || !loading) {
-      setIsInitialLoad(false);
-    }
-  }, [customers, user, loading]);
-
-  // Clear deleted customers when the customers prop updates
-  useEffect(() => {
-    setDeletedCustomers(new Set());
-  }, [customers]);
-  
-  const canSeePhoneNumber = (customer: Customer) => {
-    return canViewCustomerPhone(user?.role, user?.id, customer.createdBy);
-  };
-  
+  // All state declarations must be at the top
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]); // Default to today
+  const [showDatePicker, setShowDatePicker] = useState(false); // Show/hide date picker
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -122,6 +109,37 @@ export default function CustomerList({
   const [updatingCustomers, setUpdatingCustomers] = useState<Set<string>>(new Set());
   const [deletingCustomers, setDeletingCustomers] = useState<Set<string>>(new Set());
   const [deletedCustomers, setDeletedCustomers] = useState<Set<string>>(new Set());
+  
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  useEffect(() => {
+    if (customers.length > 0 || !user || !loading) {
+      setIsInitialLoad(false);
+    }
+  }, [customers, user, loading]);
+
+  // Clear deleted customers when the customers prop updates
+  useEffect(() => {
+    setDeletedCustomers(new Set());
+  }, [customers]);
+
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+
+    if (showDatePicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDatePicker]);
+  
+  const canSeePhoneNumber = (customer: Customer) => {
+    return canViewCustomerPhone(user?.role, user?.id, customer.createdBy);
+  };
 
   const uniqueCustomStatuses = useMemo(() => {
     const customStatuses = customers
@@ -159,6 +177,21 @@ export default function CustomerList({
         (assigneeFilter === 'unassigned' && !customer.assignedTo) ||
         customer.assignedTo === assigneeFilter;
 
+      // Date filter logic - filter by specific selected date
+      let matchesDate = true;
+      if (selectedDate) {
+        const filterDate = new Date(selectedDate);
+        const isToday = filterDate.toDateString() === new Date().toDateString();
+        
+        if (customer.callDate) {
+          const callDate = new Date(customer.callDate);
+          matchesDate = callDate.toDateString() === filterDate.toDateString();
+        } else {
+          // If customer has no call date, include them only when viewing today
+          matchesDate = isToday;
+        }
+      }
+
       let hasAccess = true;
       if (!canManageAll && user?.role === 'employee') {
         const customerAssignedToStr = customer.assignedTo ? customer.assignedTo.toString() : '';
@@ -166,9 +199,9 @@ export default function CustomerList({
         hasAccess = customerAssignedToStr === userIdStr;
       }
 
-      return matchesSearch && matchesStatus && matchesAssignee && hasAccess;
+      return matchesSearch && matchesStatus && matchesAssignee && matchesDate && hasAccess;
     });
-  }, [customers, searchQuery, statusFilter, assigneeFilter, canManageAll, user, deletedCustomers]);
+  }, [customers, searchQuery, statusFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
 
   const handlePhoneCall = (customer: Customer) => {
     const phoneUrl = `tel:${customer.phone}`;
@@ -210,6 +243,9 @@ export default function CustomerList({
           callDate: new Date(),
           assignedTo: customer?.assignedTo,
         });
+      } catch (error) {
+        console.error('Error updating customer status:', error);
+        toast.error('Failed to update customer status');
       } finally {
         setUpdatingCustomers(prev => {
           const newSet = new Set(prev);
@@ -249,6 +285,12 @@ export default function CustomerList({
           assignedTo: customer?.assignedTo,
         });
         toast.success('Custom status updated successfully');
+      } catch (error) {
+        console.error('Error updating custom status:', error);
+        toast.error('Failed to update custom status');
+        
+        // Show custom input again on error
+        setShowCustomInput(prev => ({ ...prev, [customerId]: true }));
       } finally {
         setUpdatingCustomers(prev => {
           const newSet = new Set(prev);
@@ -407,43 +449,57 @@ export default function CustomerList({
 
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
     
-    // Use filteredCustomers instead of all customers to respect filters
-    const todayCustomers = filteredCustomers.filter(c => 
-      c.callDate && c.callDate.toDateString() === today
+    // Get the currently filtered customers (based on selected date)
+    const currentDateCustomers = filteredCustomers;
+    
+    // Get specific date counts for reference
+    const todayCustomers = customers.filter(c => 
+      (c.callDate && c.callDate.toDateString() === today) || (!c.callDate)
     );
     
-    // All filtered customers with pending status
-    const allPendingCustomers = filteredCustomers.filter(c => c.callStatus === 'pending');
+    const yesterdayCustomers = customers.filter(c => 
+      c.callDate && c.callDate.toDateString() === yesterdayStr
+    );
     
-    // Filtered customers called today who are still pending
-    const todayPendingCustomers = todayCustomers.filter(c => c.callStatus === 'pending');
+    // Determine what date we're showing
+    let displayDate = 'Today';
+    const displayCount = currentDateCustomers.length;
+    
+    if (selectedDate) {
+      const selectedDateObj = new Date(selectedDate);
+      const selectedDateStr = selectedDateObj.toDateString();
+      
+      if (selectedDateStr === today) {
+        displayDate = 'Today';
+      } else if (selectedDateStr === yesterdayStr) {
+        displayDate = 'Yesterday';
+      } else {
+        displayDate = format(selectedDateObj, 'MMM dd');
+      }
+    }
     
     // Debug logging
-    console.log('📊 Customer Stats Debug (Filtered):', {
-      totalCustomers: customers.length,
-      filteredCustomers: filteredCustomers.length,
-      todayCustomers: todayCustomers.length,
-      allPending: allPendingCustomers.length,
-      todayPending: todayPendingCustomers.length,
-      answered: todayCustomers.filter(c => c.callStatus === 'answered').length,
-      converted: filteredCustomers.filter(c => c.isConverted).length,
-      activeFilters: {
-        search: searchQuery,
-        status: statusFilter,
-        assignee: assigneeFilter
-      }
+    console.log('📊 Customer Stats Debug:', {
+      selectedDate,
+      displayDate,
+      displayCount,
+      todayCount: todayCustomers.length,
+      yesterdayCount: yesterdayCustomers.length,
+      filteredCount: currentDateCustomers.length
     });
     
     return {
-      total: todayCustomers.length,
-      answered: todayCustomers.filter(c => c.callStatus === 'answered').length,
-      pending: allPendingCustomers.length, // Show pending customers from filtered data
-      converted: filteredCustomers.filter(c => c.isConverted).length, // Show converted from filtered data
-      // Additional stats for debugging
-      todayPending: todayPendingCustomers.length, // Customers called today who are pending
+      displayDate,
+      displayCount,
+      answered: currentDateCustomers.filter(c => c.callStatus === 'answered').length,
+      pending: currentDateCustomers.filter(c => c.callStatus === 'pending').length,
+      converted: currentDateCustomers.filter(c => c.isConverted).length,
     };
-  }, [filteredCustomers, searchQuery, statusFilter, assigneeFilter]);
+  }, [filteredCustomers, selectedDate, customers]);
 
   return (
     <div className="space-y-6">
@@ -474,19 +530,19 @@ export default function CustomerList({
 
       {(!isInitialLoad || customers.length > 0) && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             <div className="glass-card p-3 md:p-4 rounded-xl">
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                <PhoneIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Today's Calls</p>
-                  <p className="text-xl md:text-2xl font-bold text-foreground">{todayStats.total}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Calls</p>
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{todayStats.displayCount}</p>
                 </div>
               </div>
             </div>
             <div className="glass-card p-3 md:p-4 rounded-xl">
               <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                <TargetIcon className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Answered</p>
                   <p className="text-xl md:text-2xl font-bold text-green-600">{todayStats.answered}</p>
@@ -495,16 +551,7 @@ export default function CustomerList({
             </div>
             <div className="glass-card p-3 md:p-4 rounded-xl">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending</p>
-                  <p className="text-xl md:text-2xl font-bold text-yellow-600">{todayStats.pending}</p>
-                </div>
-              </div>
-            </div>
-            <div className="glass-card p-3 md:p-4 rounded-xl">
-              <div className="flex items-center gap-2">
-                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                <ArrowRightIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Converted</p>
                   <p className="text-xl md:text-2xl font-bold text-blue-600">{todayStats.converted}</p>
@@ -516,7 +563,7 @@ export default function CustomerList({
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search customers..."
                   value={searchQuery}
@@ -525,9 +572,9 @@ export default function CustomerList({
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-40">
+                  <SelectTrigger className="w-full sm:w-40 h-10">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -546,9 +593,82 @@ export default function CustomerList({
                   </SelectContent>
                 </Select>
 
+                <div className="relative flex-shrink-0" ref={datePickerRef}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className="h-10 px-3 w-full sm:w-40 justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    {selectedDate ? format(new Date(selectedDate), 'MMM dd, yyyy') : 'Filter by date'}
+                  </Button>
+                  
+                  {showDatePicker && (
+                    <div className="absolute top-12 left-0 z-50 bg-white border rounded-lg shadow-lg p-3">
+                      <Input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value);
+                          setShowDatePicker(false);
+                        }}
+                        className="w-48"
+                        autoFocus
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedDate('');
+                            setShowDatePicker(false);
+                          }}
+                          className="text-xs"
+                        >
+                          Clear
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setShowDatePicker(false)}
+                          className="text-xs"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedDate && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-muted-foreground hover:text-foreground z-20"
+                      onClick={() => setSelectedDate('')}
+                    >
+                      <XIcon className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <Button
+                  variant={selectedDate === new Date().toISOString().split('T')[0] ? 'default' : 'outline'}
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    if (selectedDate === today) {
+                      // If today is selected, don't clear - keep today as default
+                      return;
+                    } else {
+                      setSelectedDate(today);
+                    }
+                  }}
+                  className="h-10 px-4 w-full sm:w-auto flex-shrink-0"
+                >
+                  Today
+                </Button>
+
                 {canManageAll && (
                   <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                    <SelectTrigger className="w-full sm:w-40">
+                    <SelectTrigger className="w-full sm:w-40 h-10">
                       <SelectValue placeholder="All Assignees" />
                     </SelectTrigger>
                     <SelectContent>
@@ -573,7 +693,7 @@ export default function CustomerList({
                       onClick={() => setShowDeleteDialog(true)}
                       className="text-xs"
                     >
-                      <Trash2 className="w-4 h-4 mr-1" />
+                      <DeleteIcon className="w-4 h-4 mr-1" />
                       Delete ({selectedIds.size})
                     </Button>
                     
@@ -583,7 +703,7 @@ export default function CustomerList({
                       onClick={() => setShowBulkAssignDialog(true)}
                       className="text-xs"
                     >
-                      <Target className="w-4 h-4 mr-1" />
+                      <TargetIcon className="w-4 h-4 mr-1" />
                       Assign ({selectedIds.size})
                     </Button>
                   </>
@@ -605,7 +725,7 @@ export default function CustomerList({
                     className="btn-accent text-xs sm:text-sm" 
                     onClick={() => setIsFormOpen(true)}
                   >
-                    <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+                    <PlusIcon className="w-4 h-4 mr-1 sm:mr-2" />
                     Add Customer
                   </Button>
                 </>
@@ -615,6 +735,12 @@ export default function CustomerList({
 
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="hidden lg:block">
+              <div className="p-4 border-b flex items-center justify-between">
+                <span className="text-sm font-medium">Customer List</span>
+                <span className="text-sm text-muted-foreground">
+                  {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''}
+                </span>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
@@ -664,7 +790,7 @@ export default function CustomerList({
                             onClick={() => handlePhoneCall(customer)}
                             disabled={!canSeePhoneNumber(customer)}
                           >
-                            <Phone className="w-4 h-4" />
+                            <PhoneIcon className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -698,7 +824,7 @@ export default function CustomerList({
                               className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
                               onClick={() => handleCustomStatusSubmit(customer.id)}
                             >
-                              <Check className="w-4 h-4" />
+                              <CheckIcon className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
@@ -706,7 +832,7 @@ export default function CustomerList({
                               className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                               onClick={() => handleCustomStatusCancel(customer.id)}
                             >
-                              <X className="w-4 h-4" />
+                              <XIcon className="w-4 h-4" />
                             </Button>
                           </div>
                         ) : (
@@ -762,7 +888,7 @@ export default function CustomerList({
                                 }}
                                 className="text-xs"
                               >
-                                <Edit className="w-3 h-3 mr-1" />
+                                <EditIcon className="w-3 h-3 mr-1" />
                                 Edit
                               </Button>
                               <Button
@@ -839,7 +965,7 @@ export default function CustomerList({
                               onClick={() => handlePhoneCall(customer)}
                               disabled={!canSeePhoneNumber(customer)}
                             >
-                              <Phone className="w-4 h-4" />
+                              <PhoneIcon className="w-4 h-4" />
                             </Button>
                           </div>
                           {customer.isConverted && (
@@ -884,7 +1010,7 @@ export default function CustomerList({
                                 className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
                                 onClick={() => handleCustomStatusSubmit(customer.id)}
                               >
-                                <Check className="w-4 h-4" />
+                                <CheckIcon className="w-4 h-4" />
                               </Button>
                               <Button
                                 size="sm"
@@ -892,7 +1018,7 @@ export default function CustomerList({
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                                 onClick={() => handleCustomStatusCancel(customer.id)}
                               >
-                                <X className="w-4 h-4" />
+                                <XIcon className="w-4 h-4" />
                               </Button>
                             </div>
                           ) : (
@@ -951,7 +1077,7 @@ export default function CustomerList({
                               }}
                               className="text-xs"
                             >
-                              <Edit className="w-3 h-3 mr-1" />
+                              <EditIcon className="w-3 h-3 mr-1" />
                               Edit
                             </Button>
                             <Button
@@ -1011,7 +1137,7 @@ export default function CustomerList({
             <AlertDialogHeader>
               <AlertDialogTitle className="text-lg flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                  <Trash2 className="w-4 h-4 text-red-600" />
+                  <DeleteIcon className="w-4 h-4 text-red-600" />
                 </div>
                 Delete Customers
               </AlertDialogTitle>
@@ -1027,7 +1153,7 @@ export default function CustomerList({
                 onClick={handleBulkDelete} 
                 className="bg-red-600 hover:bg-red-700 w-full sm:w-auto transition-all duration-200 hover:scale-105"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
+                <DeleteIcon className="w-4 h-4 mr-2" />
                 Delete {selectedIds.size > 1 ? 'All' : ''}
               </AlertDialogAction>
             </AlertDialogFooter>

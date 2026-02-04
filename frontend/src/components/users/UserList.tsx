@@ -56,7 +56,7 @@ interface DBUser {
   manager_name?: string | null; // Manager's name from API
   created_at: string;
   updated_at: string;
-  role?: UserRole;
+  role: UserRole;
 }
 
 export default function UserList() {
@@ -342,7 +342,7 @@ export default function UserList() {
 
   const handleUpdateUser = async (
     userId: string,
-    userData: { name: string; phone: string; address: string; newPassword?: string }
+    userData: { name: string; phone: string; address: string; managerId?: string; newPassword?: string }
   ): Promise<{ success: boolean }> => {
     try {
       setIsSubmitting(true);

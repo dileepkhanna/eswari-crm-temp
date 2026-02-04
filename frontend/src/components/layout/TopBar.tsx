@@ -1,6 +1,3 @@
-import { Bell, Search, ArrowLeft, Menu } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -13,6 +10,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useMobileNav } from '@/contexts/MobileNavContext';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { 
+  BellIcon, 
+  ChevronLeftIcon, 
+  MenuIcon 
+} from '@/components/icons';
 
 interface TopBarProps {
   title: string;
@@ -46,7 +50,7 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
             onClick={() => mobileNav.setMobileMenuOpen(!mobileNav.mobileMenuOpen)}
             aria-label="Open menu"
           >
-            <Menu className="w-5 h-5" />
+            <MenuIcon className="w-5 h-5" />
           </Button>
         )}
 
@@ -58,7 +62,7 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
             onClick={handleBack}
             className="hover:bg-muted h-8 w-8 md:h-10 md:w-10 hidden lg:flex"
           >
-            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+            <ChevronLeftIcon className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         )}
         
@@ -69,19 +73,12 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search..." 
-            className="w-48 lg:w-64 pl-10 h-10 input-field"
-          />
-        </div>
 
         {/* Bell Icon with Notifications Dropdown */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
-              <Bell className="w-4 h-4 md:w-5 md:h-5" />
+              <BellIcon className="w-4 h-4 md:w-5 md:h-5" />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 md:top-0 md:right-0 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
                   {unreadCount > 9 ? '9+' : unreadCount}

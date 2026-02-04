@@ -43,7 +43,7 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
     { name: 'Site Visit', value: tasks.filter(t => t.status === 'site_visit').length, color: 'hsl(271, 81%, 56%)', gradient: 'from-purple-500 to-violet-600', status: 'site_visit' },
     { name: 'Family Visit', value: tasks.filter(t => t.status === 'family_visit').length, color: 'hsl(25, 95%, 53%)', gradient: 'from-orange-500 to-amber-600', status: 'family_visit' },
     { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'hsl(152, 69%, 31%)', gradient: 'from-emerald-500 to-teal-600', status: 'completed' },
-    { name: 'Rejected', value: tasks.filter(t => t.status === 'rejected').length, color: 'hsl(0, 84%, 60%)', gradient: 'from-red-500 to-rose-600', status: 'rejected' },
+    { name: 'Rejected', value: tasks.filter(t => t.status === 'rejected').length, color: 'hsl(220, 9%, 46%)', gradient: 'from-gray-500 to-slate-600', status: 'rejected' },
   ].filter(item => item.value > 0);
 
   const filteredTasks = selectedStatus 

@@ -6,11 +6,11 @@ User = get_user_model()
 
 class Project(models.Model):
     STATUS_CHOICES = [
-        ('planning', 'Planning'),
-        ('active', 'Active'),
-        ('on_hold', 'On Hold'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
+        ('pre_launch', 'Pre Launch'),
+        ('launch', 'Launch'),
+        ('under_construction', 'Under Construction'),
+        ('mid_stage', 'Mid Stage'),
+        ('ready_to_go', 'Ready to Go'),
     ]
 
     TYPE_CHOICES = [
@@ -24,7 +24,7 @@ class Project(models.Model):
     location = models.CharField(max_length=300)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='apartment')
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planning')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pre_launch')
     
     # Pricing information
     priceMin = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Minimum price in rupees")

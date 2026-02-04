@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Project, ProjectStatus } from '@/types';
+import { apiClient } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Upload, Building, MapPin, IndianRupee, Calendar, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X } from 'lucide-react';
+import { 
+  XIcon, 
+  PlusIcon, 
+  UploadIcon, 
+  BuildingIcon, 
+  MapPinIcon, 
+  CurrencyIcon, 
+  CalendarIcon, 
+  LoaderIcon, 
+  ChevronLeftIcon, 
+  ChevronRightIcon 
+} from '@/components/icons';
 import { toast } from 'sonner';
 
 interface ProjectFormModalProps {
@@ -48,7 +61,7 @@ export default function ProjectFormModal({
     possessionDate: '',
     description: '',
     towerDetails: '',
-    status: 'planning' as ProjectStatus,
+    status: 'pre_launch' as ProjectStatus,
   });
 
   const [amenities, setAmenities] = useState<string[]>(project?.amenities || []);
@@ -57,6 +70,8 @@ export default function ProjectFormModal({
   const [newLandmark, setNewLandmark] = useState('');
   const [coverImage, setCoverImage] = useState(project?.coverImage || '');
   const [blueprintImage, setBlueprintImage] = useState(project?.blueprintImage || '');
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [blueprintImageUrl, setBlueprintImageUrl] = useState('');
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingBlueprint, setIsUploadingBlueprint] = useState(false);
 
@@ -83,12 +98,14 @@ export default function ProjectFormModal({
             possessionDate: project.possessionDate ? new Date(project.possessionDate).toISOString().split('T')[0] : '',
             description: project.description || '',
             towerDetails: project.towerDetails || '',
-            status: project.status || 'planning',
+            status: project.status || 'pre_launch',
           });
           setAmenities(project.amenities || []);
           setNearbyLandmarks(project.nearbyLandmarks || []);
           setCoverImage(project.coverImage || '');
           setBlueprintImage(project.blueprintImage || '');
+          setCoverImageUrl('');
+          setBlueprintImageUrl('');
         } else {
           setFormData({
             name: '',
@@ -100,12 +117,14 @@ export default function ProjectFormModal({
             possessionDate: '',
             description: '',
             towerDetails: '',
-            status: 'planning',
+            status: 'pre_launch',
           });
           setAmenities([]);
           setNearbyLandmarks([]);
           setCoverImage('');
           setBlueprintImage('');
+          setCoverImageUrl('');
+          setBlueprintImageUrl('');
         }
         setCurrentImageIndex(0);
       }
@@ -165,6 +184,22 @@ export default function ProjectFormModal({
     setNearbyLandmarks(nearbyLandmarks.filter(l => l !== landmark));
   };
 
+  const handleCoverUrlSubmit = () => {
+    if (coverImageUrl.trim()) {
+      setCoverImage(coverImageUrl.trim());
+      setCoverImageUrl('');
+      toast.success('Cover image URL added successfully');
+    }
+  };
+
+  const handleBlueprintUrlSubmit = () => {
+    if (blueprintImageUrl.trim()) {
+      setBlueprintImage(blueprintImageUrl.trim());
+      setBlueprintImageUrl('');
+      toast.success('Blueprint image URL added successfully');
+    }
+  };
+
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -180,14 +215,20 @@ export default function ProjectFormModal({
 
     setIsUploadingCover(true);
     try {
-      const { apiClient } = await import('@/lib/api');
+      // Use the existing apiClient instance instead of dynamic import
       const uploadResult = await apiClient.uploadCoverImage(file);
       
       setCoverImage(uploadResult.url);
       toast.success('Cover image uploaded successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading cover image:', error);
-      toast.error('Failed to upload cover image');
+      
+      // Handle specific authentication errors
+      if (error.message?.includes('401') || error.message?.includes('token')) {
+        toast.error('Session expired. Please refresh the page and try again.');
+      } else {
+        toast.error('Failed to upload cover image. Please try again.');
+      }
     } finally {
       setIsUploadingCover(false);
       if (coverInputRef.current) coverInputRef.current.value = '';
@@ -209,14 +250,20 @@ export default function ProjectFormModal({
 
     setIsUploadingBlueprint(true);
     try {
-      const { apiClient } = await import('@/lib/api');
+      // Use the existing apiClient instance instead of dynamic import
       const uploadResult = await apiClient.uploadBlueprintImage(file);
       
       setBlueprintImage(uploadResult.url);
       toast.success('Blueprint image uploaded successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading blueprint image:', error);
-      toast.error('Failed to upload blueprint image');
+      
+      // Handle specific authentication errors
+      if (error.message?.includes('401') || error.message?.includes('token')) {
+        toast.error('Session expired. Please refresh the page and try again.');
+      } else {
+        toast.error('Failed to upload blueprint image. Please try again.');
+      }
     } finally {
       setIsUploadingBlueprint(false);
       if (blueprintInputRef.current) blueprintInputRef.current.value = '';
@@ -240,7 +287,7 @@ export default function ProjectFormModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col project-form-modal">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <Building className="w-5 h-5 text-primary" />
+            <BuildingIcon className="w-5 h-5 text-primary" />
             {project ? 'Edit Project' : 'Add New Project'}
           </DialogTitle>
           <DialogDescription>
@@ -276,7 +323,7 @@ export default function ProjectFormModal({
                       className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white"
                       onClick={prevImage}
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeftIcon className="w-4 h-4" />
                     </Button>
                     <Button
                       type="button"
@@ -285,7 +332,7 @@ export default function ProjectFormModal({
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white"
                       onClick={nextImage}
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRightIcon className="w-4 h-4" />
                     </Button>
                   </>
                 )}
@@ -320,73 +367,165 @@ export default function ProjectFormModal({
           )}
 
           {/* Image Upload Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cover Image Upload */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Label>Cover/Project Image</Label>
               <p className="text-sm text-muted-foreground">Main project image for display</p>
-              <div className="flex gap-2">
-                <input
-                  ref={coverInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => coverInputRef.current?.click()}
-                  disabled={isUploadingCover}
-                  className="flex-1"
-                >
-                  {isUploadingCover ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="w-4 h-4 mr-2" />
-                  )}
-                  {isUploadingCover ? 'Uploading...' : 'Upload Cover Image'}
-                </Button>
+              
+              {/* File Upload */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground">Upload from Device</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCoverUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={isUploadingCover}
+                    className="flex-1"
+                  >
+                    {isUploadingCover ? (
+                      <LoaderIcon className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploadingCover ? 'Uploading...' : 'Upload File'}
+                  </Button>
+                </div>
               </div>
+
+              {/* URL Input */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground">Or Enter Image URL</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={coverImageUrl}
+                    onChange={(e) => setCoverImageUrl(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm flex-1"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCoverUrlSubmit())}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCoverUrlSubmit}
+                    disabled={!coverImageUrl.trim()}
+                  >
+                    Add URL
+                  </Button>
+                </div>
+              </div>
+
               {coverImage && (
                 <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
-                  <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
+                  <img 
+                    src={coverImage} 
+                    alt="Cover" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                    }}
+                  />
                   <Badge className="absolute top-2 left-2 bg-primary text-xs">Cover</Badge>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2 h-6 w-6 p-0"
+                    onClick={() => setCoverImage('')}
+                  >
+                    <XIcon className="w-3 h-3" />
+                  </Button>
                 </div>
               )}
             </div>
 
             {/* Blueprint Image Upload */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Label>Blueprint Image</Label>
               <p className="text-sm text-muted-foreground">Architectural plan or blueprint</p>
-              <div className="flex gap-2">
-                <input
-                  ref={blueprintInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleBlueprintUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => blueprintInputRef.current?.click()}
-                  disabled={isUploadingBlueprint}
-                  className="flex-1"
-                >
-                  {isUploadingBlueprint ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="w-4 h-4 mr-2" />
-                  )}
-                  {isUploadingBlueprint ? 'Uploading...' : 'Upload Blueprint'}
-                </Button>
+              
+              {/* File Upload */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground">Upload from Device</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={blueprintInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBlueprintUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => blueprintInputRef.current?.click()}
+                    disabled={isUploadingBlueprint}
+                    className="flex-1"
+                  >
+                    {isUploadingBlueprint ? (
+                      <LoaderIcon className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploadingBlueprint ? 'Uploading...' : 'Upload File'}
+                  </Button>
+                </div>
               </div>
+
+              {/* URL Input */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground">Or Enter Image URL</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://example.com/blueprint.jpg"
+                    value={blueprintImageUrl}
+                    onChange={(e) => setBlueprintImageUrl(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm flex-1"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBlueprintUrlSubmit())}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleBlueprintUrlSubmit}
+                    disabled={!blueprintImageUrl.trim()}
+                  >
+                    Add URL
+                  </Button>
+                </div>
+              </div>
+
               {blueprintImage && (
                 <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
-                  <img src={blueprintImage} alt="Blueprint" className="w-full h-full object-cover" />
+                  <img 
+                    src={blueprintImage} 
+                    alt="Blueprint" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800';
+                    }}
+                  />
                   <Badge className="absolute top-2 left-2 bg-blue-500 text-xs">Blueprint</Badge>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2 h-6 w-6 p-0"
+                    onClick={() => setBlueprintImage('')}
+                  >
+                    <XIcon className="w-3 h-3" />
+                  </Button>
                 </div>
               )}
             </div>
@@ -412,7 +551,7 @@ export default function ProjectFormModal({
             <div className="space-y-2">
               <Label htmlFor="project-location-field">Location *</Label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+                <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
                 <input
                   id="project-location-field"
                   name="project-location-field"
@@ -457,11 +596,11 @@ export default function ProjectFormModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="pre_launch">Pre Launch</SelectItem>
+                  <SelectItem value="launch">Launch</SelectItem>
+                  <SelectItem value="under_construction">Under Construction</SelectItem>
+                  <SelectItem value="mid_stage">Mid Stage</SelectItem>
+                  <SelectItem value="ready_to_go">Ready to Go</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -486,7 +625,7 @@ export default function ProjectFormModal({
             <div className="space-y-2">
               <Label htmlFor="priceMin">Minimum Price (₹) *</Label>
               <div className="relative">
-                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <CurrencyIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   id="priceMin"
                   name="price-min"
@@ -504,7 +643,7 @@ export default function ProjectFormModal({
             <div className="space-y-2">
               <Label htmlFor="priceMax">Maximum Price (₹) *</Label>
               <div className="relative">
-                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <CurrencyIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   id="priceMax"
                   name="price-max"
@@ -525,7 +664,7 @@ export default function ProjectFormModal({
             <div className="space-y-2">
               <Label htmlFor="launchDate">Launch Date *</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   id="launchDate"
                   name="launch-date"
@@ -542,7 +681,7 @@ export default function ProjectFormModal({
             <div className="space-y-2">
               <Label htmlFor="possessionDate">Possession Date</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   id="possessionDate"
                   name="possession-date"
@@ -585,12 +724,12 @@ export default function ProjectFormModal({
                 autoComplete="off"
               />
               <Button type="button" variant="secondary" onClick={addAmenity}>
-                <Plus className="w-4 h-4" />
+                <PlusIcon className="w-4 h-4" />
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {amenities.map((amenity) => (
-                <Badge key={amenity} variant="secondary" className="gap-1 px-3 py-1">
+              {amenities.map((amenity, index) => (
+                <Badge key={`amenity-${index}`} variant="secondary" className="gap-1 px-3 py-1">
                   {amenity}
                   <X
                     className="w-3 h-3 cursor-pointer hover:text-destructive transition-colors"
@@ -615,12 +754,12 @@ export default function ProjectFormModal({
                 autoComplete="off"
               />
               <Button type="button" variant="secondary" onClick={addLandmark}>
-                <Plus className="w-4 h-4" />
+                <PlusIcon className="w-4 h-4" />
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {nearbyLandmarks.map((landmark) => (
-                <Badge key={landmark} variant="secondary" className="gap-1 px-3 py-1">
+              {nearbyLandmarks.map((landmark, index) => (
+                <Badge key={`landmark-${index}`} variant="secondary" className="gap-1 px-3 py-1">
                   {landmark}
                   <X
                     className="w-3 h-3 cursor-pointer hover:text-destructive transition-colors"

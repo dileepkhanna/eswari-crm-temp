@@ -1,12 +1,12 @@
 export type UserRole = 'admin' | 'manager' | 'employee';
 
-export type LeadStatus = 'new' | 'hot' | 'warm' | 'cold' | 'not_interested' | 'reminder';
+export type LeadStatus = 'new' | 'hot' | 'warm' | 'cold' | 'not_interested' | 'reminder' | 'contacted' | 'qualified' | 'converted';
 
 export type TaskStatus = 'in_progress' | 'site_visit' | 'family_visit' | 'completed' | 'rejected';
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
-export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+export type ProjectStatus = 'pre_launch' | 'launch' | 'under_construction' | 'mid_stage' | 'ready_to_go';
 
 export type RequirementType = 'villa' | 'apartment' | 'house' | 'plot';
 

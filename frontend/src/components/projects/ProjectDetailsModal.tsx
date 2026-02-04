@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface ProjectDetailsModalProps {
   project: Project | null;
@@ -23,11 +22,11 @@ interface ProjectDetailsModalProps {
 }
 
 const statusColors: Record<string, string> = {
-  planning: 'bg-info/15 text-info border-info/30',
-  active: 'bg-success/15 text-success border-success/30',
-  on_hold: 'bg-warning/15 text-warning border-warning/30',
-  completed: 'bg-muted text-muted-foreground border-border',
-  cancelled: 'bg-destructive/15 text-destructive border-destructive/30',
+  pre_launch: 'bg-info/15 text-info border-info/30',
+  launch: 'bg-success/15 text-success border-success/30',
+  under_construction: 'bg-warning/15 text-warning border-warning/30',
+  mid_stage: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+  ready_to_go: 'bg-green-500/15 text-green-600 border-green-500/30',
 };
 
 export default function ProjectDetailsModal({ project, open, onClose }: ProjectDetailsModalProps) {
@@ -350,7 +349,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                       statusColors[project.status]
                     )}
                   >
-                    {project.status}
+                    {project.status.replace(/_/g, ' ')}
                   </Badge>
                 </div>
               </div>
@@ -375,7 +374,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                   statusColors[project.status]
                 )}
               >
-                {project.status}
+                {project.status.replace(/_/g, ' ')}
               </Badge>
             </div>
           )}
@@ -414,8 +413,8 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
             <div>
               <h3 className="font-semibold mb-2">Amenities</h3>
               <div className="flex flex-wrap gap-2">
-                {project.amenities.map((amenity) => (
-                  <Badge key={amenity} variant="secondary">
+                {project.amenities.map((amenity, index) => (
+                  <Badge key={`${project.id}-amenity-${index}`} variant="secondary">
                     {amenity}
                   </Badge>
                 ))}
@@ -430,8 +429,8 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                   Nearby Landmarks
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {project.nearbyLandmarks.map((landmark) => (
-                    <Badge key={landmark} variant="outline">
+                  {project.nearbyLandmarks.map((landmark, index) => (
+                    <Badge key={`${project.id}-landmark-${index}`} variant="outline">
                       {landmark}
                     </Badge>
                   ))}

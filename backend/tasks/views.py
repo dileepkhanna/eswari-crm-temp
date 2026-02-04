@@ -17,7 +17,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         """
         Role-based task filtering:
         - Admin: Can see all tasks
-        - Manager: Can see all tasks (their own + employee tasks, but with restricted contact access for employee tasks)
+        - Manager: Can only see tasks from their assigned employees + their own tasks
         - Employee: Can only see tasks assigned to them
         """
         user = self.request.user
@@ -26,8 +26,16 @@ class TaskViewSet(viewsets.ModelViewSet):
             # Admin can see all tasks
             return Task.objects.all()
         elif user.role == 'manager':
-            # Manager can see all tasks (both their own and employee tasks)
-            return Task.objects.all()
+            # Manager can only see tasks from their assigned employees + their own tasks
+            # Get all employees assigned to this manager
+            assigned_employees = user.employees.all()  # Using the related_name from User model
+            employee_ids = [emp.id for emp in assigned_employees]
+            employee_ids.append(user.id)  # Include manager's own tasks
+            
+            return Task.objects.filter(
+                models.Q(assigned_to__id__in=employee_ids) | 
+                models.Q(created_by__id__in=employee_ids)
+            )
         elif user.role == 'employee':
             # Employee can only see tasks assigned to them
             return Task.objects.filter(assigned_to=user)

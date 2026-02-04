@@ -89,7 +89,7 @@ export default function AdminDashboard() {
           <StatCard
             title="Projects"
             value={projects.length}
-            change={`${projects.filter(p => p.status === 'active').length} active`}
+            change={`${projects.filter(p => p.status === 'ready_to_go').length} ready to go`}
             changeType="neutral"
             icon={Building}
             iconColor="gradient-accent"

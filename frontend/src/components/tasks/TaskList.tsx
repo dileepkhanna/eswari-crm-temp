@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Task, TaskStatus, Lead } from "@/types";
+import { Task, TaskStatus, Lead, User } from "@/types";
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
 import { canViewCustomerPhone, isManagerView as isManagerRole, canDeleteLeadsAndTasks, maskPhoneNumber, maskEmail } from '@/lib/permissions';
@@ -52,9 +52,10 @@ interface TaskListProps {
   canEdit?: boolean;
   canCreate?: boolean;
   isManagerView?: boolean;
+  employees?: User[]; // Add employees prop
 }
 
-export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false }: TaskListProps) {
+export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false, employees = [] }: TaskListProps) {
   const { user } = useAuth();
   const { tasks, leads, projects, addTask, updateTask, deleteTask } = useData();
   
@@ -71,6 +72,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [userFilter, setUserFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
@@ -87,6 +89,11 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
 
       const matchesStatus = statusFilter === "all" || task.status === statusFilter;
       const matchesProject = projectFilter === "all" || task.assignedProject === projectFilter;
+      
+      // User filter - filter by assigned to or created by
+      const matchesUser = userFilter === "all" || 
+        task.assignedTo === userFilter || 
+        task.lead?.createdBy === userFilter;
 
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
@@ -98,9 +105,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         matchesDate = new Date(task.createdAt) >= startOfDay(dateRange.from);
       }
 
-      return matchesSearch && matchesStatus && matchesProject && matchesDate;
+      return matchesSearch && matchesStatus && matchesProject && matchesUser && matchesDate;
     });
-  }, [tasks, searchQuery, statusFilter, projectFilter, dateRange]);
+  }, [tasks, searchQuery, statusFilter, projectFilter, userFilter, dateRange]);
 
   // Check if user can see any phone numbers (for table headers) - MOVED AFTER filteredTasks
   const canSeeAnyPhoneNumbers = useMemo(() => {
@@ -245,7 +252,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
@@ -269,6 +276,20 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={userFilter} onValueChange={setUserFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="User" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>
+                    {employee.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -386,7 +407,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 <p className="font-medium truncate">{getProjectName(task.assignedProject)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Next Action</p>
+                <p className="text-xs text-muted-foreground">Visit Date</p>
                 <p className="font-medium">{task.nextActionDate ? format(task.nextActionDate, "MMM dd") : "-"}</p>
               </div>
             </div>
@@ -425,7 +446,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Assigned To</TableHead>
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Next Action</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Visit Date</TableHead>}
               <TableHead className="font-semibold">Created</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>

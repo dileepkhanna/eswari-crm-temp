@@ -3,6 +3,7 @@ import { Announcement } from '@/types';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -85,6 +86,9 @@ export default function AnnouncementFormModal({
             <Megaphone className="w-5 h-5 text-primary" />
             New Announcement
           </DialogTitle>
+          <DialogDescription>
+            Create a new announcement to notify team members about important updates or information.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-4">

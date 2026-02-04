@@ -32,15 +32,13 @@ DATABASES = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-
-    "http://15.206.229.201",
-
+    "http://13.205.34.169:8080",
+    "http://13.205.34.169",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-
-    "http://15.206.229.201",
-
+    "http://13.205.34.169:8080",
+    "http://13.205.34.169",
 ]
 
 CORS_ALLOW_HEADERS = [

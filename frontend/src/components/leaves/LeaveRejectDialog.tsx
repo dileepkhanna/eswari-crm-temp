@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -36,6 +37,9 @@ export default function LeaveRejectDialog({ open, onClose, onReject, employeeNam
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Reject Leave Request</DialogTitle>
+          <DialogDescription>
+            Provide an optional reason for rejecting this leave request.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">

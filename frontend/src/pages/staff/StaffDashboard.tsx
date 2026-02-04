@@ -10,7 +10,7 @@ import LeaveStatsWidget from '@/components/dashboard/LeaveStatsWidget';
 import QuickSettingsWidget from '@/components/staff/QuickSettingsWidget';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
-import { ClipboardList, CheckSquare, CalendarOff, Bell, Target } from 'lucide-react';
+import { ClipboardList, CheckSquare, CalendarOff, Bell, Target, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import LeadStatusChip from '@/components/leads/LeadStatusChip';
 import TaskStatusChip from '@/components/tasks/TaskStatusChip';
@@ -18,30 +18,15 @@ import TaskStatusChip from '@/components/tasks/TaskStatusChip';
 export default function StaffDashboard() {
   const { user } = useAuth();
   const { leads, tasks, announcements } = useData();
-  const [pendingLeaves, setPendingLeaves] = useState(0);
-  
-  useEffect(() => {
-    const fetchPendingLeaves = async () => {
-      if (!user) return;
-      
-      // TODO: Implement leaves API in Django backend
-      // const { data } = await supabase
-      //   .from('leaves')
-      //   .select('id')
-      //   .eq('status', 'pending')
-      //   .eq('user_id', user.id);
-      
-      setPendingLeaves(0); // Placeholder until leaves API is implemented
-    };
 
-    fetchPendingLeaves();
-  }, [user]);
+  // Filter data for current user
+  const myLeads = leads.filter(lead => lead.assignedTo === user?.id || lead.createdBy === user?.id);
+  const myTasks = tasks.filter(task => task.assignedTo === user?.id);
   
-  // Filter data for current staff - show all data visible to staff
-  const myLeads = leads.filter(l => l.createdBy === user?.id);
-  const myTasks = tasks.filter(t => t.assignedTo === user?.id);
+  // Calculate stats
   const activeTasks = myTasks.filter(t => t.status !== 'completed').length;
   const reminders = myLeads.filter(l => l.status === 'new' && l.followUpDate && new Date(l.followUpDate) <= new Date()).length;
+  const pendingLeaves = 0; // TODO: Implement leave counting
 
   return (
     <div className="min-h-screen">
@@ -50,6 +35,20 @@ export default function StaffDashboard() {
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Announcements */}
         <AnnouncementBanner userRole="employee" />
+        
+        {/* Manager Information */}
+        {user?.manager_name && (
+          <div className="glass-card rounded-2xl p-4 md:p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-primary" />
+              Reporting Manager
+            </h3>
+            <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+              {user.manager_name}
+            </span>
+          </div>
+        )}
+        
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -94,20 +93,14 @@ export default function StaffDashboard() {
           />
         </div>
 
-        {/* Reminders Section - Prominent for Employees */}
+        {/* Reminders Section */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
-          {/* Employee Reminders Widget - Full width on mobile, half on desktop */}
           <EmployeeRemindersWidget />
-          
-          {/* Leave Statistics Widget */}
           <LeaveStatsWidget />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
-          {/* Leads by Status Chart - Interactive */}
           <LeadStatusChart leads={myLeads} title="My Leads by Status" />
-
-          {/* Tasks by Status Chart - Interactive */}
           <TaskStatusChart tasks={myTasks} title="My Tasks by Status" />
         </div>
 
@@ -186,7 +179,7 @@ export default function StaffDashboard() {
             )}
           </div>
 
-          {/* Leave Stats Widget */}
+          {/* Quick Settings Widget */}
           <QuickSettingsWidget />
         </div>
       </div>

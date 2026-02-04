@@ -294,11 +294,35 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const response = await apiClient.updateAppSettings(updates);
       
       if (response && response.settings) {
-        setSettings(response.settings);
-        applySettings(response.settings);
+        // If logo_url is being updated, add a timestamp to force cache refresh
+        const updatedSettings = { ...response.settings };
+        if (updates.logo_url && updatedSettings.logo_url) {
+          // Add timestamp to force browser cache refresh
+          const separator = updatedSettings.logo_url.includes('?') ? '&' : '?';
+          updatedSettings.logo_url = `${updatedSettings.logo_url}${separator}t=${Date.now()}`;
+        }
+        
+        setSettings(updatedSettings);
+        applySettings(updatedSettings);
         
         // Also save to localStorage as backup
-        localStorage.setItem('appSettings', JSON.stringify(response.settings));
+        localStorage.setItem('appSettings', JSON.stringify(updatedSettings));
+        
+        // Force a complete refresh of all logo images in the DOM
+        if (updates.logo_url) {
+          setTimeout(() => {
+            const logoImages = document.querySelectorAll('img[src*="logo"]');
+            logoImages.forEach((img) => {
+              const imgElement = img as HTMLImageElement;
+              const originalSrc = imgElement.src;
+              // Force reload by changing src temporarily
+              imgElement.src = '';
+              setTimeout(() => {
+                imgElement.src = originalSrc;
+              }, 10);
+            });
+          }, 100);
+        }
       } else {
         throw new Error('Invalid response from server');
       }
@@ -321,7 +345,22 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const refreshSettings = async () => {
+    console.log('🔄 Refreshing app settings...');
+    setIsLoading(true);
     await fetchSettings();
+    
+    // Force refresh all logo images after settings refresh
+    setTimeout(() => {
+      const logoImages = document.querySelectorAll('img[alt*="logo"], img[src*="logo"], img[src*="branding"]');
+      logoImages.forEach((img) => {
+        const imgElement = img as HTMLImageElement;
+        const originalSrc = imgElement.src;
+        // Add cache-busting parameter
+        const separator = originalSrc.includes('?') ? '&' : '?';
+        imgElement.src = `${originalSrc}${separator}refresh=${Date.now()}`;
+      });
+      console.log('🔄 Forced refresh of', logoImages.length, 'logo images');
+    }, 100);
   };
 
   useEffect(() => {

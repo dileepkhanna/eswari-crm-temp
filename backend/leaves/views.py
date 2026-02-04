@@ -17,17 +17,20 @@ class LeaveViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        """Filter leaves based on user role"""
+        """Filter leaves based on user role and manager-employee hierarchy"""
         user = self.request.user
         
         if user.role == 'admin':
             # Admins can see all leaves
             return Leave.objects.all()
         elif user.role == 'manager':
-            # Managers can see leaves from employees AND their own leaves
-            return Leave.objects.filter(
-                models.Q(user__role='employee') | models.Q(user=user)
-            )
+            # Managers can only see leaves from their assigned employees + their own leaves
+            # Get all employees assigned to this manager
+            assigned_employees = user.employees.all()  # Using the related_name from User model
+            employee_ids = [emp.id for emp in assigned_employees]
+            employee_ids.append(user.id)  # Include manager's own leaves
+            
+            return Leave.objects.filter(user__id__in=employee_ids)
         else:
             # Employees can only see their own leaves
             return Leave.objects.filter(user=user)
@@ -48,6 +51,17 @@ class LeaveViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
+        # Managers can only approve leaves from their assigned employees
+        if request.user.role == 'manager':
+            assigned_employees = request.user.employees.all()
+            employee_ids = [emp.id for emp in assigned_employees]
+            
+            if leave.user.id not in employee_ids:
+                return Response(
+                    {'error': 'You can only approve leaves from your assigned employees'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
         leave.status = 'approved'
         leave.approved_by = request.user
         leave.save()
@@ -66,6 +80,17 @@ class LeaveViewSet(viewsets.ModelViewSet):
                 {'error': 'You do not have permission to reject leaves'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
+        
+        # Managers can only reject leaves from their assigned employees
+        if request.user.role == 'manager':
+            assigned_employees = request.user.employees.all()
+            employee_ids = [emp.id for emp in assigned_employees]
+            
+            if leave.user.id not in employee_ids:
+                return Response(
+                    {'error': 'You can only reject leaves from your assigned employees'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
         
         rejection_reason = request.data.get('rejection_reason', '')
         
@@ -97,9 +122,17 @@ class LeaveViewSet(viewsets.ModelViewSet):
             # Admin can delete any leave
             if request.user.role == 'admin':
                 continue
-            # Manager can delete staff leaves
-            elif request.user.role == 'manager' and leave.user.role == 'employee':
-                continue
+            # Manager can delete leaves from their assigned employees
+            elif request.user.role == 'manager':
+                assigned_employees = request.user.employees.all()
+                employee_ids = [emp.id for emp in assigned_employees]
+                employee_ids.append(request.user.id)  # Include manager's own leaves
+                
+                if leave.user.id not in employee_ids:
+                    return Response(
+                        {'error': f'You can only delete leaves from your assigned employees'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
             # Staff can only delete their own pending leaves
             elif (request.user.role == 'employee' and 
                   leave.user == request.user and 

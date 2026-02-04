@@ -95,7 +95,11 @@ const apiToProject = (apiProject: any): Project => {
     priceMax: Number(apiProject.priceMax || apiProject.budget) || 0,
     launchDate: parseDate(apiProject.launchDate || apiProject.start_date),
     possessionDate: parseDate(apiProject.possessionDate || apiProject.end_date || apiProject.launchDate || apiProject.start_date),
-    amenities: Array.isArray(apiProject.amenities) ? apiProject.amenities : [],
+    amenities: Array.isArray(apiProject.amenities) 
+      ? apiProject.amenities 
+      : typeof apiProject.amenities === 'string' 
+        ? apiProject.amenities.split(',').map(a => a.trim()).filter(a => a.length > 0)
+        : [],
     description: apiProject.description || '',
     towerDetails: apiProject.towerDetails || '',
     nearbyLandmarks: Array.isArray(apiProject.nearbyLandmarks) ? apiProject.nearbyLandmarks : [],
@@ -149,7 +153,13 @@ const apiToTask = (apiTask: any): Task => ({
   },
   status: apiTask.status,
   nextActionDate: apiTask.due_date ? new Date(apiTask.due_date) : undefined,
-  notes: [],
+  // Map backend description to notes array
+  notes: apiTask.description ? [{
+    id: '1',
+    content: apiTask.description,
+    createdBy: apiTask.created_by?.toString() || 'system',
+    createdAt: new Date(apiTask.updated_at || apiTask.created_at),
+  }] : [],
   attachments: [],
   assignedTo: apiTask.assigned_to_detail?.id?.toString() || apiTask.assigned_to?.toString() || '',
   assignedProject: apiTask.project_detail?.id?.toString() || apiTask.project?.toString() || '',
@@ -204,8 +214,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      const response = await apiClient.getProjects();
-      const projectsList = response.results ? response.results.map(apiToProject) : [];
+      // Fetch all pages of projects
+      let allProjects: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await apiClient.getProjects({ page });
+        const pageResults = response.results || [];
+        allProjects = allProjects.concat(pageResults);
+        
+        // Check if there are more pages
+        hasMore = !!response.next;
+        page++;
+        
+        // Safety check to prevent infinite loops
+        if (page > 50) {
+          console.warn('Reached maximum page limit (50) while fetching projects');
+          break;
+        }
+      }
+      
+      console.log(`Fetched ${allProjects.length} projects across ${page - 1} pages`);
+      const projectsList = allProjects.map(apiToProject);
       setProjects(projectsList);
       return projectsList;
     } catch (error: any) {
@@ -238,19 +269,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     console.log('🔄 Fetching leads from API...');
     console.trace('📍 fetchLeads called from:'); // This will show the call stack
     try {
-      const response = await apiClient.getLeads();
-      // Handle both paginated (response.results) and non-paginated (direct array) responses
-      let leadsList: Lead[];
-      if (Array.isArray(response)) {
-        // Non-paginated response (direct array)
-        leadsList = response.map(apiToLead);
-      } else if (response.results) {
-        // Paginated response
-        leadsList = response.results.map(apiToLead);
-      } else {
-        leadsList = [];
+      // Fetch all pages of leads
+      let allLeads: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await apiClient.getLeads({ page });
+        
+        // Handle both paginated and non-paginated responses
+        if (Array.isArray(response)) {
+          // Non-paginated response (direct array)
+          allLeads = response;
+          hasMore = false;
+        } else if (response.results) {
+          // Paginated response
+          const pageResults = response.results || [];
+          allLeads = allLeads.concat(pageResults);
+          hasMore = !!response.next;
+          page++;
+        } else {
+          hasMore = false;
+        }
+        
+        // Safety check to prevent infinite loops
+        if (page > 50) {
+          console.warn('Reached maximum page limit (50) while fetching leads');
+          break;
+        }
       }
-      console.log('📥 Fetched leads from API:', leadsList.length, 'leads');
+      
+      console.log(`📥 Fetched ${allLeads.length} leads across ${page - 1} pages`);
+      const leadsList = allLeads.map(apiToLead);
       setLeads(leadsList);
       return leadsList;
     } catch (error: any) {
@@ -275,8 +325,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      const response = await apiClient.getTasks();
-      const tasksList = response.results ? response.results.map(apiToTask) : [];
+      // Fetch all pages of tasks
+      let allTasks: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await apiClient.getTasks({ page });
+        const pageResults = response.results || [];
+        allTasks = allTasks.concat(pageResults);
+        
+        // Check if there are more pages
+        hasMore = !!response.next;
+        page++;
+        
+        // Safety check to prevent infinite loops
+        if (page > 50) {
+          console.warn('Reached maximum page limit (50) while fetching tasks');
+          break;
+        }
+      }
+      
+      console.log(`Fetched ${allTasks.length} tasks across ${page - 1} pages`);
+      const tasksList = allTasks.map(apiToTask);
       setTasks(tasksList);
       return tasksList;
     } catch (error: any) {
@@ -749,6 +820,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const updateData: any = {};
       if (data.status !== undefined) updateData.status = data.status;
       if (data.nextActionDate !== undefined) updateData.due_date = data.nextActionDate?.toISOString();
+      if (data.assignedProject !== undefined) {
+        // Map assignedProject to project field in backend
+        updateData.project = data.assignedProject ? parseInt(data.assignedProject) : null;
+      }
+      if (data.title !== undefined) updateData.title = data.title;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.priority !== undefined) updateData.priority = data.priority;
+      if (data.assignedTo !== undefined) updateData.assigned_to = data.assignedTo;
+      
+      // Handle notes - map to description field in backend
+      if (data.notes !== undefined && data.notes.length > 0) {
+        // Get the latest note content and use it as description
+        const latestNote = data.notes[data.notes.length - 1];
+        updateData.description = latestNote.content;
+      }
 
       await apiClient.updateTask(parseInt(id), updateData);
       
@@ -832,7 +918,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         launchDate: project.launchDate.toISOString().split('T')[0],
         possessionDate: project.possessionDate?.toISOString().split('T')[0],
         towerDetails: project.towerDetails || '',
-        amenities: project.amenities || [],
+        amenities: Array.isArray(project.amenities) 
+          ? project.amenities 
+          : (project.amenities ? [project.amenities] : []),
         nearbyLandmarks: project.nearbyLandmarks || [],
         coverImage: project.coverImage && isValidUrl(project.coverImage) ? project.coverImage : '',
         blueprintImage: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
@@ -869,7 +957,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.launchDate !== undefined) updateData.launchDate = data.launchDate.toISOString().split('T')[0];
       if (data.possessionDate !== undefined) updateData.possessionDate = data.possessionDate.toISOString().split('T')[0];
       if (data.towerDetails !== undefined) updateData.towerDetails = data.towerDetails;
-      if (data.amenities !== undefined) updateData.amenities = data.amenities;
+      if (data.amenities !== undefined) {
+        updateData.amenities = Array.isArray(data.amenities) 
+          ? data.amenities 
+          : (data.amenities ? [data.amenities] : []);
+      }
       if (data.nearbyLandmarks !== undefined) updateData.nearbyLandmarks = data.nearbyLandmarks;
       if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
       if (data.blueprintImage !== undefined) updateData.blueprintImage = data.blueprintImage;

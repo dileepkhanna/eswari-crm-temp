@@ -4,6 +4,7 @@ import { canViewCustomerPhone } from '@/lib/permissions';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -83,6 +84,9 @@ export default function TaskDetailsModal({
               </Button>
             )}
           </div>
+          <DialogDescription>
+            View detailed information about this task including lead contact details, requirements, and task notes.
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
@@ -147,40 +151,36 @@ export default function TaskDetailsModal({
                 {canViewPhone && (
                   <>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Phone className="w-5 h-5 text-primary" />
+                      <Phone className="w-5 h-5 text-primary shrink-0" />
                       <div className="flex-1">
                         <p className="text-xs text-muted-foreground">Phone Number</p>
-                        <p className="font-medium text-lg">{task.lead?.phone || '-'}</p>
+                        {task.lead?.phone ? (
+                          <a
+                            href={`tel:${task.lead.phone}`}
+                            className="font-medium text-lg text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          >
+                            {task.lead.phone}
+                          </a>
+                        ) : (
+                          <p className="font-medium text-lg">-</p>
+                        )}
                       </div>
-                      {task.lead?.phone && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`tel:${task.lead.phone}`, '_self')}
-                          className="shrink-0"
-                        >
-                          <Phone className="w-4 h-4 mr-1" />
-                          Call
-                        </Button>
-                      )}
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Mail className="w-5 h-5 text-primary" />
+                      <Mail className="w-5 h-5 text-primary shrink-0" />
                       <div className="flex-1">
                         <p className="text-xs text-muted-foreground">Email Address</p>
-                        <p className="font-medium">{task.lead?.email || 'Not provided'}</p>
+                        {task.lead?.email ? (
+                          <a
+                            href={`mailto:${task.lead.email}`}
+                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer break-all"
+                          >
+                            {task.lead.email}
+                          </a>
+                        ) : (
+                          <p className="font-medium break-all">Not provided</p>
+                        )}
                       </div>
-                      {task.lead?.email && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`mailto:${task.lead.email}`, '_self')}
-                          className="shrink-0"
-                        >
-                          <Mail className="w-4 h-4 mr-1" />
-                          Email
-                        </Button>
-                      )}
                     </div>
                     {task.lead?.source && (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -256,7 +256,7 @@ export default function TaskDetailsModal({
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                   <Calendar className="w-4 h-4 text-primary" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Next Action Date</p>
+                    <p className="text-xs text-muted-foreground">Visit Date</p>
                     <p className="font-medium">
                       {task.nextActionDate ? format(new Date(task.nextActionDate), 'MMM dd, yyyy') : '-'}
                     </p>

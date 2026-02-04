@@ -180,11 +180,11 @@ export default function ProjectList({ canCreate = false, canEdit = false, canDel
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="planning">Planning</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="on_hold">On Hold</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="pre_launch">Pre Launch</SelectItem>
+                <SelectItem value="launch">Launch</SelectItem>
+                <SelectItem value="under_construction">Under Construction</SelectItem>
+                <SelectItem value="mid_stage">Mid Stage</SelectItem>
+                <SelectItem value="ready_to_go">Ready to Go</SelectItem>
               </SelectContent>
             </Select>
 

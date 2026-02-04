@@ -34,6 +34,7 @@ import {
   Edit,
   Trash2,
   CheckSquare,
+  Users,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -76,7 +77,7 @@ export default function LeadList({
   employees = [],
 }: LeadListProps) {
   const { user } = useAuth();
-  const { leads, projects, addLead, updateLead, deleteLead, bulkDeleteLeads, addTask } = useData();
+  const { leads, projects, tasks, addLead, updateLead, deleteLead, bulkDeleteLeads, addTask } = useData();
 
   // Check if user can delete leads and tasks
   const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
@@ -89,6 +90,8 @@ export default function LeadList({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [userFilter, setUserFilter] = useState<string>("all");
+  const [taskFilter, setTaskFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -110,6 +113,21 @@ export default function LeadList({
         (lead.assignedProjects && lead.assignedProjects.includes(projectFilter)) ||
         lead.assignedProject === projectFilter;
 
+      // User filter - filter by created by or assigned to
+      const matchesUser = userFilter === "all" || 
+        lead.createdBy === userFilter || 
+        lead.assignedTo === userFilter;
+
+      // Task filter - filter by whether lead has been converted to task
+      let matchesTask = true;
+      if (taskFilter === "converted") {
+        // Check if this lead has been converted to a task
+        matchesTask = tasks.some(task => task.leadId === lead.id);
+      } else if (taskFilter === "not_converted") {
+        // Check if this lead has NOT been converted to a task
+        matchesTask = !tasks.some(task => task.leadId === lead.id);
+      }
+
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
         matchesDate = isWithinInterval(new Date(lead.createdAt), {
@@ -120,9 +138,9 @@ export default function LeadList({
         matchesDate = new Date(lead.createdAt) >= startOfDay(dateRange.from);
       }
 
-      return matchesSearch && matchesStatus && matchesProject && matchesDate;
+      return matchesSearch && matchesStatus && matchesProject && matchesUser && matchesTask && matchesDate;
     });
-  }, [leads, searchQuery, statusFilter, projectFilter, dateRange]);
+  }, [leads, searchQuery, statusFilter, projectFilter, userFilter, taskFilter, dateRange, tasks]);
 
   // Check if user can see any phone numbers (for table headers)
   const canSeeAnyPhoneNumbers = useMemo(() => {
@@ -303,7 +321,7 @@ export default function LeadList({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
@@ -330,6 +348,31 @@ export default function LeadList({
                     {project.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={userFilter} onValueChange={setUserFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="User" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={taskFilter} onValueChange={setTaskFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Task Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Leads</SelectItem>
+                <SelectItem value="converted">Converted to Task</SelectItem>
+                <SelectItem value="not_converted">Not Converted</SelectItem>
               </SelectContent>
             </Select>
 

@@ -14,6 +14,7 @@ const statusMap: Record<string, LeadStatus> = {
   'Hot': 'hot',
   'Warm': 'warm',
   'Cold': 'cold',
+  'New': 'new',
   'Not Interested': 'not_interested',
   'Reminder': 'reminder',
 };
@@ -22,9 +23,9 @@ const statusIcons: Record<string, React.ElementType> = {
   'Hot': TrendingUp,
   'Warm': Phone,
   'Cold': Clock,
+  'New': Bell,
   'Not Interested': ThumbsDown,
   'Reminder': Bell,
-  'Lost': ThumbsDown,
 };
 
 export default function LeadStatusChart({ leads, title = "Leads by Status" }: LeadStatusChartProps) {
@@ -32,9 +33,10 @@ export default function LeadStatusChart({ leads, title = "Leads by Status" }: Le
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const leadsByStatus = [
-    { name: 'Hot', value: leads.filter(l => l.status === 'hot').length, color: 'hsl(0, 84%, 60%)', gradient: 'from-red-500 to-rose-600', status: 'hot' },
+    { name: 'Hot', value: leads.filter(l => l.status === 'hot').length, color: 'hsl(152, 69%, 31%)', gradient: 'from-emerald-500 to-teal-600', status: 'hot' },
     { name: 'Warm', value: leads.filter(l => l.status === 'warm').length, color: 'hsl(45, 93%, 47%)', gradient: 'from-amber-400 to-orange-500', status: 'warm' },
     { name: 'Cold', value: leads.filter(l => l.status === 'cold').length, color: 'hsl(217, 91%, 60%)', gradient: 'from-blue-500 to-indigo-600', status: 'cold' },
+    { name: 'New', value: leads.filter(l => l.status === 'new').length, color: 'hsl(271, 81%, 56%)', gradient: 'from-purple-500 to-violet-600', status: 'new' },
     { name: 'Not Interested', value: leads.filter(l => l.status === 'not_interested').length, color: 'hsl(220, 9%, 46%)', gradient: 'from-gray-500 to-slate-600', status: 'not_interested' },
     { name: 'Reminder', value: leads.filter(l => l.status === 'reminder').length, color: 'hsl(271, 81%, 56%)', gradient: 'from-purple-500 to-violet-600', status: 'reminder' },
   ].filter(item => item.value > 0);
@@ -95,50 +97,77 @@ export default function LeadStatusChart({ leads, title = "Leads by Status" }: Le
       </div>
 
       <div className="h-56 relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={leadsByStatus}
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={3}
-              dataKey="value"
-              onClick={handleClick}
-              className="cursor-pointer focus:outline-none"
-              stroke="hsl(var(--background))"
-              strokeWidth={2}
-            >
-              {leadsByStatus.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={entry.color}
-                  className="cursor-pointer transition-all duration-300 hover:opacity-80"
-                  style={{
-                    filter: activeIndex === index ? 'drop-shadow(0 0 8px ' + entry.color + ')' : 'none',
-                    transform: activeIndex === index ? 'scale(1.05)' : 'scale(1)',
-                    transformOrigin: 'center',
-                  }}
-                />
-              ))}
-            </Pie>
-            <Tooltip 
-              content={<CustomTooltip />} 
-              wrapperStyle={{ zIndex: 100 }}
-              position={{ x: 0, y: 0 }}
-              offset={20}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        
-        {/* Center label */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-foreground">{totalLeads}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
+        {leadsByStatus.length === 0 ? (
+          // No leads case
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No leads data available</p>
+            </div>
           </div>
-        </div>
+        ) : leadsByStatus.length === 1 ? (
+          // Single status case - show a simple circle
+          <div className="flex items-center justify-center h-full">
+            <div className="relative">
+              <div 
+                className={`w-32 h-32 rounded-full bg-gradient-to-br ${leadsByStatus[0].gradient} flex items-center justify-center shadow-lg`}
+              >
+                <div className="text-center text-white">
+                  <p className="text-2xl font-bold">{leadsByStatus[0].value}</p>
+                  <p className="text-xs opacity-90">{leadsByStatus[0].name}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Multiple statuses - show pie chart
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={leadsByStatus}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={3}
+                dataKey="value"
+                onClick={handleClick}
+                className="cursor-pointer focus:outline-none"
+                stroke="hsl(var(--background))"
+                strokeWidth={2}
+              >
+                {leadsByStatus.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.color}
+                    className="cursor-pointer transition-all duration-300 hover:opacity-80"
+                    style={{
+                      filter: activeIndex === index ? 'drop-shadow(0 0 8px ' + entry.color + ')' : 'none',
+                      transform: activeIndex === index ? 'scale(1.05)' : 'scale(1)',
+                      transformOrigin: 'center',
+                    }}
+                  />
+                ))}
+              </Pie>
+              <Tooltip 
+                content={<CustomTooltip />} 
+                wrapperStyle={{ zIndex: 100 }}
+                position={{ x: 0, y: 0 }}
+                offset={20}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+        
+        {/* Center label - only show for pie chart */}
+        {leadsByStatus.length > 1 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-foreground">{totalLeads}</p>
+              <p className="text-xs text-muted-foreground">Total</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Legend with icons */}

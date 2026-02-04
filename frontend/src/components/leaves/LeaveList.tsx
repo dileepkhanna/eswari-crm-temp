@@ -748,9 +748,30 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
-                    {leave.reason}
-                  </p>
+                  {leave.reason ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-primary hover:text-primary h-8 px-3"
+                        >
+                          <FileText className="w-4 h-4 mr-1" />
+                          View Reason
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-4" align="start">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Leave Reason</h4>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {leave.reason}
+                          </p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No reason provided</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {leave.document_url && canViewDocument(leave) ? (

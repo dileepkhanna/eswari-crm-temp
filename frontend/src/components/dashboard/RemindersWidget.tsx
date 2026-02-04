@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useData } from '@/contexts/DataContextDjango';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { canViewCustomerPhone, maskPhoneNumber, maskEmail } from '@/lib/permissions';
 import { format, isToday, isTomorrow, isWithinInterval, addDays } from 'date-fns';
 import { Bell, Calendar, Phone, Mail, MapPin, Clock, ArrowRight } from 'lucide-react';
 import { Lead } from '@/types';
@@ -65,42 +66,52 @@ export default function RemindersWidget() {
     return 'text-gray-600 bg-gray-50 border-gray-200';
   };
 
-  const ReminderCard = ({ reminder }: { reminder: ReminderItem }) => (
-    <div className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-      <div className={`text-center min-w-[60px] px-2 py-1 rounded-md text-xs font-medium border ${getDateColor(reminder)}`}>
-        {getDateLabel(reminder)}
-      </div>
-      
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-medium truncate">{reminder.lead.name}</h4>
-          <Badge variant="outline" className="text-xs">
-            {reminder.lead.status}
-          </Badge>
+  const ReminderCard = ({ reminder }: { reminder: ReminderItem }) => {
+    // Check if current user can view contact details for this lead
+    // Managers can only see contact details for leads they created themselves, not employee leads
+    const canViewPhone = user ? canViewCustomerPhone(user.role, user.id, reminder.lead.createdBy) : false;
+    
+    return (
+      <div className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+        <div className={`text-center min-w-[60px] px-2 py-1 rounded-md text-xs font-medium border ${getDateColor(reminder)}`}>
+          {getDateLabel(reminder)}
         </div>
         
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {reminder.lead.phone && (
-            <div className="flex items-center gap-1">
-              <Phone className="w-3 h-3" />
-              <span>{reminder.lead.phone}</span>
-            </div>
-          )}
-          {reminder.lead.email && (
-            <div className="flex items-center gap-1">
-              <Mail className="w-3 h-3" />
-              <span className="truncate">{reminder.lead.email}</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-          <Clock className="w-3 h-3" />
-          <span>{format(reminder.date, 'h:mm a')}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-medium truncate">{reminder.lead.name}</h4>
+            <Badge variant="outline" className="text-xs">
+              {reminder.lead.status}
+            </Badge>
+          </div>
+          
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {reminder.lead.phone && (
+              <div className="flex items-center gap-1">
+                <Phone className="w-3 h-3" />
+                <span>
+                  {canViewPhone ? reminder.lead.phone : maskPhoneNumber(reminder.lead.phone)}
+                </span>
+              </div>
+            )}
+            {reminder.lead.email && (
+              <div className="flex items-center gap-1">
+                <Mail className="w-3 h-3" />
+                <span className="truncate">
+                  {canViewPhone ? reminder.lead.email : maskEmail(reminder.lead.email)}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>{format(reminder.date, 'h:mm a')}</span>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (reminders.length === 0) {
     return (

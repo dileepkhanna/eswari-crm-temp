@@ -20,7 +20,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         """
         Role-based lead filtering:
         - Admin: Can see all leads
-        - Manager: Can see all leads (their own + employee leads, but with restricted contact access for employee leads)
+        - Manager: Can only see leads from their assigned employees + their own leads
         - Employee: Can only see leads specifically assigned to them
         """
         user = self.request.user
@@ -29,8 +29,16 @@ class LeadViewSet(viewsets.ModelViewSet):
             # Admin can see all leads
             return Lead.objects.all()
         elif user.role == 'manager':
-            # Manager can see all leads (both their own and employee leads)
-            return Lead.objects.all()
+            # Manager can only see leads from their assigned employees + their own leads
+            # Get all employees assigned to this manager
+            assigned_employees = user.employees.all()  # Using the related_name from User model
+            employee_ids = [emp.id for emp in assigned_employees]
+            employee_ids.append(user.id)  # Include manager's own leads
+            
+            return Lead.objects.filter(
+                models.Q(assigned_to__id__in=employee_ids) | 
+                models.Q(created_by__id__in=employee_ids)
+            )
         elif user.role == 'employee':
             # Employee can only see leads specifically assigned to them
             return Lead.objects.filter(assigned_to=user)

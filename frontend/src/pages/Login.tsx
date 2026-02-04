@@ -5,7 +5,7 @@ import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, User, Lock, Eye, EyeOff, ArrowRight, Mail } from "lucide-react";
+import { BuildingIcon, UserIcon, LockIcon, EyeIcon, EyeOffIcon, ArrowRightIcon, EmailIcon } from '@/components/icons';
 import { toast } from "sonner";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -128,13 +128,14 @@ export default function Login() {
           <div className="mb-8 animate-scale-in">
             {settings?.logo_url ? (
               <img
-                src={settings.logo_url}
+                src={`${settings.logo_url}?t=${Date.now()}`}
                 alt={appName}
                 className="w-48 h-48 object-contain drop-shadow-2xl"
+                key={settings.logo_url} // Force re-render when URL changes
               />
             ) : (
               <div className="w-48 h-48 rounded-3xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl">
-                <Building2 className="w-24 h-24" />
+                <BuildingIcon className="w-24 h-24" />
               </div>
             )}
           </div>
@@ -190,10 +191,15 @@ export default function Login() {
         <div className="w-full max-w-md animate-scale-in">
           <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
             {settings?.logo_url ? (
-              <img src={settings.logo_url} alt={appName} className="w-20 h-20 object-contain" />
+              <img 
+                src={`${settings.logo_url}?t=${Date.now()}`} 
+                alt={appName} 
+                className="w-20 h-20 object-contain" 
+                key={settings.logo_url} // Force re-render when URL changes
+              />
             ) : (
               <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-primary">
-                <Building2 className="w-8 h-8 text-primary-foreground" />
+                <BuildingIcon className="w-8 h-8 text-primary-foreground" />
               </div>
             )}
             <span className="text-2xl font-bold text-foreground">{appName}</span>
@@ -224,7 +230,7 @@ export default function Login() {
                   Email
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <EmailIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
@@ -245,7 +251,7 @@ export default function Login() {
                   User ID
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     id="userId"
                     type="text"
@@ -267,7 +273,7 @@ export default function Login() {
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -282,7 +288,7 @@ export default function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -296,7 +302,7 @@ export default function Login() {
               ) : (
                 <div className="flex items-center gap-2">
                   Sign In
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRightIcon className="w-5 h-5" />
                 </div>
               )}
             </Button>

@@ -58,6 +58,7 @@ const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
+  managerId: z.string().optional(),
   newPassword: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^(?=.*[a-zA-Z])/, 'Password must contain at least one letter')
@@ -74,6 +75,8 @@ interface EditUser {
   name: string;
   phone: string | null;
   address: string | null;
+  role?: string;
+  manager_id?: string | null;
 }
 
 interface UserFormModalProps {
@@ -92,6 +95,7 @@ interface UserFormModalProps {
     name: string;
     phone: string;
     address: string;
+    managerId?: string;
     newPassword?: string;
   }) => Promise<{ success: boolean }>;
   managers?: { id: string; name: string }[];
@@ -132,6 +136,7 @@ export default function UserFormModal({
       name: '',
       phone: '',
       address: '',
+      managerId: 'none',
       newPassword: '',
     },
   });
@@ -151,6 +156,7 @@ export default function UserFormModal({
           name: editUser.name,
           phone: editUser.phone || '',
           address: editUser.address || '',
+          managerId: editUser.manager_id || 'none',
           newPassword: '',
         });
       } else {
@@ -192,6 +198,7 @@ export default function UserFormModal({
       name: data.name,
       phone: data.phone,
       address: data.address || '',
+      managerId: data.managerId === 'none' ? undefined : data.managerId,
       newPassword: data.newPassword || undefined,
     });
 
@@ -296,6 +303,11 @@ export default function UserFormModal({
                   <p className="font-mono text-sm mt-1">{editUser.user_id}</p>
                 </div>
 
+                <div className="p-3 rounded-lg bg-muted">
+                  <label className="text-xs font-medium text-muted-foreground">Role</label>
+                  <p className="text-sm mt-1 capitalize font-medium">{editUser.role}</p>
+                </div>
+
                 <FormField
                   control={editForm.control}
                   name="name"
@@ -337,6 +349,37 @@ export default function UserFormModal({
                     </FormItem>
                   )}
                 />
+
+                {editUser.role === 'employee' && (
+                  <FormField
+                    control={editForm.control}
+                    name="managerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assign Manager</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select manager" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No Manager</SelectItem>
+                            {managers.map((manager) => (
+                              <SelectItem key={manager.id} value={manager.id}>
+                                {manager.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Assign this employee to a manager for proper hierarchy.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={editForm.control}

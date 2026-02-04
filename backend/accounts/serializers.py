@@ -7,11 +7,12 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     manager_name = serializers.SerializerMethodField()
     employees_count = serializers.SerializerMethodField()
+    employees_names = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'created_at']
-        read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'created_at']
+        read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count', 'employees_names']
     
     def get_manager_name(self, obj):
         """Get the manager's full name"""
@@ -24,6 +25,13 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role == 'manager':
             return obj.employees.count()
         return 0
+    
+    def get_employees_names(self, obj):
+        """Get list of employee names under this manager"""
+        if obj.role == 'manager':
+            employees = obj.employees.all()
+            return [f"{emp.first_name} {emp.last_name}".strip() or emp.username for emp in employees]
+        return []
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])

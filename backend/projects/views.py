@@ -14,13 +14,32 @@ from .models import Project
 from .serializers import ProjectSerializer
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Project.objects.all()
+    queryset = Project.objects.all()  # Keep this for the router
     serializer_class = ProjectSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'manager']
     search_fields = ['name', 'description']
     ordering_fields = ['created_at', 'start_date', 'end_date']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter projects based on user role and manager-employee hierarchy"""
+        user = self.request.user
+        
+        if user.role == 'admin':
+            # Admins can see all projects
+            return Project.objects.all()
+        elif user.role == 'manager':
+            # Managers can see all projects (projects are typically company-wide)
+            # But in future, you could filter by manager field if needed
+            return Project.objects.all()
+        elif user.role == 'employee':
+            # Employees can see all projects (projects are typically visible to all)
+            # But in future, you could filter by assigned projects if needed
+            return Project.objects.all()
+        else:
+            # Default: no access
+            return Project.objects.none()
 
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
     def upload_cover_image(self, request):
