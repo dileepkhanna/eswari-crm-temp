@@ -9,7 +9,8 @@ from .serializers import LeadSerializer
 
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
-    pagination_class = None  # Disable pagination to show all leads
+    # Enable pagination for better performance
+    # pagination_class = None  # Disable pagination to show all leads
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'source', 'assigned_to', 'requirement_type']
     search_fields = ['name', 'email', 'address', 'description']
@@ -18,16 +19,23 @@ class LeadViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        Role-based lead filtering:
+        Role-based lead filtering with optimized queries:
         - Admin: Can see all leads
         - Manager: Can only see leads from their assigned employees + their own leads
         - Employee: Can only see leads specifically assigned to them
         """
         user = self.request.user
         
+        # Base queryset with optimized joins
+        base_queryset = Lead.objects.select_related(
+            'assigned_to', 'created_by'
+        ).prefetch_related(
+            'assigned_to__employees'  # For manager queries
+        )
+        
         if user.role == 'admin':
             # Admin can see all leads
-            return Lead.objects.all()
+            return base_queryset.all()
         elif user.role == 'manager':
             # Manager can only see leads from their assigned employees + their own leads
             # Get all employees assigned to this manager
@@ -35,13 +43,13 @@ class LeadViewSet(viewsets.ModelViewSet):
             employee_ids = [emp.id for emp in assigned_employees]
             employee_ids.append(user.id)  # Include manager's own leads
             
-            return Lead.objects.filter(
+            return base_queryset.filter(
                 models.Q(assigned_to__id__in=employee_ids) | 
                 models.Q(created_by__id__in=employee_ids)
             )
         elif user.role == 'employee':
             # Employee can only see leads specifically assigned to them
-            return Lead.objects.filter(assigned_to=user)
+            return base_queryset.filter(assigned_to=user)
         else:
             # Default: no access
             return Lead.objects.none()

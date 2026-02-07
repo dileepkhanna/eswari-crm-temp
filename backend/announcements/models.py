@@ -20,6 +20,12 @@ class Announcement(models.Model):
     message = models.TextField()
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
     target_roles = models.JSONField(default=list)  # Store array of roles
+    assigned_employees = models.ManyToManyField(
+        User, 
+        blank=True, 
+        related_name='assigned_announcements',
+        help_text='Specific employees who can see this announcement. If empty, uses target_roles.'
+    )
     is_active = models.BooleanField(default=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='announcements')

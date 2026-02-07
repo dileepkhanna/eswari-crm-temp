@@ -22,9 +22,10 @@ interface TopBarProps {
   title: string;
   subtitle?: string;
   showBackButton?: boolean;
+  children?: React.ReactNode;
 }
 
-export default function TopBar({ title, subtitle, showBackButton = true }: TopBarProps) {
+export default function TopBar({ title, subtitle, showBackButton = true, children }: TopBarProps) {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
@@ -73,6 +74,12 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        {/* Action buttons (e.g., New Announcement) */}
+        {children && (
+          <div className="hidden sm:flex items-center gap-2">
+            {children}
+          </div>
+        )}
 
         {/* Bell Icon with Notifications Dropdown */}
         <Popover>

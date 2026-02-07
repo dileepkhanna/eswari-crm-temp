@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Announcement } from '@/types';
+import { useAuth } from '@/contexts/AuthContextDjango';
+import { apiClient } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -19,8 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Megaphone, Calendar } from 'lucide-react';
+import { Megaphone, Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface Employee {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+}
 
 interface AnnouncementFormModalProps {
   open: boolean;
@@ -33,6 +44,7 @@ export default function AnnouncementFormModal({
   onOpenChange,
   onSubmit,
 }: AnnouncementFormModalProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     message: '',
@@ -40,6 +52,29 @@ export default function AnnouncementFormModal({
     expiresAt: '',
   });
   const [targetRoles, setTargetRoles] = useState<('admin' | 'manager' | 'employee')[]>(['manager', 'employee']);
+  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<number[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+
+  // Load manager's employees when modal opens
+  useEffect(() => {
+    if (open && user?.role === 'manager') {
+      loadManagerEmployees();
+    }
+  }, [open, user]);
+
+  const loadManagerEmployees = async () => {
+    setLoadingEmployees(true);
+    try {
+      const employeesList = await apiClient.getManagerEmployees();
+      setEmployees(employeesList);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+      toast.error('Could not load your employees list');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,20 +89,27 @@ export default function AnnouncementFormModal({
       return;
     }
 
-    onSubmit({
+    const announcementData: any = {
       title: formData.title,
       message: formData.message,
       priority: formData.priority,
-      targetRoles,
-      expiresAt: formData.expiresAt ? new Date(formData.expiresAt) : undefined,
-      isActive: true,
-    });
+      target_roles: targetRoles,
+      expires_at: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : undefined,
+      is_active: true,
+    };
+
+    // Add assigned employees if manager selected any
+    if (user?.role === 'manager' && assignedEmployeeIds.length > 0) {
+      announcementData.assigned_employee_ids = assignedEmployeeIds;
+    }
+
+    onSubmit(announcementData);
 
     // Reset form
     setFormData({ title: '', message: '', priority: 'medium', expiresAt: '' });
     setTargetRoles(['manager', 'employee']);
+    setAssignedEmployeeIds([]);
     onOpenChange(false);
-    toast.success('Announcement created successfully!');
   };
 
   const toggleRole = (role: 'admin' | 'manager' | 'employee') => {
@@ -78,9 +120,24 @@ export default function AnnouncementFormModal({
     );
   };
 
+  const toggleEmployee = (employeeId: number) => {
+    setAssignedEmployeeIds(prev =>
+      prev.includes(employeeId)
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  const getEmployeeDisplayName = (employee: Employee) => {
+    if (employee.first_name || employee.last_name) {
+      return `${employee.first_name} ${employee.last_name}`.trim();
+    }
+    return employee.username;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Megaphone className="w-5 h-5 text-primary" />
@@ -185,6 +242,51 @@ export default function AnnouncementFormModal({
               </div>
             </div>
           </div>
+
+          {/* Assign to Specific Employees (Managers Only) */}
+          {user?.role === 'manager' && (
+            <div className="space-y-3">
+              <Label>Assign to Specific Employees (Optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Select specific employees to see this announcement. If none selected, all employees in target roles will see it.
+              </p>
+              {loadingEmployees ? (
+                <div className="flex items-center gap-2 p-4 border rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Loading employees...</span>
+                </div>
+              ) : employees.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                  {employees.map((employee) => (
+                    <div key={employee.id} className="flex items-start gap-2 p-2 hover:bg-accent/50 rounded">
+                      <Checkbox
+                        id={`employee-${employee.id}`}
+                        checked={assignedEmployeeIds.includes(employee.id)}
+                        onCheckedChange={() => toggleEmployee(employee.id)}
+                      />
+                      <label
+                        htmlFor={`employee-${employee.id}`}
+                        className="flex-1 cursor-pointer"
+                      >
+                        <div className="text-sm font-medium">
+                          {getEmployeeDisplayName(employee)}
+                        </div>
+                        {employee.email && (
+                          <div className="text-xs text-muted-foreground">
+                            {employee.email}
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 border rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">No employees assigned to you</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

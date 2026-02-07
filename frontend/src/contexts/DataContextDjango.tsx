@@ -380,6 +380,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         message: announcement.message,
         priority: announcement.priority as 'low' | 'medium' | 'high',
         targetRoles: announcement.target_roles,
+        assignedEmployeeIds: announcement.assigned_employee_ids || [],
+        assignedEmployeeDetails: announcement.assigned_employee_details || [],
+        createdByName: announcement.created_by_name,
         isActive: announcement.is_active,
         expiresAt: announcement.expires_at ? new Date(announcement.expires_at) : undefined,
         createdBy: announcement.created_by.toString(),
@@ -974,7 +977,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Announcement functions
   const addAnnouncement = useCallback(async (announcement: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => {
     try {
-      const announcementData = {
+      const announcementData: any = {
         title: announcement.title,
         message: announcement.message,
         priority: announcement.priority,
@@ -982,6 +985,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         is_active: announcement.isActive,
         expires_at: announcement.expiresAt?.toISOString() || null,
       };
+
+      // Add assigned employees if provided (for managers)
+      if (announcement.assignedEmployeeIds && announcement.assignedEmployeeIds.length > 0) {
+        announcementData.assigned_employee_ids = announcement.assignedEmployeeIds;
+      }
       
       const response = await apiClient.createAnnouncement(announcementData);
       
@@ -992,6 +1000,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         message: response.message,
         priority: response.priority,
         targetRoles: response.target_roles,
+        assignedEmployeeIds: response.assigned_employee_ids || [],
+        assignedEmployeeDetails: response.assigned_employee_details || [],
+        createdByName: response.created_by_name,
         isActive: response.is_active,
         expiresAt: response.expires_at ? new Date(response.expires_at) : undefined,
         createdBy: response.created_by.toString(),

@@ -10,6 +10,7 @@ class Task(models.Model):
         ('in_progress', 'In Progress'),
         ('site_visit', 'Site Visit'),
         ('family_visit', 'Family Visit'),
+        ('perfect_family_visit', 'Perfect Family Visit'),
         ('completed', 'Completed'),
         ('rejected', 'Rejected'),
     ]

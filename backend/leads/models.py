@@ -68,6 +68,17 @@ class Lead(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['phone']),
+            models.Index(fields=['email']),
+            models.Index(fields=['status']),
+            models.Index(fields=['source']),
+            models.Index(fields=['assigned_to']),
+            models.Index(fields=['created_by']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['follow_up_date']),
+            models.Index(fields=['status', 'assigned_to']),  # Composite index for common queries
+        ]
 
     def __str__(self):
         return f"{self.name} - {self.get_status_display()}"

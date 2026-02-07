@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Megaphone, Trash2, Users, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Megaphone, Trash2, Users, Clock, AlertTriangle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -139,6 +139,12 @@ export default function AnnouncementList({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                      {announcement.createdByName && (
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5" />
+                          <span>By: {announcement.createdByName}</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5" />
                         <span>

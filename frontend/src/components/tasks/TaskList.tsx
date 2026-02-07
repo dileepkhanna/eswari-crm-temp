@@ -262,6 +262,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="site_visit">Site Visit</SelectItem>
                 <SelectItem value="family_visit">Family Visit</SelectItem>
+                <SelectItem value="perfect_family_visit">Perfect Family Visit</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
@@ -509,6 +510,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                         <SelectItem value="in_progress">In Progress</SelectItem>
                         <SelectItem value="site_visit">Site Visit</SelectItem>
                         <SelectItem value="family_visit">Family Visit</SelectItem>
+                        {user?.role === 'admin' && (
+                          <SelectItem value="perfect_family_visit">Perfect Family Visit</SelectItem>
+                        )}
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
                       </SelectContent>

@@ -5,13 +5,17 @@ const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || import.meta.env.VI
 export const getMediaUrl = (path: string): string => {
   if (!path) return '';
   
-  // If it's already a full URL with the wrong port (8001), fix it to use the correct port (8080)
+  // If it's already a full URL, fix any wrong ports
   if (path.startsWith('http://') || path.startsWith('https://')) {
-    // Check if it's using the Django port (8001) and convert to nginx port (8080)
+    // Check if it's using the Django port (8001) and convert to current port
     if (path.includes(':8001/media/')) {
-      return path.replace(':8001/media/', ':8080/media/');
+      return path.replace(':8001/media/', '/media/').replace('http://13.205.34.169', MEDIA_BASE_URL);
     }
-    // If it's already using the correct port or a different domain, return as is
+    // Check if it's using the old nginx port (8080) and convert to current port (80)
+    if (path.includes(':8080/media/')) {
+      return path.replace(':8080/media/', '/media/').replace('http://13.205.34.169', MEDIA_BASE_URL);
+    }
+    // If it's already using the correct format, return as is
     return path;
   }
   
@@ -50,6 +54,7 @@ interface AuthResponse {
 }
 
 import { handleAuthError } from './tokenCleaner';
+import type { Customer, CallAllocation } from '@/types';
 
 class ApiClient {
   private baseURL: string;
@@ -63,7 +68,7 @@ class ApiClient {
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const headers: Record<string, string> = {
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     // Only set Content-Type if not already provided and not FormData
@@ -171,7 +176,7 @@ class ApiClient {
   private async requestBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
     const url = `${this.baseURL}${endpoint}`;
     const headers: Record<string, string> = {
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     // Always get the latest token from localStorage
@@ -677,6 +682,11 @@ class ApiClient {
     return this.request('/announcements/mark_all_read/', {
       method: 'POST',
     });
+  }
+
+  // Get manager's employees for announcement assignment
+  async getManagerEmployees() {
+    return this.request('/announcements/my_employees/');
   }
 
   // Activity Logs

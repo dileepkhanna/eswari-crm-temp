@@ -1,11 +1,31 @@
+import { useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { useData } from "@/contexts/DataContextDjango";
-import { Megaphone, AlertTriangle, Calendar } from "lucide-react";
+import { Megaphone, AlertTriangle, Calendar, Plus, User, Trash2, Power } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import AnnouncementFormModal from "@/components/announcements/AnnouncementFormModal";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
+import { Announcement } from "@/types";
+import { useAuth } from "@/contexts/AuthContextDjango";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function ManagerAnnouncements() {
-  const { announcements } = useData();
+  const { announcements, refreshData, deleteAnnouncement, toggleAnnouncementActive } = useData();
+  const { user } = useAuth();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Backend already filters announcements by user role, so we just need to filter by active and expiry
   const visibleAnnouncements = announcements.filter(
@@ -27,9 +47,53 @@ export default function ManagerAnnouncements() {
     }
   );
 
+  const handleCreateAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => {
+    try {
+      await apiClient.createAnnouncement(announcementData);
+      toast.success('Announcement created successfully!');
+      refreshData();
+    } catch (error: any) {
+      console.error('Error creating announcement:', error);
+      toast.error(error.message || 'Failed to create announcement');
+    }
+  };
+
+  const handleToggleActive = async (id: string) => {
+    try {
+      await toggleAnnouncementActive(id);
+      toast.success('Announcement updated successfully!');
+    } catch (error: any) {
+      console.error('Error toggling announcement:', error);
+      toast.error(error.message || 'Failed to update announcement');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteId) {
+      try {
+        await deleteAnnouncement(deleteId);
+        toast.success('Announcement deleted successfully!');
+        setDeleteId(null);
+      } catch (error: any) {
+        console.error('Error deleting announcement:', error);
+        toast.error(error.message || 'Failed to delete announcement');
+      }
+    }
+  };
+
+  // Check if the current user created the announcement
+  const canManageAnnouncement = (announcement: Announcement) => {
+    return announcement.createdBy === user?.id;
+  };
+
   return (
     <div className="min-h-screen">
-      <TopBar title="Announcements" subtitle="View announcements from admin" />
+      <TopBar title="Announcements" subtitle="Create and view announcements">
+        <Button onClick={() => setIsCreateModalOpen(true)} className="btn-accent">
+          <Plus className="w-4 h-4 mr-2" />
+          New Announcement
+        </Button>
+      </TopBar>
       <div className="p-4 md:p-6 space-y-4">
         {visibleAnnouncements.length === 0 ? (
           <div className="glass-card rounded-2xl p-8 text-center">
@@ -101,7 +165,37 @@ export default function ManagerAnnouncements() {
                     </span>
                   </div>
                   <p className="text-sm md:text-base text-muted-foreground mb-3">{announcement.message}</p>
+                  
+                  {/* Action buttons for manager's own announcements */}
+                  {canManageAnnouncement(announcement) && (
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b">
+                      <Button
+                        variant={announcement.isActive ? "secondary" : "default"}
+                        size="sm"
+                        onClick={() => handleToggleActive(announcement.id)}
+                      >
+                        <Power className="w-3.5 h-3.5 mr-1.5" />
+                        {announcement.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteId(announcement.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                    {announcement.createdByName && (
+                      <div className="flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" />
+                        By: {announcement.createdByName}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
                       Posted: {format(announcement.createdAt, "MMM dd, yyyy")}
@@ -119,6 +213,30 @@ export default function ManagerAnnouncements() {
           ))
         )}
       </div>
+
+      <AnnouncementFormModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        onSubmit={handleCreateAnnouncement}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Announcement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this announcement? This action cannot be undone and the announcement will be removed for all users.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

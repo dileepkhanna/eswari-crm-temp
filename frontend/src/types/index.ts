@@ -2,7 +2,7 @@ export type UserRole = 'admin' | 'manager' | 'employee';
 
 export type LeadStatus = 'new' | 'hot' | 'warm' | 'cold' | 'not_interested' | 'reminder' | 'contacted' | 'qualified' | 'converted';
 
-export type TaskStatus = 'in_progress' | 'site_visit' | 'family_visit' | 'completed' | 'rejected';
+export type TaskStatus = 'in_progress' | 'site_visit' | 'family_visit' | 'perfect_family_visit' | 'completed' | 'rejected';
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
@@ -139,7 +139,16 @@ export interface Announcement {
   message: string;
   priority: 'low' | 'medium' | 'high';
   targetRoles: ('admin' | 'manager' | 'employee')[];
+  assignedEmployeeIds?: number[];
+  assignedEmployeeDetails?: {
+    id: number;
+    username: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  }[];
   createdBy: string;
+  createdByName?: string;
   createdAt: Date;
   expiresAt?: Date;
   isActive: boolean;

@@ -12,9 +12,9 @@ from .models import AppSettings
 from .serializers import AppSettingsSerializer
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([])  # Public endpoint - no authentication required for branding/logo
 def get_app_settings(request):
-    """Get current app settings"""
+    """Get current app settings - Public endpoint for branding"""
     try:
         settings = AppSettings.get_settings()
         serializer = AppSettingsSerializer(settings)

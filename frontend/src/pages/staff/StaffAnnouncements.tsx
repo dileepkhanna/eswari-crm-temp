@@ -1,6 +1,6 @@
 import TopBar from "@/components/layout/TopBar";
 import { useData } from "@/contexts/DataContextDjango";
-import { Megaphone, AlertTriangle, Calendar } from "lucide-react";
+import { Megaphone, AlertTriangle, Calendar, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -102,6 +102,12 @@ export default function StaffAnnouncements() {
                   </div>
                   <p className="text-sm md:text-base text-muted-foreground mb-3">{announcement.message}</p>
                   <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                    {announcement.createdByName && (
+                      <div className="flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" />
+                        By: {announcement.createdByName}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
                       Posted: {format(announcement.createdAt, "MMM dd, yyyy")}
