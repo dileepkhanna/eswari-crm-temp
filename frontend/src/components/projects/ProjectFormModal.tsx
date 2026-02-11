@@ -74,6 +74,7 @@ export default function ProjectFormModal({
   const [blueprintImageUrl, setBlueprintImageUrl] = useState('');
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingBlueprint, setIsUploadingBlueprint] = useState(false);
+  const [availabilityText, setAvailabilityText] = useState(project?.availability || '');
 
   // Create images array for sliding gallery
   const images = [coverImage, blueprintImage].filter(Boolean);
@@ -106,6 +107,7 @@ export default function ProjectFormModal({
           setBlueprintImage(getMediaUrl(project.blueprintImage || ''));
           setCoverImageUrl('');
           setBlueprintImageUrl('');
+          setAvailabilityText(project.availability || '');
         } else {
           setFormData({
             name: '',
@@ -125,6 +127,7 @@ export default function ProjectFormModal({
           setBlueprintImage('');
           setCoverImageUrl('');
           setBlueprintImageUrl('');
+          setAvailabilityText('');
         }
         setCurrentImageIndex(0);
       }
@@ -142,7 +145,7 @@ export default function ProjectFormModal({
       return;
     }
 
-    onSubmit({
+    const projectToSubmit = {
       name: formData.name,
       location: formData.location,
       type: formData.type as 'villa' | 'apartment' | 'plots',
@@ -157,7 +160,13 @@ export default function ProjectFormModal({
       coverImage,
       blueprintImage,
       status: formData.status as ProjectStatus,
-    });
+      availability: availabilityText,
+    };
+
+    console.log('🔍 Submitting project with availability:', availabilityText);
+    console.log('🔍 Full project data:', projectToSubmit);
+
+    onSubmit(projectToSubmit);
 
     onOpenChange(false);
   };
@@ -823,6 +832,21 @@ export default function ProjectFormModal({
                 </Badge>
               ))}
             </div>
+          </div>
+
+          {/* Availability */}
+          <div className="space-y-2">
+            <Label htmlFor="availability">Flat Availability</Label>
+            <textarea
+              id="availability"
+              name="availability"
+              placeholder="e.g., Floor 1: 101-East-2BHK-Available, 102-West-3BHK-Sold&#10;Floor 2: 201-North-2BHK-Available, 202-South-3BHK-Blocked"
+              value={availabilityText}
+              onChange={(e) => setAvailabilityText(e.target.value)}
+              rows={4}
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm resize-none"
+              autoComplete="off"
+            />
           </div>
 
           {/* Submit */}

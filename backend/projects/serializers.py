@@ -16,6 +16,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     # Ensure JSON fields are properly handled
     amenities = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     nearbyLandmarks = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    availability = serializers.CharField(required=False, allow_blank=True)
     
     class Meta:
         model = Project
@@ -42,6 +43,10 @@ class ProjectSerializer(serializers.ModelSerializer):
             data['amenities'] = []
         if not isinstance(data.get('nearbyLandmarks'), list):
             data['nearbyLandmarks'] = []
+        
+        # Ensure availability is a string
+        if data.get('availability') is None:
+            data['availability'] = ''
             
         return data
     

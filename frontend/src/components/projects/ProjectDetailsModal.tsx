@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import AvailabilityDisplay from './AvailabilityDisplay';
 
 interface ProjectDetailsModalProps {
   project: Project | null;
@@ -505,6 +506,14 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                 <span className="font-medium">{project.possessionDate && !isNaN(project.possessionDate.getTime()) ? format(project.possessionDate, 'MMM yyyy') : 'TBD'}</span>
               </div>
             </div>
+
+            {/* Availability */}
+            {project.availability && (
+              <div className="pt-4 border-t">
+                <h3 className="font-semibold mb-3">Flat Availability</h3>
+                <AvailabilityDisplay availability={project.availability} />
+              </div>
+            )}
 
             {/* Admin Download Section */}
             {isAdmin && images.length > 0 && (

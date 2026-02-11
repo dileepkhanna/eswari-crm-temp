@@ -123,6 +123,12 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
               ? format(project.possessionDate, 'MMM yyyy') 
               : 'TBD'}</span>
           </div>
+          {project.availability && (
+            <div className="pt-1">
+              <span className="font-medium text-foreground">Availability: </span>
+              <span className="line-clamp-1">{project.availability}</span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

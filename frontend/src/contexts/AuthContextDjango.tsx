@@ -137,11 +137,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // For now, loginWithUserId will work the same as login (can be enhanced later)
+  // Login with User ID (username) instead of email
   const loginWithUserId = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // For now, treat userId as email. You can enhance this later in Django
-    return login(userId, password);
-  }, [login]);
+    try {
+      setIsLoading(true);
+      
+      // Send userId as the email field - backend will detect it's not an email and use it as username
+      const response = await api.post('/auth/login/', {
+        email: userId,  // Backend accepts username in the email field
+        password
+      });
+
+      if (response.data.access && response.data.user) {
+        const userData = response.data.user;
+        
+        // Store tokens
+        localStorage.setItem('access_token', response.data.access);
+        localStorage.setItem('refresh_token', response.data.refresh);
+        
+        // Store user data
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        return { success: true };
+      } else {
+        return { success: false, error: 'Invalid response from server' };
+      }
+    } catch (error: any) {
+      console.error('Login with User ID error:', error);
+      const errorMessage = error.response?.data?.error || 'Invalid User ID or password';
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const signup = useCallback(async (
     email: string, 

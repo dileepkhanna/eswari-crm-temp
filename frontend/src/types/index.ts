@@ -106,6 +106,7 @@ export interface Project {
   coverImage: string; // Cover/Project image (same image)
   blueprintImage: string; // Blueprint/Plan image
   status: ProjectStatus;
+  availability?: string;
   createdAt: Date;
 }
 
@@ -199,4 +200,29 @@ export interface CallAllocation {
   pending: number;
   createdBy: string;
   createdAt: Date;
+}
+
+// Project Availability Types (for complex JSON structure - currently not used)
+export interface ProjectFlat {
+  flatNumber: string;
+  facing: string;
+  bhk: string;
+  area: number;
+  status: 'available' | 'sold' | 'blocked';
+  price?: number;
+}
+
+export interface ProjectFloor {
+  floor: number;
+  flats: ProjectFlat[];
+}
+
+export interface ProjectAvailability {
+  floors: ProjectFloor[];
+  summary: {
+    totalFlats: number;
+    available: number;
+    sold: number;
+    blocked: number;
+  };
 }

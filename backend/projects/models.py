@@ -39,6 +39,13 @@ class Project(models.Model):
     amenities = models.JSONField(default=list, blank=True, help_text="List of amenities")
     nearbyLandmarks = models.JSONField(default=list, blank=True, help_text="List of nearby landmarks")
     
+    # Availability tracking
+    availability = models.TextField(
+        blank=True,
+        default='',
+        help_text="Floor-wise and facing-wise flat availability data"
+    )
+    
     # Image fields
     coverImage = models.URLField(blank=True, help_text="Cover/Project image URL")
     blueprintImage = models.URLField(blank=True, help_text="Blueprint/Plan image URL")

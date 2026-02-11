@@ -104,6 +104,7 @@ const apiToProject = (apiProject: any): Project => {
     description: apiProject.description || '',
     towerDetails: apiProject.towerDetails || '',
     nearbyLandmarks: Array.isArray(apiProject.nearbyLandmarks) ? apiProject.nearbyLandmarks : [],
+    availability: apiProject.availability || '',
     coverImage: getMediaUrl(apiProject.coverImage || apiProject.cover_image || ''),
     blueprintImage: getMediaUrl(apiProject.blueprintImage || apiProject.blueprint_image || ''),
     status: apiProject.status,
@@ -897,6 +898,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           ? project.amenities 
           : (project.amenities ? [project.amenities] : []),
         nearbyLandmarks: project.nearbyLandmarks || [],
+        availability: project.availability || '',
         coverImage: project.coverImage && isValidUrl(project.coverImage) ? project.coverImage : '',
         blueprintImage: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
         // Legacy fields for backward compatibility
@@ -907,8 +909,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         blueprint_image: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
       };
 
+      console.log('🚀 Sending project data to API:', projectData);
+      console.log('🚀 Availability in API payload:', projectData.availability);
+
       const newProject = await apiClient.createProject(projectData);
+      console.log('✅ Received project from API:', newProject);
+      console.log('✅ Availability in API response:', newProject.availability);
+      
       const convertedProject = apiToProject(newProject);
+      console.log('✅ Converted project:', convertedProject);
+      console.log('✅ Availability after conversion:', convertedProject.availability);
+      
       setProjects(prev => [convertedProject, ...prev]);
 
       toast.success('Project created successfully');
@@ -938,6 +949,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : (data.amenities ? [data.amenities] : []);
       }
       if (data.nearbyLandmarks !== undefined) updateData.nearbyLandmarks = data.nearbyLandmarks;
+      if (data.availability !== undefined) updateData.availability = data.availability;
       if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
       if (data.blueprintImage !== undefined) updateData.blueprintImage = data.blueprintImage;
       
@@ -948,7 +960,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.coverImage !== undefined) updateData.cover_image = data.coverImage;
       if (data.blueprintImage !== undefined) updateData.blueprint_image = data.blueprintImage;
 
+      console.log('🔄 Updating project with data:', updateData);
+      console.log('🔄 Availability in update payload:', updateData.availability);
+
       await apiClient.updateProject(parseInt(id), updateData);
+      
+      console.log('✅ Project updated, updating local state');
       
       setProjects(prev =>
         prev.map(p => (p.id === id ? { ...p, ...data } : p))

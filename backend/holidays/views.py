@@ -46,6 +46,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     ordering_fields = ['start_date', 'created_at']
     ordering = ['start_date']
+    pagination_class = None  # Disable pagination for holidays
 
     def get_queryset(self):
         """Filter holidays based on query parameters"""
