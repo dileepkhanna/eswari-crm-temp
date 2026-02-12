@@ -140,37 +140,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Login with User ID (username) instead of email
   const loginWithUserId = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      setIsLoading(true);
-      
       // Send userId as the email field - backend will detect it's not an email and use it as username
-      const response = await api.post('/auth/login/', {
-        email: userId,  // Backend accepts username in the email field
-        password
-      });
+      const data = await apiClient.login(userId, password) as any;
+      
+      const authUser: AuthUser = {
+        id: data.user.id.toString(),
+        userId: data.user.username,
+        name: `${data.user.first_name} ${data.user.last_name}`.trim() || data.user.username,
+        email: data.user.email,
+        phone: data.user.phone,
+        address: null,
+        role: data.user.role as UserRole,
+        status: 'active',
+        managerId: data.user.manager ? data.user.manager.toString() : null,
+        manager_name: data.user.manager_name,
+        employees_count: data.user.employees_count,
+        employees_names: data.user.employees_names,
+      };
 
-      if (response.data.access && response.data.user) {
-        const userData = response.data.user;
-        
-        // Store tokens
-        localStorage.setItem('access_token', response.data.access);
-        localStorage.setItem('refresh_token', response.data.refresh);
-        
-        // Store user data
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        return { success: true };
-      } else {
-        return { success: false, error: 'Invalid response from server' };
-      }
+      setUser(authUser);
+      setSession({ user: data.user });
+
+      return { success: true };
     } catch (error: any) {
       console.error('Login with User ID error:', error);
-      const errorMessage = error.response?.data?.error || 'Invalid User ID or password';
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
+      return { success: false, error: error.message || 'Invalid User ID or password' };
     }
   }, []);
 
