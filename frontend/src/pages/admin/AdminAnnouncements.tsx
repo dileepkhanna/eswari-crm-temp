@@ -7,12 +7,21 @@ import { Announcement } from "@/types";
 
 export default function AdminAnnouncements() {
   const { user } = useAuth();
-  const { announcements, addAnnouncement, deleteAnnouncement, toggleAnnouncementActive } = useData();
+  const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement, toggleAnnouncementActive } = useData();
 
   const handleAdd = async (data: Omit<Announcement, "id" | "createdAt" | "createdBy">) => {
     try {
       await addAnnouncement(data);
       toast.success("Announcement created");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
+  };
+
+  const handleUpdate = async (id: string, data: Partial<Announcement>) => {
+    try {
+      await updateAnnouncement(id, data);
+      toast.success("Announcement updated");
     } catch (error) {
       // Error already shown by DataContext
     }
@@ -43,6 +52,7 @@ export default function AdminAnnouncements() {
         <AnnouncementList
           announcements={announcements}
           onAdd={handleAdd}
+          onUpdate={handleUpdate}
           onDelete={handleDelete}
           onToggleActive={handleToggle}
         />

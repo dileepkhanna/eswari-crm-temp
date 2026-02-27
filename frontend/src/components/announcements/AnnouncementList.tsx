@@ -22,6 +22,7 @@ import AnnouncementFormModal from './AnnouncementFormModal';
 interface AnnouncementListProps {
   announcements: Announcement[];
   onAdd: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => void;
+  onUpdate?: (id: string, data: Partial<Announcement>) => void;
   onDelete: (id: string) => void;
   onToggleActive: (id: string) => void;
 }
@@ -41,10 +42,12 @@ const priorityIcons = {
 export default function AnnouncementList({
   announcements,
   onAdd,
+  onUpdate,
   onDelete,
   onToggleActive,
 }: AnnouncementListProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleDelete = () => {
@@ -53,6 +56,25 @@ export default function AnnouncementList({
       setDeleteId(null);
       toast.success('Announcement deleted');
     }
+  };
+
+  const handleEdit = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    setIsFormOpen(true);
+  };
+
+  const handleFormClose = () => {
+    setIsFormOpen(false);
+    setEditingAnnouncement(null);
+  };
+
+  const handleSubmit = (data: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => {
+    if (editingAnnouncement && onUpdate) {
+      onUpdate(editingAnnouncement.id, data);
+    } else {
+      onAdd(data);
+    }
+    handleFormClose();
   };
 
   return (
@@ -120,6 +142,16 @@ export default function AnnouncementList({
 
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-2">
+                      {onUpdate && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => handleEdit(announcement)}
+                        >
+                          Edit
+                        </Button>
+                      )}
                       <Button
                         variant={announcement.isActive ? "secondary" : "default"}
                         size="sm"
@@ -183,8 +215,9 @@ export default function AnnouncementList({
       {/* Form Modal */}
       <AnnouncementFormModal
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSubmit={onAdd}
+        onOpenChange={handleFormClose}
+        onSubmit={handleSubmit}
+        announcement={editingAnnouncement || undefined}
       />
 
       {/* Delete Confirmation */}

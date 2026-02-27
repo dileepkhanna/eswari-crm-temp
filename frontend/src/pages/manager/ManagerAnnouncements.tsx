@@ -22,9 +22,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function ManagerAnnouncements() {
-  const { announcements, refreshData, deleteAnnouncement, toggleAnnouncementActive } = useData();
+  const { announcements, refreshData, addAnnouncement, updateAnnouncement, deleteAnnouncement, toggleAnnouncementActive } = useData();
   const { user } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Backend already filters announcements by user role, so we just need to filter by active and expiry
@@ -49,13 +50,32 @@ export default function ManagerAnnouncements() {
 
   const handleCreateAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => {
     try {
-      await apiClient.createAnnouncement(announcementData);
-      toast.success('Announcement created successfully!');
+      if (editingAnnouncement) {
+        // Update existing announcement
+        await updateAnnouncement(editingAnnouncement.id, announcementData);
+        toast.success('Announcement updated successfully!');
+        setEditingAnnouncement(null);
+      } else {
+        // Create new announcement
+        await addAnnouncement(announcementData);
+        toast.success('Announcement created successfully!');
+      }
+      setIsCreateModalOpen(false);
       refreshData();
     } catch (error: any) {
-      console.error('Error creating announcement:', error);
-      toast.error(error.message || 'Failed to create announcement');
+      console.error('Error saving announcement:', error);
+      toast.error(error.message || 'Failed to save announcement');
     }
+  };
+
+  const handleEditAnnouncement = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsCreateModalOpen(false);
+    setEditingAnnouncement(null);
   };
 
   const handleToggleActive = async (id: string) => {
@@ -170,6 +190,13 @@ export default function ManagerAnnouncements() {
                   {canManageAnnouncement(announcement) && (
                     <div className="flex items-center gap-2 mb-3 pb-3 border-b">
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditAnnouncement(announcement)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
                         variant={announcement.isActive ? "secondary" : "default"}
                         size="sm"
                         onClick={() => handleToggleActive(announcement.id)}
@@ -216,8 +243,9 @@ export default function ManagerAnnouncements() {
 
       <AnnouncementFormModal
         open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
+        onOpenChange={handleModalClose}
         onSubmit={handleCreateAnnouncement}
+        announcement={editingAnnouncement || undefined}
       />
 
       {/* Delete Confirmation Dialog */}

@@ -37,12 +37,14 @@ interface AnnouncementFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => void;
+  announcement?: Announcement;
 }
 
 export default function AnnouncementFormModal({
   open,
   onOpenChange,
   onSubmit,
+  announcement,
 }: AnnouncementFormModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -55,6 +57,27 @@ export default function AnnouncementFormModal({
   const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<number[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+
+  // Load form data when editing
+  useEffect(() => {
+    if (announcement) {
+      setFormData({
+        title: announcement.title,
+        message: announcement.message,
+        priority: announcement.priority,
+        expiresAt: announcement.expiresAt 
+          ? new Date(announcement.expiresAt).toISOString().split('T')[0] 
+          : '',
+      });
+      setTargetRoles(announcement.targetRoles);
+      setAssignedEmployeeIds(announcement.assignedEmployeeIds || []);
+    } else {
+      // Reset form for new announcement
+      setFormData({ title: '', message: '', priority: 'medium', expiresAt: '' });
+      setTargetRoles(['manager', 'employee']);
+      setAssignedEmployeeIds([]);
+    }
+  }, [announcement]);
 
   // Load manager's employees when modal opens
   useEffect(() => {
@@ -141,10 +164,12 @@ export default function AnnouncementFormModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Megaphone className="w-5 h-5 text-primary" />
-            New Announcement
+            {announcement ? 'Edit Announcement' : 'New Announcement'}
           </DialogTitle>
           <DialogDescription>
-            Create a new announcement to notify team members about important updates or information.
+            {announcement 
+              ? 'Update the announcement details below.'
+              : 'Create a new announcement to notify team members about important updates or information.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -293,7 +318,7 @@ export default function AnnouncementFormModal({
               Cancel
             </Button>
             <Button type="submit" className="btn-accent">
-              Send Announcement
+              {announcement ? 'Update Announcement' : 'Send Announcement'}
             </Button>
           </div>
         </form>

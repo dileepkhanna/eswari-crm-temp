@@ -27,6 +27,7 @@ interface DataContextType {
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  updateAnnouncement: (id: string, data: Partial<Announcement>) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
   toggleAnnouncementActive: (id: string) => Promise<void>;
   addLeave: (leave: Omit<Leave, 'id' | 'createdAt'>) => Promise<void>;
@@ -1035,6 +1036,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateAnnouncement = useCallback(async (id: string, data: Partial<Announcement>) => {
+    try {
+      const announcementData: any = {};
+      
+      if (data.title !== undefined) announcementData.title = data.title;
+      if (data.message !== undefined) announcementData.message = data.message;
+      if (data.priority !== undefined) announcementData.priority = data.priority;
+      if (data.targetRoles !== undefined) announcementData.target_roles = data.targetRoles;
+      if (data.isActive !== undefined) announcementData.is_active = data.isActive;
+      if (data.expiresAt !== undefined) announcementData.expires_at = data.expiresAt?.toISOString() || null;
+      if (data.assignedEmployeeIds !== undefined) announcementData.assigned_employee_ids = data.assignedEmployeeIds;
+      
+      const response = await apiClient.updateAnnouncement(parseInt(id), announcementData);
+      
+      // Transform response and update state
+      const updatedAnnouncement: Announcement = {
+        id: response.id.toString(),
+        title: response.title,
+        message: response.message,
+        priority: response.priority,
+        targetRoles: response.target_roles,
+        assignedEmployeeIds: response.assigned_employee_ids || [],
+        assignedEmployeeDetails: response.assigned_employee_details || [],
+        createdByName: response.created_by_name,
+        isActive: response.is_active,
+        expiresAt: response.expires_at ? new Date(response.expires_at) : undefined,
+        createdBy: response.created_by.toString(),
+        createdAt: new Date(response.created_at),
+      };
+      
+      setAnnouncements(prev => prev.map(a => a.id === id ? updatedAnnouncement : a));
+      toast.success('Announcement updated successfully');
+    } catch (error: any) {
+      console.error('Error updating announcement:', error);
+      toast.error('Failed to update announcement');
+      throw error;
+    }
+  }, []);
+
   const deleteAnnouncement = useCallback(async (id: string) => {
     try {
       await apiClient.deleteAnnouncement(parseInt(id));
@@ -1192,6 +1232,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updateProject,
     deleteProject,
     addAnnouncement,
+    updateAnnouncement,
     deleteAnnouncement,
     toggleAnnouncementActive,
     addLeave,

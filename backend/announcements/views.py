@@ -5,8 +5,10 @@ from rest_framework.response import Response
 from rest_framework import viewsets
 from django.utils import timezone
 from django.db import models
+from django.db.models import Q
 from .models import Announcement, AnnouncementRead
 from .serializers import AnnouncementSerializer
+import json
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
     serializer_class = AnnouncementSerializer
@@ -19,30 +21,42 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if user.role == 'admin':
             # Admin can see all announcements
             return Announcement.objects.all()
-        elif user.role == 'manager':
-            # Managers can see:
-            # 1. Announcements they created
-            # 2. Announcements targeted to managers role
-            # 3. Announcements where they are assigned
-            return Announcement.objects.filter(
-                models.Q(created_by=user) |
-                models.Q(target_roles__icontains=f'"{user.role}"') |
-                models.Q(target_roles='[]') |
-                models.Q(assigned_employees=user),
-                is_active=True
-            ).distinct()
-        else:
-            # Employees can see:
-            # 1. Announcements targeted to their role (and no specific employees assigned)
-            # 2. Announcements where they are specifically assigned
-            return Announcement.objects.filter(
-                models.Q(
-                    models.Q(target_roles__icontains=f'"{user.role}"') | models.Q(target_roles='[]'),
-                    assigned_employees__isnull=True
-                ) |
-                models.Q(assigned_employees=user),
-                is_active=True
-            ).distinct()
+        
+        # Get all active announcements
+        queryset = Announcement.objects.filter(is_active=True)
+        
+        # Filter based on role and assigned employees
+        filtered_announcements = []
+        for announcement in queryset:
+            should_include = False
+            
+            # Check if user created it (for managers)
+            if user.role == 'manager' and announcement.created_by == user:
+                should_include = True
+            
+            # Check target roles
+            elif not announcement.target_roles or len(announcement.target_roles) == 0:
+                # Empty target_roles means for everyone
+                should_include = True
+            elif user.role in announcement.target_roles:
+                # User's role is in target roles
+                # Check if there are assigned employees
+                assigned_count = announcement.assigned_employees.count()
+                if assigned_count == 0:
+                    # No specific employees assigned, show to all in role
+                    should_include = True
+                elif announcement.assigned_employees.filter(id=user.id).exists():
+                    # User is specifically assigned
+                    should_include = True
+            
+            # Check if user is specifically assigned (even if role doesn't match)
+            elif announcement.assigned_employees.filter(id=user.id).exists():
+                should_include = True
+            
+            if should_include:
+                filtered_announcements.append(announcement.id)
+        
+        return Announcement.objects.filter(id__in=filtered_announcements)
     
     def perform_create(self, serializer):
         """Set the creator when creating an announcement"""
@@ -128,29 +142,47 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             user=user
         ).values_list('announcement_id', flat=True)
         
-        # Filter announcements based on role, assigned employees, and exclude read ones
+        # Get all active announcements not yet read
         if user.role == 'admin':
             queryset = Announcement.objects.exclude(id__in=read_announcement_ids)
-        elif user.role == 'manager':
-            queryset = Announcement.objects.filter(
-                models.Q(created_by=user) |
-                models.Q(target_roles__icontains=f'"{user.role}"') |
-                models.Q(target_roles='[]') |
-                models.Q(assigned_employees=user),
-                is_active=True
-            ).exclude(id__in=read_announcement_ids).distinct()
         else:
-            queryset = Announcement.objects.filter(
-                models.Q(
-                    models.Q(target_roles__icontains=f'"{user.role}"') | models.Q(target_roles='[]'),
-                    assigned_employees__isnull=True
-                ) |
-                models.Q(assigned_employees=user),
-                is_active=True
-            ).exclude(id__in=read_announcement_ids).distinct()
+            queryset = Announcement.objects.filter(is_active=True).exclude(id__in=read_announcement_ids)
         
-        # Also filter by expiry date
-        queryset = queryset.filter(
+        # Filter based on role and assigned employees (same logic as get_queryset)
+        filtered_announcements = []
+        for announcement in queryset:
+            should_include = False
+            
+            # Check if user created it (for managers)
+            if user.role == 'manager' and announcement.created_by == user:
+                should_include = True
+            
+            # Check target roles
+            elif not announcement.target_roles or len(announcement.target_roles) == 0:
+                # Empty target_roles means for everyone
+                should_include = True
+            elif user.role in announcement.target_roles:
+                # User's role is in target roles
+                # Check if there are assigned employees
+                assigned_count = announcement.assigned_employees.count()
+                if assigned_count == 0:
+                    # No specific employees assigned, show to all in role
+                    should_include = True
+                elif announcement.assigned_employees.filter(id=user.id).exists():
+                    # User is specifically assigned
+                    should_include = True
+            
+            # Check if user is specifically assigned (even if role doesn't match)
+            elif announcement.assigned_employees.filter(id=user.id).exists():
+                should_include = True
+            
+            if should_include:
+                filtered_announcements.append(announcement.id)
+        
+        # Filter by announcement IDs and expiry date
+        queryset = Announcement.objects.filter(
+            id__in=filtered_announcements
+        ).filter(
             models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())
         )
         

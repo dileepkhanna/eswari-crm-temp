@@ -3,6 +3,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
 from .models import Task
 from .serializers import TaskSerializer
+from accounts.permissions import filter_by_user_access
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
@@ -15,33 +16,20 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        Role-based task filtering:
-        - Admin: Can see all tasks
-        - Manager: Can only see tasks from their assigned employees + their own tasks
-        - Employee: Can only see tasks assigned to them
+        Role-based task filtering using centralized permission system
         """
         user = self.request.user
+        base_queryset = Task.objects.select_related('assigned_to', 'created_by', 'project', 'lead')
         
-        if user.role == 'admin':
-            # Admin can see all tasks
-            return Task.objects.all()
-        elif user.role == 'manager':
-            # Manager can only see tasks from their assigned employees + their own tasks
-            # Get all employees assigned to this manager
-            assigned_employees = user.employees.all()  # Using the related_name from User model
-            employee_ids = [emp.id for emp in assigned_employees]
-            employee_ids.append(user.id)  # Include manager's own tasks
-            
-            return Task.objects.filter(
-                models.Q(assigned_to__id__in=employee_ids) | 
-                models.Q(created_by__id__in=employee_ids)
-            )
-        elif user.role == 'employee':
-            # Employee can only see tasks assigned to them
-            return Task.objects.filter(assigned_to=user)
-        else:
-            # Default: no access
-            return Task.objects.none()
+        # Use the centralized permission filter
+        queryset = filter_by_user_access(
+            base_queryset,
+            user,
+            assigned_to_field='assigned_to',
+            created_by_field='created_by'
+        )
+        
+        return queryset
     
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

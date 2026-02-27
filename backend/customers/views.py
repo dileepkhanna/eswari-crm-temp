@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from .models import Customer, CallAllocation
 from .serializers import CustomerSerializer, CallAllocationSerializer
+from accounts.permissions import filter_by_user_access
 
 User = get_user_model()
 
@@ -22,35 +23,16 @@ class CustomerViewSet(viewsets.ModelViewSet):
         # Base queryset with optimized database queries
         base_queryset = Customer.objects.select_related('assigned_to', 'created_by')
         
-        if user.role == 'admin':
-            # Admins can see all customers
-            queryset = base_queryset.all()
-            print(f"DEBUG: Admin - returning {queryset.count()} customers")
-            return queryset
-        elif user.role == 'manager':
-            # Managers can only see customers from their assigned employees + their own customers
-            # Get all employees assigned to this manager
-            assigned_employees = user.employees.all()  # Using the related_name from User model
-            employee_ids = [emp.id for emp in assigned_employees]
-            employee_ids.append(user.id)  # Include manager's own customers
-            
-            queryset = base_queryset.filter(
-                Q(assigned_to__id__in=employee_ids) | 
-                Q(created_by__id__in=employee_ids)
-            )
-            print(f"DEBUG: Manager - returning {queryset.count()} customers from assigned employees")
-            return queryset
-        elif user.role == 'employee':
-            # Employees can only see their assigned customers
-            queryset = base_queryset.filter(assigned_to=user)
-            print(f"DEBUG: Employee - returning {queryset.count()} assigned customers")
-            for customer in queryset:
-                print(f"DEBUG: - {customer.name or 'Unknown'} ({customer.phone})")
-            return queryset
+        # Use the centralized permission filter
+        queryset = filter_by_user_access(
+            base_queryset, 
+            user, 
+            assigned_to_field='assigned_to',
+            created_by_field='created_by'
+        )
         
-        # Default: no access
-        print(f"DEBUG: No access for user {user.username}")
-        return Customer.objects.none()
+        print(f"DEBUG: Returning {queryset.count()} customers for {user.role}")
+        return queryset
     
     def get_permissions(self):
         """
@@ -225,19 +207,14 @@ class CallAllocationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
+        base_queryset = CallAllocation.objects.select_related('employee', 'created_by')
         
-        if user.role == 'admin':
-            # Admins can see all allocations
-            return CallAllocation.objects.all()
-        elif user.role == 'manager':
-            # Managers can only see allocations for their assigned employees + their own
-            assigned_employees = user.employees.all()
-            employee_ids = [emp.id for emp in assigned_employees]
-            employee_ids.append(user.id)  # Include manager's own allocations
-            
-            return CallAllocation.objects.filter(employee__id__in=employee_ids)
-        elif user.role == 'employee':
-            # Employees can only see their own allocations
-            return CallAllocation.objects.filter(employee=user)
+        # Use the centralized permission filter
+        queryset = filter_by_user_access(
+            base_queryset,
+            user,
+            assigned_to_field='employee',  # CallAllocation uses 'employee' instead of 'assigned_to'
+            created_by_field='created_by'
+        )
         
-        return CallAllocation.objects.none()
+        return queryset

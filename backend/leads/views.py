@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models, transaction
 from .models import Lead
 from .serializers import LeadSerializer
+from accounts.permissions import filter_by_user_access
 
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
@@ -19,10 +20,7 @@ class LeadViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        Role-based lead filtering with optimized queries:
-        - Admin: Can see all leads
-        - Manager: Can only see leads from their assigned employees + their own leads
-        - Employee: Can only see leads specifically assigned to them
+        Role-based lead filtering with optimized queries
         """
         user = self.request.user
         
@@ -33,26 +31,15 @@ class LeadViewSet(viewsets.ModelViewSet):
             'assigned_to__employees'  # For manager queries
         )
         
-        if user.role == 'admin':
-            # Admin can see all leads
-            return base_queryset.all()
-        elif user.role == 'manager':
-            # Manager can only see leads from their assigned employees + their own leads
-            # Get all employees assigned to this manager
-            assigned_employees = user.employees.all()  # Using the related_name from User model
-            employee_ids = [emp.id for emp in assigned_employees]
-            employee_ids.append(user.id)  # Include manager's own leads
-            
-            return base_queryset.filter(
-                models.Q(assigned_to__id__in=employee_ids) | 
-                models.Q(created_by__id__in=employee_ids)
-            )
-        elif user.role == 'employee':
-            # Employee can only see leads specifically assigned to them
-            return base_queryset.filter(assigned_to=user)
-        else:
-            # Default: no access
-            return Lead.objects.none()
+        # Use the centralized permission filter
+        queryset = filter_by_user_access(
+            base_queryset,
+            user,
+            assigned_to_field='assigned_to',
+            created_by_field='created_by'
+        )
+        
+        return queryset
     
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
