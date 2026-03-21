@@ -81,7 +81,7 @@ class AnnouncementViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
             
             if recipients:
                 title = f"New Announcement: {announcement.title}"
-                message = announcement.content[:100] + ('...' if len(announcement.content) > 100 else '')
+                message = announcement.message[:100] + ('...' if len(announcement.message) > 100 else '')
                 
                 logger.info(f"   Sending notifications...")
                 result = send_bulk_push_notification(
