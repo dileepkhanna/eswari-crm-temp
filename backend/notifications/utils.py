@@ -7,17 +7,34 @@ from .models import PushSubscription, Notification
 logger = logging.getLogger(__name__)
 
 
+def _normalize_vapid_private_key(key: str) -> str:
+    """
+    Normalize VAPID private key to PEM format.
+    Handles both raw base64 and already-formatted PEM keys.
+    """
+    key = key.strip()
+    if key.startswith('-----'):
+        # Already PEM format — just ensure real newlines
+        return key.replace('\\n', '\n')
+    # Raw base64 — wrap in PEM headers
+    # Split into 64-char lines
+    lines = [key[i:i+64] for i in range(0, len(key), 64)]
+    return '-----BEGIN PRIVATE KEY-----\n' + '\n'.join(lines) + '\n-----END PRIVATE KEY-----'
+
+
 def _send_webpush(subscription: PushSubscription, title: str, body: str, data: dict = None) -> bool:
     """Send a single Web Push notification via pywebpush (no Firebase needed)."""
     try:
         from pywebpush import webpush, WebPushException
 
-        vapid_private_key = getattr(settings, 'VAPID_PRIVATE_KEY', '')
+        raw_key = getattr(settings, 'VAPID_PRIVATE_KEY', '')
         vapid_claims_email = getattr(settings, 'VAPID_CLAIMS_EMAIL', 'admin@eswaricrm.com')
 
-        if not vapid_private_key:
+        if not raw_key:
             logger.error('VAPID_PRIVATE_KEY not configured in settings')
             return False
+
+        vapid_private_key = _normalize_vapid_private_key(raw_key)
 
         payload = json.dumps({
             'title': title,
