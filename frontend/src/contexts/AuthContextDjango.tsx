@@ -94,12 +94,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(authUser);
       setSession({ user: userData });
 
-      // Initialize company context if available
-      if (companyContext && (userData.company_info || userData.company)) {
+      // For admin/hr, fetch the full companies list since profile endpoint doesn't include it
+      let availableCompanies = userData.available_companies || [];
+      const userCompany = userData.company_info || userData.company;
+
+      if (userData.role in ['admin', 'hr'] || ['admin', 'hr'].includes(userData.role)) {
+        try {
+          const companiesResponse = await apiClient.getCompanies() as any;
+          availableCompanies = Array.isArray(companiesResponse)
+            ? companiesResponse
+            : companiesResponse.results || [];
+        } catch (e) {
+          logger.error('Failed to fetch companies for admin/hr:', e);
+        }
+      }
+
+      // Initialize company context
+      if (companyContext) {
         companyContext.initializeCompanyContext(
           userData.role,
-          userData.company_info || userData.company,
-          userData.available_companies
+          userCompany,
+          availableCompanies
         );
       }
     } catch (error) {
@@ -141,6 +156,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await apiClient.login(email, password) as any;
       
+      // companies list comes from data.companies (top-level), not data.user.available_companies
+      const availableCompanies = data.companies || data.user.available_companies || [];
+      const userCompany = data.company || data.user.company_info || data.user.company;
+
       const authUser: AuthUser = {
         id: data.user.id.toString(),
         userId: data.user.username,
@@ -154,19 +173,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: data.user.manager_name,
         employees_count: data.user.employees_count,
         employees_names: data.user.employees_names,
-        company: data.user.company_info || data.user.company,
-        available_companies: data.user.available_companies,
+        company: userCompany,
+        available_companies: availableCompanies,
       };
 
       setUser(authUser);
       setSession({ user: data.user });
 
-      // Initialize company context after successful login
-      if (companyContext && (data.user.company_info || data.user.company)) {
+      // Initialize company context — always call for admin/hr even if no assigned company
+      if (companyContext) {
         companyContext.initializeCompanyContext(
           data.user.role,
-          data.user.company_info || data.user.company,
-          data.user.available_companies
+          userCompany,
+          availableCompanies
         );
       }
 
@@ -182,6 +201,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Send userId as the email field - backend will detect it's not an email and use it as username
       const data = await apiClient.login(userId, password) as any;
       
+      // companies list comes from data.companies (top-level), not data.user.available_companies
+      const availableCompanies = data.companies || data.user.available_companies || [];
+      const userCompany = data.company || data.user.company_info || data.user.company;
+
       const authUser: AuthUser = {
         id: data.user.id.toString(),
         userId: data.user.username,
@@ -195,19 +218,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: data.user.manager_name,
         employees_count: data.user.employees_count,
         employees_names: data.user.employees_names,
-        company: data.user.company_info || data.user.company,
-        available_companies: data.user.available_companies,
+        company: userCompany,
+        available_companies: availableCompanies,
       };
 
       setUser(authUser);
       setSession({ user: data.user });
 
-      // Initialize company context after successful login
-      if (companyContext && (data.user.company_info || data.user.company)) {
+      // Initialize company context — always call for admin/hr even if no assigned company
+      if (companyContext) {
         companyContext.initializeCompanyContext(
           data.user.role,
-          data.user.company_info || data.user.company,
-          data.user.available_companies
+          userCompany,
+          availableCompanies
         );
       }
 
