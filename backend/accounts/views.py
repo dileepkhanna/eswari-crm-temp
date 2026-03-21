@@ -110,7 +110,8 @@ def login_view(request):
     
     if user is not None:
         # Check if user's company is active (Requirement 2.6)
-        if not user.company.is_active:
+        # Admin/HR users may have no company assigned (global access)
+        if user.company and not user.company.is_active:
             print(f"LOGIN DEBUG - Company inactive for user: {user.username}")
             return Response({
                 'error': 'Your company account is inactive. Please contact your administrator.'
@@ -121,13 +122,16 @@ def login_view(request):
         # Build company context for authentication response
         user_serializer = UserSerializer(user, context={'request': request})
         
-        # Prepare company information with logo URL
-        company_info = {
-            'id': user.company.id,
-            'name': user.company.name,
-            'code': user.company.code,
-            'logo_url': request.build_absolute_uri(user.company.logo.url) if user.company.logo else None
-        }
+        # Prepare company information with logo URL (None if no company assigned)
+        if user.company:
+            company_info = {
+                'id': user.company.id,
+                'name': user.company.name,
+                'code': user.company.code,
+                'logo_url': request.build_absolute_uri(user.company.logo.url) if user.company.logo else None
+            }
+        else:
+            company_info = None
         
         # For admin/hr users, include list of all active companies
         # For manager/employee users, include only their assigned company
@@ -142,7 +146,7 @@ def login_view(request):
             } for company in active_companies]
         else:
             # Company-restricted roles only get their assigned company
-            companies_list = [company_info]
+            companies_list = [company_info] if company_info else []
         
         refresh = RefreshToken.for_user(user)
         
