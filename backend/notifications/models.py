@@ -5,7 +5,7 @@ from django.conf import settings
 class PushSubscription(models.Model):
     """Store push notification subscriptions for users"""
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='push_subscriptions')
-    endpoint = models.TextField(unique=True)
+    endpoint = models.CharField(max_length=500, unique=True)
     p256dh = models.TextField()
     auth = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)

@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("endpoint", models.TextField(unique=True)),
+                ("endpoint", models.CharField(max_length=500, unique=True)),
                 ("p256dh", models.TextField()),
                 ("auth", models.TextField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
