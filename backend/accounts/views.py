@@ -983,12 +983,15 @@ class CompanyViewSet(viewsets.ModelViewSet):
         """
         instance = self.get_object()
         
-        # Block edits to protected companies
+        # Block structural edits to protected companies, but allow logo/description updates
         if self._is_protected(instance):
-            return Response(
-                {'error': f'"{instance.name}" is a protected company and cannot be modified.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            BLOCKED_FIELDS = {'name', 'code', 'is_active'}
+            requested_fields = set(request.data.keys())
+            if requested_fields & BLOCKED_FIELDS:
+                return Response(
+                    {'error': f'"{instance.name}" is a protected company and cannot be modified.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         
         # Convert 'true'/'false' strings to boolean for is_active
         if 'is_active' in request.data:
