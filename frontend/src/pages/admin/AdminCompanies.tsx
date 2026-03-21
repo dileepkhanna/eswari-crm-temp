@@ -36,6 +36,9 @@ export default function AdminCompanies() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
+  const PROTECTED_COMPANIES = ['Eswari Group', 'ASE Technologies'];
+  const isProtected = (company: Company) => PROTECTED_COMPANIES.includes(company.name);
+
   useEffect(() => {
     loadCompanies();
   }, []);
@@ -318,9 +321,9 @@ export default function AdminCompanies() {
                         <div className="flex items-center gap-2">
                           <Badge
                             variant={company.is_active ? 'default' : 'secondary'}
-                            className="cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => handleToggleActive(company)}
-                            title={`Click to ${company.is_active ? 'deactivate' : 'activate'} company`}
+                            className={isProtected(company) ? 'cursor-default' : 'cursor-pointer hover:opacity-80 transition-opacity'}
+                            onClick={() => !isProtected(company) && handleToggleActive(company)}
+                            title={isProtected(company) ? 'Protected company' : `Click to ${company.is_active ? 'deactivate' : 'activate'} company`}
                           >
                             {company.is_active ? (
                               <>
@@ -341,23 +344,27 @@ export default function AdminCompanies() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleToggleActive(company)}
-                            title={`${company.is_active ? 'Deactivate' : 'Activate'} company`}
-                            className={company.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}
-                          >
-                            <Power className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditForm(company)}
-                            title="Edit company"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {!isProtected(company) && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleActive(company)}
+                                title={`${company.is_active ? 'Deactivate' : 'Activate'} company`}
+                                className={company.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}
+                              >
+                                <Power className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditForm(company)}
+                                title="Edit company"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

@@ -938,11 +938,15 @@ class CompanyViewSet(viewsets.ModelViewSet):
     - Admin users can perform all CRUD operations
     - Other authenticated users can only view active companies
     - Supports multipart/form-data for logo upload
+    - PROTECTED companies (Eswari Group, ASE Technologies) cannot be edited or deactivated
     """
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    
+    # These companies are fixed and cannot be modified
+    PROTECTED_COMPANY_NAMES = ['Eswari Group', 'ASE Technologies']
     
     def get_permissions(self):
         """
@@ -951,6 +955,9 @@ class CompanyViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update']:
             return [IsAuthenticated(), IsAdminUser()]
         return super().get_permissions()
+    
+    def _is_protected(self, instance):
+        return instance.name in self.PROTECTED_COMPANY_NAMES
     
     def get_queryset(self):
         """
@@ -976,6 +983,13 @@ class CompanyViewSet(viewsets.ModelViewSet):
         """
         instance = self.get_object()
         
+        # Block edits to protected companies
+        if self._is_protected(instance):
+            return Response(
+                {'error': f'"{instance.name}" is a protected company and cannot be modified.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         # Convert 'true'/'false' strings to boolean for is_active
         if 'is_active' in request.data:
             is_active_value = request.data.get('is_active')
@@ -989,6 +1003,16 @@ class CompanyViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
         
         return Response(serializer.data)
+    
+    def update(self, request, *args, **kwargs):
+        """Block full updates to protected companies."""
+        instance = self.get_object()
+        if self._is_protected(instance):
+            return Response(
+                {'error': f'"{instance.name}" is a protected company and cannot be modified.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
     
     @action(detail=False, methods=['get'])
     def active(self, request):
