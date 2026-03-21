@@ -53,7 +53,7 @@ class NotificationService {
     if (this.initialized) return true;
     if (!this.isSupported()) return false;
     try {
-      this.swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+      this.swReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       await navigator.serviceWorker.ready;
       this.swReg = await navigator.serviceWorker.ready;
 

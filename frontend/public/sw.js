@@ -1,79 +1,44 @@
-// Service Worker for Push Notifications
-self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
-  event.waitUntil(clients.claim());
-});
+// Django Web Push Service Worker — no Firebase needed
 
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
-  
-  let notificationData = {
-    title: 'Eswari CRM',
-    body: 'You have a new notification',
-    icon: '/placeholder.svg',
-    badge: '/placeholder.svg',
-    data: {}
-  };
-
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      notificationData = {
-        title: data.title || notificationData.title,
-        body: data.body || data.message || notificationData.body,
-        icon: data.icon || notificationData.icon,
-        badge: data.badge || notificationData.badge,
-        data: data.data || {},
-        tag: data.tag || 'eswari-crm-notification',
-        requireInteraction: data.requireInteraction || false,
-        actions: data.actions || []
-      };
-    } catch (error) {
-      console.error('Error parsing push notification data:', error);
-    }
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'Eswari CRM', body: event.data ? event.data.text() : '' };
   }
 
+  const title = data.title || 'Eswari CRM';
+  const body = data.body || 'You have a new notification';
+  const options = {
+    body,
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    tag: data.data?.notification_id || 'eswari-crm',
+    data: data.data || {},
+    requireInteraction: false,
+  };
+
+  // Show the OS notification
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      data: notificationData.data,
-      tag: notificationData.tag,
-      requireInteraction: notificationData.requireInteraction,
-      actions: notificationData.actions
+    self.registration.showNotification(title, options).then(() => {
+      // Notify all open app windows so they can refresh the notification list
+      return clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+        list.forEach((client) => client.postMessage({ type: 'PUSH_RECEIVED', title, body }));
+      });
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
   event.notification.close();
-
-  const urlToOpen = event.notification.data?.url || '/';
-
+  const url = event.notification.data?.url || self.location.origin;
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Check if there's already a window open
-        for (const client of clientList) {
-          if (client.url === urlToOpen && 'focus' in client) {
-            return client.focus();
-          }
-        }
-        // If no window is open, open a new one
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
-      })
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ('focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
   );
-});
-
-self.addEventListener('notificationclose', (event) => {
-  console.log('Notification closed:', event);
 });
