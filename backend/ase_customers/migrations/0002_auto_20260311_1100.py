@@ -53,16 +53,11 @@ class Migration(migrations.Migration):
             },
         ),
         
-        # Add indexes
-        migrations.RunSQL(
-            """
-            CREATE INDEX IF NOT EXISTS ase_customers_asecustomer_company_id_idx ON ase_customers_asecustomer(company_id);
-            CREATE INDEX IF NOT EXISTS ase_customers_asecustomer_call_status_idx ON ase_customers_asecustomer(call_status);
-            CREATE INDEX IF NOT EXISTS ase_customers_asecustomer_assigned_to_id_idx ON ase_customers_asecustomer(assigned_to_id);
-            CREATE INDEX IF NOT EXISTS ase_customers_asecustomer_company_call_status_idx ON ase_customers_asecustomer(company_id, call_status);
-            CREATE INDEX IF NOT EXISTS ase_customers_asecustomer_company_created_at_idx ON ase_customers_asecustomer(company_id, created_at);
-            CREATE INDEX IF NOT EXISTS ase_customers_asecustomer_is_converted_idx ON ase_customers_asecustomer(is_converted);
-            """,
-            reverse_sql="-- No reverse operation"
-        ),
+        # Add indexes (MySQL-compatible: no IF NOT EXISTS)
+        migrations.RunSQL("CREATE INDEX ase_customers_asecustomer_company_id_idx ON ase_customers_asecustomer(company_id);", reverse_sql="-- No reverse"),
+        migrations.RunSQL("CREATE INDEX ase_customers_asecustomer_call_status_idx ON ase_customers_asecustomer(call_status);", reverse_sql="-- No reverse"),
+        migrations.RunSQL("CREATE INDEX ase_customers_asecustomer_assigned_to_id_idx ON ase_customers_asecustomer(assigned_to_id);", reverse_sql="-- No reverse"),
+        migrations.RunSQL("CREATE INDEX ase_customers_asecustomer_company_call_status_idx ON ase_customers_asecustomer(company_id, call_status);", reverse_sql="-- No reverse"),
+        migrations.RunSQL("CREATE INDEX ase_customers_asecustomer_company_created_at_idx ON ase_customers_asecustomer(company_id, created_at);", reverse_sql="-- No reverse"),
+        migrations.RunSQL("CREATE INDEX ase_customers_asecustomer_is_converted_idx ON ase_customers_asecustomer(is_converted);", reverse_sql="-- No reverse"),
     ]
