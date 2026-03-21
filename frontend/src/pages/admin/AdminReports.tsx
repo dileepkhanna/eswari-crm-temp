@@ -14,6 +14,7 @@ import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths, set
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/DataContextDjango";
 
+import { logger } from '@/lib/logger';
 interface LeaveRecord {
   id: string;
   user_id: string;
@@ -59,11 +60,11 @@ export default function AdminReports() {
       try {
         const { apiClient } = await import('@/lib/api');
         
-        console.log('Fetching leaves data...');
+        logger.log('Fetching leaves data...');
         
         // Fetch leaves data
         const leavesResponse = await apiClient.getLeaves();
-        console.log('Leaves response:', leavesResponse);
+        logger.log('Leaves response:', leavesResponse);
         
         const leavesData = Array.isArray(leavesResponse) ? leavesResponse : (leavesResponse as any).results || [];
         
@@ -83,17 +84,17 @@ export default function AdminReports() {
           created_at: leave.created_at,
         }));
         
-        console.log('Transformed leaves:', transformedLeaves.length);
+        logger.log('Transformed leaves:', transformedLeaves.length);
         setLeaves(transformedLeaves);
 
         // Fetch users for team members
-        console.log('Fetching users...');
+        logger.log('Fetching users...');
         const usersResponse = await apiClient.getUsers();
-        console.log('Users response:', usersResponse);
+        logger.log('Users response:', usersResponse);
         
         // Handle paginated response from Django
         const usersData = Array.isArray(usersResponse) ? usersResponse : (usersResponse as any).results || [];
-        console.log('Users data:', usersData.length);
+        logger.log('Users data:', usersData.length);
         
         const transformedUsers = usersData.map((user: any) => ({
           id: user.id.toString(),
@@ -107,10 +108,10 @@ export default function AdminReports() {
           u.role === 'manager' || u.role === 'employee'
         );
         
-        console.log('Team users:', teamUsers.length);
+        logger.log('Team users:', teamUsers.length);
         setTeamMembers(teamUsers);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        logger.error("Error fetching data:", error);
         // Show user-friendly error message
         if (error instanceof Error) {
           if (error.message.includes('401')) {

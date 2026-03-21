@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import { apiClient } from '@/lib/api';
 import UserFormModal from './UserFormModal';
+import PromotionModal from './PromotionModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2, Building2, TrendingUp } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -43,7 +45,9 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types';
+import type { Company } from '@/types';
 
+import { logger } from '@/lib/logger';
 interface DBUser {
   id: string;
   user_id: string;
@@ -54,6 +58,7 @@ interface DBUser {
   status: string;
   manager_id: string | null;
   manager_name?: string | null; // Manager's name from API
+  company?: Company; // Company information
   created_at: string;
   updated_at: string;
   role: UserRole;
@@ -61,13 +66,17 @@ interface DBUser {
 
 export default function UserList() {
   const { createUser } = useAuth();
+  const { selectedCompany, availableCompanies: contextCompanies } = useCompany();
   const [users, setUsers] = useState<DBUser[]>([]);
-  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+  const [managers, setManagers] = useState<{ id: string; name: string; company?: number }[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<DBUser | null>(null);
+  const [promotingUser, setPromotingUser] = useState<DBUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
@@ -82,7 +91,7 @@ export default function UserList() {
         setLoading(true);
       }
       
-      console.log('🔄 Fetching users from backend...');
+      logger.log('🔄 Fetching users from backend...');
       
       // Fetch users from Django backend
       const response = await apiClient.getUsers();
@@ -100,7 +109,7 @@ export default function UserList() {
         usersData = [];
       }
       
-      console.log(`📊 Fetched ${usersData.length} users from backend:`, usersData.map(u => ({ id: u.id, username: u.username, name: `${u.first_name} ${u.last_name}`.trim() })));
+      logger.log(`📊 Fetched ${usersData.length} users from backend:`, usersData.map(u => ({ id: u.id, username: u.username, name: `${u.first_name} ${u.last_name}`.trim() })));
       
       // Transform Django user data to match frontend interface
       const transformedUsers: DBUser[] = usersData.map((user: any) => ({
@@ -114,22 +123,27 @@ export default function UserList() {
         status: 'active', // Default status
         manager_id: user.manager?.toString() || null,
         manager_name: user.manager_name || null, // From serializer
+        company: user.company_info || user.company, // Company information
         created_at: user.created_at,
         updated_at: user.created_at, // Use created_at as updated_at for now
       }));
       
-      console.log(`✅ Transformed ${transformedUsers.length} users for UI:`, transformedUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));
+      logger.log(`✅ Transformed ${transformedUsers.length} users for UI:`, transformedUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));
       
       setUsers(transformedUsers);
       
-      // Extract managers for the form
+      // Extract managers for the form (include company id for filtering)
       const managersList = transformedUsers
         .filter(user => user.role === 'manager')
-        .map(user => ({ id: user.id, name: user.name }));
+        .map(user => ({
+          id: user.id,
+          name: user.name,
+          company: user.company?.id,
+        }));
       setManagers(managersList);
       
     } catch (error) {
-      console.error('❌ Error fetching users:', error);
+      logger.error('❌ Error fetching users:', error);
       toast.error('Failed to fetch users');
       
       // Fallback to placeholder data if API fails
@@ -183,7 +197,29 @@ export default function UserList() {
 
   useEffect(() => {
     fetchUsers(true);
+    fetchCompanies();
   }, []);
+
+  // Fetch companies for filter dropdown
+  const fetchCompanies = async () => {
+    try {
+      logger.log('🔄 Fetching companies for filter...');
+      const response = await apiClient.getCompanies();
+      
+      // Handle paginated response
+      const companiesData = response.results || response;
+      const companiesList = Array.isArray(companiesData) ? companiesData : [];
+      
+      logger.log(`📊 Fetched ${companiesList.length} companies for filter`);
+      setCompanies(companiesList);
+    } catch (error: any) {
+      logger.error('❌ Error fetching companies:', error);
+      // Fallback to context companies if available
+      if (contextCompanies && contextCompanies.length > 0) {
+        setCompanies(contextCompanies);
+      }
+    }
+  };
 
   // Clear deleted users when the users list updates, but only if they're actually gone
   useEffect(() => {
@@ -196,7 +232,7 @@ export default function UserList() {
           if (stillExists) {
             // User still exists in fresh data, remove from deleted set
             newDeletedUsers.delete(deletedId);
-            console.log(`User ${deletedId} still exists after deletion attempt, removing from deleted set`);
+            logger.log(`User ${deletedId} still exists after deletion attempt, removing from deleted set`);
           }
         }
         return newDeletedUsers;
@@ -217,7 +253,10 @@ export default function UserList() {
     
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     
-    return matchesSearch && matchesRole;
+    const matchesCompany = companyFilter === 'all' || 
+      (user.company && user.company.id.toString() === companyFilter);
+    
+    return matchesSearch && matchesRole && matchesCompany;
   });
 
   const allSelected = filteredUsers.length > 0 && filteredUsers.every(user => selectedIds.has(user.id));
@@ -246,8 +285,8 @@ export default function UserList() {
     let successCount = 0;
     let failCount = 0;
     
-    console.log('🚀 Starting bulk delete for users:', idsToDelete);
-    console.log('🚀 Selected user objects:', filteredUsers.filter(u => selectedIds.has(u.id)));
+    logger.log('🚀 Starting bulk delete for users:', idsToDelete);
+    logger.log('🚀 Selected user objects:', filteredUsers.filter(u => selectedIds.has(u.id)));
     
     // Close dialog immediately and show progress
     setShowBulkDeleteDialog(false);
@@ -257,14 +296,14 @@ export default function UserList() {
       // Delete users one by one using the working API
       for (const id of idsToDelete) {
         try {
-          console.log(`🗑️ Deleting user ${id} (as integer: ${parseInt(id)})...`);
+          logger.log(`🗑️ Deleting user ${id} (as integer: ${parseInt(id)})...`);
           const result = await apiClient.simpleDeleteUser(parseInt(id));
-          console.log(`✅ Successfully deleted user ${id}:`, result);
+          logger.log(`✅ Successfully deleted user ${id}:`, result);
           successCount++;
           // Mark as deleted immediately for UI update
           setDeletedUsers(prev => new Set(prev).add(id));
         } catch (error) {
-          console.error(`❌ Failed to delete user ${id}:`, error);
+          logger.error(`❌ Failed to delete user ${id}:`, error);
           failCount++;
         }
         // Small delay between deletions for smooth animation
@@ -272,18 +311,18 @@ export default function UserList() {
       }
       
       // Refresh the user list to ensure UI is updated
-      console.log('🔄 Refreshing user list...');
+      logger.log('🔄 Refreshing user list...');
       await fetchUsers(false);
       
     } catch (error) {
-      console.error('❌ Bulk delete failed:', error);
+      logger.error('❌ Bulk delete failed:', error);
       toast.error('Failed to delete users. Please try again.');
     } finally {
       setDeletingUsers(new Set());
       setSelectedIds(new Set());
     }
     
-    console.log(`📊 Bulk delete completed: ${successCount} success, ${failCount} failed`);
+    logger.log(`📊 Bulk delete completed: ${successCount} success, ${failCount} failed`);
     
     if (successCount > 0) {
       toast.success(`${successCount} user(s) deleted successfully`);
@@ -310,6 +349,8 @@ export default function UserList() {
     try {
       setIsSubmitting(true);
       
+      logger.log('[UserList] handleSaveUser called with userData:', userData);
+      
       const result = await createUser(
         userData.email,
         userData.password,
@@ -317,6 +358,7 @@ export default function UserList() {
         userData.phone,
         userData.address,
         userData.role,
+        userData.company, // Add company parameter
         userData.managerId
       );
 
@@ -362,7 +404,7 @@ export default function UserList() {
         return { success: false };
       }
     } catch (error: any) {
-      console.error('Error updating user:', error);
+      logger.error('Error updating user:', error);
       
       // Parse error details from API response
       let errorMessage = 'Failed to update user';
@@ -388,6 +430,49 @@ export default function UserList() {
       return { success: false };
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePromoteEmployee = async (userId: string): Promise<{ success: boolean; message?: string; newUsername?: string }> => {
+    try {
+      logger.log(`🚀 Promoting employee ${userId} to manager...`);
+      const response = await apiClient.promoteEmployeeToManager(userId);
+      
+      if (response && response.message) {
+        // Refresh the user list to show updated role
+        await fetchUsers(false);
+        
+        return {
+          success: true,
+          message: response.message,
+          newUsername: response.promotion_details?.new_username
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Failed to promote employee'
+        };
+      }
+    } catch (error: any) {
+      logger.error('Error promoting employee:', error);
+      
+      // Parse error message from API response
+      let errorMessage = 'Failed to promote employee';
+      try {
+        if (error.message && error.message.includes('details: ')) {
+          const errorData = JSON.parse(error.message.split('details: ')[1]);
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        }
+      } catch (parseError) {
+        errorMessage = error.message || 'Failed to promote employee';
+      }
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
     }
   };
 
@@ -432,8 +517,24 @@ export default function UserList() {
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="hr">HR</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
               <SelectItem value="employee">Employee</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger className="w-44">
+              <Building2 className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id.toString()}>
+                  {company.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -471,6 +572,7 @@ export default function UserList() {
               <TableHead className="font-semibold">User ID</TableHead>
               <TableHead className="font-semibold hidden sm:table-cell">Contact</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
+              <TableHead className="font-semibold hidden xl:table-cell">Company</TableHead>
               <TableHead className="font-semibold hidden lg:table-cell">Manager</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold hidden md:table-cell">Joined</TableHead>
@@ -522,6 +624,18 @@ export default function UserList() {
                     {user.role}
                   </Badge>
                 </TableCell>
+                <TableCell className="hidden xl:table-cell">
+                  {user.company ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+                        {user.company.code.charAt(0)}
+                      </div>
+                      <span className="text-sm text-muted-foreground">{user.company.name}</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">-</p>
+                  )}
+                </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   {user.role === 'employee' && user.manager_name ? (
                     <p className="text-sm text-muted-foreground">
@@ -562,6 +676,16 @@ export default function UserList() {
                         <Edit className="w-4 h-4 mr-2" />
                         Edit User
                       </DropdownMenuItem>
+                      
+                      {user.role === 'employee' && (
+                        <DropdownMenuItem 
+                          onClick={() => setPromotingUser(user)}
+                        >
+                          <TrendingUp className="w-4 h-4 mr-2" />
+                          Promote to Manager
+                        </DropdownMenuItem>
+                      )}
+                      
                       <DropdownMenuItem 
                         onClick={() => handleToggleStatus(user)}
                       >
@@ -574,13 +698,13 @@ export default function UserList() {
                         onClick={async () => {
                           if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
                             try {
-                              console.log(`🗑️ Individual delete for user ${user.id} (${user.name})...`);
+                              logger.log(`🗑️ Individual delete for user ${user.id} (${user.name})...`);
                               const result = await apiClient.simpleDeleteUser(parseInt(user.id));
-                              console.log(`✅ Individual delete successful:`, result);
+                              logger.log(`✅ Individual delete successful:`, result);
                               await fetchUsers(false);
                               toast.success(`User "${user.name}" deleted successfully`);
                             } catch (error: any) {
-                              console.error(`❌ Individual delete failed:`, error);
+                              logger.error(`❌ Individual delete failed:`, error);
                               toast.error('Failed to delete user: ' + error.message);
                             }
                           }
@@ -609,9 +733,16 @@ export default function UserList() {
         onClose={() => { setIsFormOpen(false); setEditingUser(null); }}
         onSave={handleSaveUser}
         onUpdate={handleUpdateUser}
-        managers={managers.map(m => ({ id: m.id, name: m.name }))}
+        managers={managers.map(m => ({ id: m.id, name: m.name, company: m.company }))}
         isSubmitting={isSubmitting}
         editUser={editingUser}
+      />
+
+      <PromotionModal
+        open={!!promotingUser}
+        onClose={() => setPromotingUser(null)}
+        user={promotingUser}
+        onPromote={handlePromoteEmployee}
       />
 
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>

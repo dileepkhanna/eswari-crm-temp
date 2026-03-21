@@ -5,6 +5,7 @@ import { User } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { apiClient } from '@/lib/api';
 
+import { logger } from '@/lib/logger';
 export default function ManagerTasks() {
   const { user } = useAuth();
   const [employees, setEmployees] = useState<User[]>([]);
@@ -23,7 +24,7 @@ export default function ManagerTasks() {
           setEmployees(users);
         }
       } catch (error) {
-        console.error('Failed to fetch employees:', error);
+        logger.error('Failed to fetch employees:', error);
       }
     };
 

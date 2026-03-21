@@ -33,6 +33,7 @@ class Lead(models.Model):
         ('walk_in', 'Walk-in'),
         ('website', 'Website'),
         ('referral', 'Referral'),
+        ('customer_conversion', 'Customer Conversion'),
     ]
 
     # Basic Information
@@ -51,6 +52,12 @@ class Lead(models.Model):
     # Lead Management
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     source = models.CharField(max_length=100, default='website', help_text="Lead source - can be predefined or custom")
+    company = models.ForeignKey(
+        'accounts.Company',
+        on_delete=models.PROTECT,
+        related_name='leads',
+        help_text="Company this lead belongs to"
+    )
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_leads')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_leads', null=True, blank=True)
     
@@ -78,6 +85,9 @@ class Lead(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['follow_up_date']),
             models.Index(fields=['status', 'assigned_to']),  # Composite index for common queries
+            models.Index(fields=['company']),
+            models.Index(fields=['company', 'created_at']),
+            models.Index(fields=['company', 'source']),
         ]
 
     def __str__(self):

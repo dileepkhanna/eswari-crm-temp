@@ -7,6 +7,7 @@ import { Holiday } from '@/types';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 export default function ManagerHolidays() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,7 @@ export default function ManagerHolidays() {
       
       setHolidays(transformedHolidays);
     } catch (error) {
-      console.error('Error fetching holidays:', error);
+      logger.error('Error fetching holidays:', error);
       toast.error('Failed to fetch holidays');
     } finally {
       setLoading(false);
@@ -71,7 +72,7 @@ export default function ManagerHolidays() {
       toast.success('Holiday created successfully');
       setIsFormOpen(false);
     } catch (error: any) {
-      console.error('Error creating holiday:', error);
+      logger.error('Error creating holiday:', error);
       toast.error('Failed to create holiday');
     }
   };
@@ -102,7 +103,7 @@ export default function ManagerHolidays() {
       toast.success('Holiday updated successfully');
       setEditingHoliday(null);
     } catch (error: any) {
-      console.error('Error updating holiday:', error);
+      logger.error('Error updating holiday:', error);
       toast.error('Failed to update holiday');
     }
   };
@@ -113,7 +114,7 @@ export default function ManagerHolidays() {
       await fetchHolidays(); // Refresh the list
       toast.success('Holiday deleted successfully');
     } catch (error: any) {
-      console.error('Error deleting holiday:', error);
+      logger.error('Error deleting holiday:', error);
       toast.error('Failed to delete holiday');
     }
   };

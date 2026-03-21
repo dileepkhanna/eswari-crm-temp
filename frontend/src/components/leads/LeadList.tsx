@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Lead, User } from "@/types";
 import LeadStatusChip from "./LeadStatusChip";
 import LeadFormModal from "./LeadFormModal";
@@ -58,9 +58,11 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContextDjango";
-import { useData } from "@/contexts/DataContextDjango";
+import { useData, apiToLead } from "@/contexts/DataContextDjango";
 import { canDeleteLeadsAndTasks, canViewCustomerPhone, maskPhoneNumber, maskEmail } from "@/lib/permissions";
+import { apiClient } from "@/lib/api";
 
+import { logger } from '@/lib/logger';
 interface LeadListProps {
   canCreate?: boolean;
   canEdit?: boolean;
@@ -77,8 +79,7 @@ export default function LeadList({
   employees = [],
 }: LeadListProps) {
   const { user } = useAuth();
-  const { leads, projects, tasks, addLead, updateLead, deleteLead, bulkDeleteLeads, addTask } = useData();
-
+  const { leads, leadsPage, leadsTotalPages, leadsTotalCount, leadsSearch, leadsStatus, setLeadsPage, setLeadsSearch, setLeadsStatus, projects, tasks, addLead, updateLead, deleteLead, bulkDeleteLeads, bulkDeleteLeadsByFilter, addTask, refreshData } = useData();
   // Check if user can delete leads and tasks
   const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
 
@@ -87,8 +88,7 @@ export default function LeadList({
     return canViewCustomerPhone(user?.role, user?.id, lead.createdBy);
   };
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  // Local-only filters (project, user, task, date) — applied client-side on current page
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [taskFilter, setTaskFilter] = useState<string>("all");
@@ -97,34 +97,30 @@ export default function LeadList({
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteAllMatching, setDeleteAllMatching] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
 
+  // Auto-refresh when leads array changes (optimistic updates)
+  useEffect(() => {
+    setLastUpdateTime(new Date());
+  }, [leads.length]);
+
+  // Client-side filter for project/user/task/date (search & status are server-side)
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
-      const matchesSearch =
-        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.phone.includes(searchQuery);
-
-      const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-      
-      // Updated project filtering to handle multiple projects
       const matchesProject = projectFilter === "all" || 
         (lead.assignedProjects && lead.assignedProjects.includes(projectFilter)) ||
         lead.assignedProject === projectFilter;
 
-      // User filter - filter by created by or assigned to
       const matchesUser = userFilter === "all" || 
         lead.createdBy === userFilter || 
         lead.assignedTo === userFilter;
 
-      // Task filter - filter by whether lead has been converted to task
       let matchesTask = true;
       if (taskFilter === "converted") {
-        // Check if this lead has been converted to a task
         matchesTask = tasks.some(task => task.leadId === lead.id);
       } else if (taskFilter === "not_converted") {
-        // Check if this lead has NOT been converted to a task
         matchesTask = !tasks.some(task => task.leadId === lead.id);
       }
 
@@ -138,9 +134,9 @@ export default function LeadList({
         matchesDate = new Date(lead.createdAt) >= startOfDay(dateRange.from);
       }
 
-      return matchesSearch && matchesStatus && matchesProject && matchesUser && matchesTask && matchesDate;
+      return matchesProject && matchesUser && matchesTask && matchesDate;
     });
-  }, [leads, searchQuery, statusFilter, projectFilter, userFilter, taskFilter, dateRange, tasks]);
+  }, [leads, projectFilter, userFilter, taskFilter, dateRange, tasks]);
 
   // Check if user can see any phone numbers (for table headers)
   const canSeeAnyPhoneNumbers = useMemo(() => {
@@ -153,8 +149,13 @@ export default function LeadList({
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
+      setDeleteAllMatching(false);
     } else {
       setSelectedIds(new Set(filteredLeads.map(lead => lead.id)));
+      // If there are more pages, flag that delete should use filter-based approach
+      if (leadsTotalCount > filteredLeads.length) {
+        setDeleteAllMatching(true);
+      }
     }
   };
 
@@ -166,17 +167,24 @@ export default function LeadList({
       newSet.add(id);
     }
     setSelectedIds(newSet);
+    setDeleteAllMatching(false);
   };
 
   const handleBulkDelete = async () => {
     try {
-      console.log('🗑️ Starting bulk delete for selected leads:', Array.from(selectedIds));
-      await bulkDeleteLeads(Array.from(selectedIds));
+      if (deleteAllMatching) {
+        // Delete all records matching current filters across all pages
+        await bulkDeleteLeadsByFilter({ search: leadsSearch, status: leadsStatus });
+      } else {
+        logger.log('🗑️ Starting bulk delete for selected leads:', Array.from(selectedIds));
+        await bulkDeleteLeads(Array.from(selectedIds));
+      }
       setSelectedIds(new Set());
+      setDeleteAllMatching(false);
       setShowDeleteDialog(false);
+      setTimeout(() => refreshData(false), 500);
     } catch (error) {
-      console.error('❌ Bulk delete failed:', error);
-      // Error toast is already shown by bulkDeleteLeads function
+      logger.error('❌ Bulk delete failed:', error);
     }
   };
 
@@ -195,6 +203,9 @@ export default function LeadList({
       }
       setIsFormOpen(false);
       setEditingLead(null);
+      
+      // Trigger immediate UI update
+      setLastUpdateTime(new Date());
     } catch (error) {
       // Error already shown by DataContext
     }
@@ -219,6 +230,9 @@ export default function LeadList({
       toast.success(`Lead "${lead.name}" converted to task`, {
         description: "You can now track this lead in the Tasks module.",
       });
+      
+      // Trigger immediate UI update
+      setLastUpdateTime(new Date());
     } catch (error) {
       toast.error("Failed to convert lead to task");
     }
@@ -228,6 +242,9 @@ export default function LeadList({
     try {
       await deleteLead(lead.id);
       toast.success("Lead deleted successfully");
+      
+      // Trigger immediate UI update
+      setLastUpdateTime(new Date());
     } catch (error) {
       // Error already shown by DataContext
     }
@@ -287,12 +304,16 @@ export default function LeadList({
     try {
       await updateLead(leadId, { status: newStatus });
       toast.success("Lead status updated");
+      
+      // Trigger immediate UI update
+      setLastUpdateTime(new Date());
     } catch (error) {
       // Error already shown by DataContext
     }
   };
 
   const handleImportLeads = async (importedLeads: Partial<Lead>[]) => {
+    let successCount = 0;
     for (const leadData of importedLeads) {
       try {
         await addLead({
@@ -300,10 +321,34 @@ export default function LeadList({
           notes: [],
           createdBy: user?.id || "unknown",
         });
+        successCount++;
       } catch (error) {
         // Continue with next lead
       }
     }
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} leads imported successfully`);
+      setLastUpdateTime(new Date());
+    }
+  };
+
+  // Fetch all pages for export
+  const fetchAllLeadsForExport = async (): Promise<Lead[]> => {
+    const PAGE_SIZE = 200;
+    let allLeads: Lead[] = [];
+    let page = 1;
+    while (true) {
+      const params: Record<string, any> = { page, page_size: PAGE_SIZE };
+      if (leadsSearch) params.search = leadsSearch;
+      if (leadsStatus) params.status = leadsStatus;
+      const response = await apiClient.getLeads(params);
+      const results = Array.isArray(response) ? response : (response.results || []);
+      allLeads = allLeads.concat(results.map(apiToLead));
+      if (Array.isArray(response) || !response.next) break;
+      page++;
+    }
+    return allLeads;
   };
 
   return (
@@ -315,14 +360,14 @@ export default function LeadList({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search leads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={leadsSearch}
+              onChange={(e) => setLeadsSearch(e.target.value)}
               className="pl-10 input-field w-full"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={leadsStatus || "all"} onValueChange={(v) => setLeadsStatus(v === "all" ? "" : v)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -425,78 +470,99 @@ export default function LeadList({
 
         <div className="flex gap-2 flex-wrap justify-between items-start sm:items-center">
           <div className="flex gap-2 items-center flex-wrap">
-            <ExcelImportExport leads={filteredLeads} onImport={handleImportLeads} />
-            {someSelected && canDelete && (
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={() => setShowDeleteDialog(true)}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete ({selectedIds.size})
+            <ExcelImportExport leads={filteredLeads} totalCount={leadsTotalCount} onExportAll={fetchAllLeadsForExport} onImport={handleImportLeads} />
+            {canCreate && (
+              <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Lead
               </Button>
             )}
           </div>
-          {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0 w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Lead
-            </Button>
-          )}
+          
+          {/* Right side actions */}
+          <div className="flex gap-2 items-center flex-wrap">
+            {someSelected && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-lg border">
+                <span className="text-sm text-muted-foreground">
+                  {selectedIds.size} selected
+                </span>
+                {canDelete && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="h-7"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-2">
         {filteredLeads.map((lead, index) => (
           <div
             key={lead.id}
-            className="glass-card rounded-xl p-4 animate-fade-in"
+            className="glass-card rounded-lg p-3 animate-fade-in"
             style={{ animationDelay: `${index * 50}ms` }}
           >
-            <div className="flex items-start justify-between mb-3 gap-2">
-              <div className="min-w-0">
-                <p className="font-medium text-foreground truncate">{lead.name}</p>
-                <p className="text-xs text-muted-foreground capitalize truncate">{lead.source || "Direct"}</p>
+            <div className="flex items-start justify-between mb-2 gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    checked={selectedIds.has(lead.id)} 
+                    onCheckedChange={() => toggleSelect(lead.id)}
+                    className="shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate text-sm">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize truncate">{lead.source || "Direct"}</p>
+                  </div>
+                </div>
               </div>
               <LeadStatusChip status={lead.status} />
             </div>
             {canSeeAnyPhoneNumbers && (
-              <div className="grid grid-cols-1 gap-2 text-sm mb-3">
+              <div className="grid grid-cols-1 gap-1 text-xs mb-2">
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <Phone className="w-3.5 h-3.5" />
+                  <Phone className="w-3 h-3" />
                   <span className="truncate">
                     {canSeePhoneNumber(lead) ? lead.phone : maskPhoneNumber(lead.phone)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <Mail className="w-3.5 h-3.5" />
+                  <Mail className="w-3 h-3" />
                   <span className="truncate">
                     {canSeePhoneNumber(lead) ? lead.email : maskEmail(lead.email)}
                   </span>
                 </div>
               </div>
             )}
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 gap-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 gap-2">
               <span className="truncate">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</span>
               {!isManagerView && <span className="shrink-0">{formatBudget(lead.budgetMin, lead.budgetMax)}</span>}
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" className="flex-1 min-w-[70px]" onClick={() => setViewingLead(lead)}>
-                <Eye className="w-3.5 h-3.5 mr-1" />
+            <div className="flex gap-1 flex-wrap">
+              <Button variant="outline" size="sm" className="flex-1 min-w-[60px] h-7 text-xs" onClick={() => setViewingLead(lead)}>
+                <Eye className="w-3 h-3 mr-1" />
                 View
               </Button>
               {canEdit && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 min-w-[70px]"
+                  className="flex-1 min-w-[60px] h-7 text-xs"
                   onClick={() => {
                     setEditingLead(lead);
                     setIsFormOpen(true);
                   }}
                 >
-                  <Edit className="w-3.5 h-3.5 mr-1" />
+                  <Edit className="w-3 h-3 mr-1" />
                   Edit
                 </Button>
               )}
@@ -504,10 +570,10 @@ export default function LeadList({
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="flex-1 min-w-[100px]"
+                  className="flex-1 min-w-[80px] h-7 text-xs"
                   onClick={() => handleConvertToTask(lead)}
                 >
-                  <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                  <CheckSquare className="w-3 h-3 mr-1" />
                   Convert
                 </Button>
               )}
@@ -599,8 +665,19 @@ export default function LeadList({
                 </TableCell>
                 <TableCell>
                   <Select value={lead.status} onValueChange={(value) => handleStatusChange(lead.id, value as Lead["status"])}>
-                    <SelectTrigger className="w-36 h-8">
-                      <LeadStatusChip status={lead.status} />
+                    <SelectTrigger className={`w-36 border rounded-full px-3 text-xs font-medium flex items-center justify-between gap-1 ${
+                      lead.status === 'new' ? 'bg-green-100 border-green-300 text-green-700' :
+                      lead.status === 'hot' ? 'bg-red-100 border-red-300 text-red-700' :
+                      lead.status === 'warm' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
+                      lead.status === 'cold' ? 'bg-blue-100 border-blue-300 text-blue-700' :
+                      lead.status === 'not_interested' ? 'bg-gray-100 border-gray-300 text-gray-700' :
+                      lead.status === 'reminder' ? 'bg-purple-100 border-purple-300 text-purple-700' :
+                      'bg-gray-100 border-gray-300 text-gray-700'
+                    }`}>
+                      <span className="truncate">
+                        {lead.status === 'not_interested' ? 'Not Interested' :
+                         lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="new">New</SelectItem>
@@ -680,6 +757,37 @@ export default function LeadList({
         </div>
       )}
 
+      {/* Pagination */}
+      {leadsTotalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+          <p className="text-sm text-muted-foreground">
+            Showing {(leadsPage - 1) * 50 + 1} - {Math.min(leadsPage * 50, leadsTotalCount)} of {leadsTotalCount} leads
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setLeadsPage(1)} disabled={leadsPage === 1}>{'«'}</Button>
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setLeadsPage(leadsPage - 1)} disabled={leadsPage === 1}>{'‹'}</Button>
+            {(() => {
+              const pages = Array.from({ length: leadsTotalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === leadsTotalPages || Math.abs(p - leadsPage) <= 2);
+              const items: (number | string)[] = [];
+              pages.forEach((p, i) => {
+                if (i > 0 && p - pages[i - 1] > 1) items.push('...');
+                items.push(p);
+              });
+              return items.map((p, i) =>
+                p === '...' ? (
+                  <span key={`e-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
+                ) : (
+                  <Button key={p} variant={leadsPage === p ? 'default' : 'outline'} size="sm" className="h-8 w-8 p-0 text-xs" onClick={() => setLeadsPage(p as number)}>{p}</Button>
+                )
+              );
+            })()}
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setLeadsPage(leadsPage + 1)} disabled={leadsPage === leadsTotalPages}>{'›'}</Button>
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setLeadsPage(leadsTotalPages)} disabled={leadsPage === leadsTotalPages}>{'»'}</Button>
+          </div>
+        </div>
+      )}
+
       <LeadFormModal
         open={isFormOpen}
         onClose={() => {
@@ -713,7 +821,9 @@ export default function LeadList({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Selected Leads</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {selectedIds.size} lead(s)? This action cannot be undone.
+              {deleteAllMatching
+                ? `Are you sure you want to delete all ${leadsTotalCount} matching leads? This action cannot be undone.`
+                : `Are you sure you want to delete ${selectedIds.size} lead(s)? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

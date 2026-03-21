@@ -4,10 +4,17 @@ from accounts.serializers import UserSerializer
 from projects.serializers import ProjectSerializer
 from leads.serializers import LeadSerializer
 
+class CompanyNestedSerializer(serializers.Serializer):
+    """Lightweight nested serializer for company information"""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    code = serializers.CharField(read_only=True)
+
 class TaskSerializer(serializers.ModelSerializer):
     assigned_to_detail = UserSerializer(source='assigned_to', read_only=True)
     project_detail = ProjectSerializer(source='project', read_only=True)
     lead_detail = LeadSerializer(source='lead', read_only=True)
+    company_detail = CompanyNestedSerializer(source='company', read_only=True)
     
     class Meta:
         model = Task

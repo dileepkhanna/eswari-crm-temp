@@ -1,6 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
+
+# Create router for ViewSets
+router = DefaultRouter()
+router.register(r'companies', views.CompanyViewSet, basename='company')
 
 urlpatterns = [
     # Admin setup endpoints
@@ -18,6 +23,10 @@ urlpatterns = [
     path('users/', views.UserListView.as_view(), name='user_list'),
     path('users/<int:user_id>/update/', views.admin_update_user_view, name='admin_update_user'),
     path('users/<int:user_id>/delete/', views.delete_user_view, name='delete_user'),
+    path('users/<int:user_id>/promote/', views.promote_employee_to_manager_view, name='promote_employee'),
     path('users/simple-delete/', views.simple_delete_user_view, name='simple_delete_user'),
     path('managers/', views.managers_list_view, name='managers_list'),
+    
+    # Include router URLs for ViewSets
+    path('', include(router.urls)),
 ]

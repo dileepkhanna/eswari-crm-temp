@@ -13,7 +13,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { User, Bell, Shield, Palette, Save, Camera, Loader2, Trash2 } from 'lucide-react';
+import { NotificationSettings } from '@/components/NotificationSettings';
 
+import { logger } from '@/lib/logger';
 export default function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -157,7 +159,7 @@ export default function SettingsPage() {
       // setAvatarUrl(publicUrl);
       toast.success('Profile picture upload not implemented yet');
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      logger.error('Error uploading avatar:', error);
       toast.error('Failed to upload profile picture');
     } finally {
       setIsUploading(false);
@@ -183,7 +185,7 @@ export default function SettingsPage() {
       
       toast.success(response.message || 'Profile updated successfully');
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      logger.error('Error updating profile:', error);
       toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsSavingProfile(false);
@@ -247,7 +249,7 @@ export default function SettingsPage() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      console.error('Error changing password:', error);
+      logger.error('Error changing password:', error);
       
       // Parse error details for better user feedback
       let errorMessage = 'Failed to change password';
@@ -264,7 +266,7 @@ export default function SettingsPage() {
             errorMessage = details.error;
           }
         } catch (parseError) {
-          console.error('Error parsing error details:', parseError);
+          logger.error('Error parsing error details:', parseError);
         }
       } else if (error.message) {
         errorMessage = error.message;
@@ -313,7 +315,7 @@ export default function SettingsPage() {
       await logout();
       window.location.href = '/login';
     } catch (error: any) {
-      console.error('Error deleting account:', error);
+      logger.error('Error deleting account:', error);
       
       let errorMessage = 'Failed to delete account';
       if (error.message && error.message.includes('details:')) {
@@ -326,7 +328,7 @@ export default function SettingsPage() {
             errorMessage = details.error;
           }
         } catch (parseError) {
-          console.error('Error parsing error details:', parseError);
+          logger.error('Error parsing error details:', parseError);
         }
       } else if (error.message) {
         errorMessage = error.message;
@@ -472,91 +474,7 @@ export default function SettingsPage() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Notification Preferences
-                </CardTitle>
-                <CardDescription>
-                  Manage how you receive notifications and alerts
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="email-notifications" className="font-medium">Email Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                    </div>
-                    <Switch 
-                      id="email-notifications"
-                      checked={emailNotifications} 
-                      onCheckedChange={setEmailNotifications}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="push-notifications" className="font-medium">Push Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive push notifications in browser</p>
-                    </div>
-                    <Switch 
-                      id="push-notifications"
-                      checked={pushNotifications} 
-                      onCheckedChange={setPushNotifications}
-                    />
-                  </div>
-                  
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-4">Alert Types</h4>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="lead-alerts" className="font-medium">Lead Alerts</Label>
-                          <p className="text-sm text-muted-foreground">New leads and follow-up reminders</p>
-                        </div>
-                        <Switch 
-                          id="lead-alerts"
-                          checked={leadAlerts} 
-                          onCheckedChange={setLeadAlerts}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="task-reminders" className="font-medium">Task Reminders</Label>
-                          <p className="text-sm text-muted-foreground">Task deadlines and updates</p>
-                        </div>
-                        <Switch 
-                          id="task-reminders"
-                          checked={taskReminders} 
-                          onCheckedChange={setTaskReminders}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="leave-updates" className="font-medium">Leave Updates</Label>
-                          <p className="text-sm text-muted-foreground">Leave request approvals and rejections</p>
-                        </div>
-                        <Switch 
-                          id="leave-updates"
-                          checked={leaveUpdates} 
-                          onCheckedChange={setLeaveUpdates}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <Button onClick={handleSaveNotifications} className="gradient-primary">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Preferences
-                </Button>
-              </CardContent>
-            </Card>
+            <NotificationSettings />
           </TabsContent>
 
           {/* Appearance Tab */}

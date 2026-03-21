@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
+import { logger } from '@/lib/logger';
 interface AutoRefreshContextType {
   globalRefreshEnabled: boolean;
   setGlobalRefreshEnabled: (enabled: boolean) => void;
@@ -46,7 +47,7 @@ export function AutoRefreshProvider({ children }: AutoRefreshProviderProps) {
       try {
         callback();
       } catch (error) {
-        console.error('Error in refresh callback:', error);
+        logger.error('Error in refresh callback:', error);
       }
     });
   }, [refreshCallbacks]);

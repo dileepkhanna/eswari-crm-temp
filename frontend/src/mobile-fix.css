@@ -1,0 +1,261 @@
+/* SELECT BOXES PILL-LIKE STYLING - RADIX UI OVERRIDE - NUCLEAR OPTION */
+* {
+  box-sizing: border-box;
+}
+
+/* HIGHEST PRIORITY PILL STYLING FOR ALL SELECT TRIGGERS */
+html body [data-radix-select-trigger],
+html body button[data-radix-select-trigger],
+html body .select-trigger-pill,
+[data-radix-select-trigger],
+button[data-radix-select-trigger],
+.select-trigger-pill {
+  border-radius: 50px !important;
+  border-top-left-radius: 50px !important;
+  border-top-right-radius: 50px !important;
+  border-bottom-left-radius: 50px !important;
+  border-bottom-right-radius: 50px !important;
+  border: 1px solid #d1d5db !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 12px !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* HOVER EFFECTS */
+html body [data-radix-select-trigger]:hover,
+html body button[data-radix-select-trigger]:hover,
+html body .select-trigger-pill:hover,
+[data-radix-select-trigger]:hover,
+button[data-radix-select-trigger]:hover,
+.select-trigger-pill:hover {
+  background-color: #f9fafb !important;
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+/* FOCUS EFFECTS */
+html body [data-radix-select-trigger]:focus,
+html body button[data-radix-select-trigger]:focus,
+html body .select-trigger-pill:focus,
+[data-radix-select-trigger]:focus,
+button[data-radix-select-trigger]:focus,
+.select-trigger-pill:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}
+
+html body [data-radix-select-trigger]:focus-visible,
+html body button[data-radix-select-trigger]:focus-visible,
+html body .select-trigger-pill:focus-visible,
+[data-radix-select-trigger]:focus-visible,
+button[data-radix-select-trigger]:focus-visible,
+.select-trigger-pill:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}
+
+/* OVERRIDE TAILWIND CLASSES */
+[data-radix-select-trigger].rounded-md,
+[data-radix-select-trigger].rounded-lg,
+[data-radix-select-trigger].rounded,
+[data-radix-select-trigger].h-10,
+[data-radix-select-trigger].h-8,
+button[data-radix-select-trigger].rounded-md,
+button[data-radix-select-trigger].rounded-lg,
+button[data-radix-select-trigger].rounded,
+button[data-radix-select-trigger].h-10,
+button[data-radix-select-trigger].h-8 {
+  border-radius: 50px !important;
+  height: 2.25rem !important;
+  min-height: 2.25rem !important;
+  max-height: 2.25rem !important;
+}
+
+/* RADIX UI SELECT VALUE AND ICON STYLING */
+[data-radix-select-trigger] [data-radix-select-value],
+button[data-radix-select-trigger] [data-radix-select-value],
+.select-trigger-pill [data-radix-select-value] {
+  font-weight: 500 !important;
+  color: #374151 !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
+[data-radix-select-trigger] [data-radix-select-icon],
+button[data-radix-select-trigger] [data-radix-select-icon],
+.select-trigger-pill [data-radix-select-icon] {
+  color: #6b7280 !important;
+  width: 1rem !important;
+  height: 1rem !important;
+}
+
+/* RADIX UI SELECT TRIGGER PLACEHOLDER */
+[data-radix-select-trigger][data-placeholder],
+button[data-radix-select-trigger][data-placeholder],
+.select-trigger-pill[data-placeholder] {
+  color: #9ca3af !important;
+}
+
+/* ONLY select boxes and dropdowns get pill-like styling with consistent height */
+select,
+[role="combobox"],
+[data-radix-select-trigger],
+.select-trigger,
+button[aria-haspopup="listbox"],
+div[role="button"][aria-haspopup="listbox"],
+[data-testid="select-trigger"] {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 12px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  border-radius: 50px !important;
+  border: 1px solid #d1d5db !important;
+  color: #374151 !important;
+  line-height: 1.25rem !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Ensure native select keeps its dropdown arrow */
+select {
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  cursor: pointer !important;
+}
+
+/* Hover effects for select boxes */
+select:hover,
+[role="combobox"]:hover,
+[data-radix-select-trigger]:hover,
+button[aria-haspopup="listbox"]:hover,
+div[role="button"][aria-haspopup="listbox"]:hover {
+  background-color: #f9fafb !important; /* hover:bg-gray-50 */
+}
+
+/* Focus effects for select boxes */
+select:focus,
+[role="combobox"]:focus,
+[data-radix-select-trigger]:focus,
+button[aria-haspopup="listbox"]:focus,
+div[role="button"][aria-haspopup="listbox"]:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Status dropdowns with pill styling - let inline classes control height */
+[data-radix-select-trigger].rounded-full {
+  border-radius: 50px !important;
+  border-width: 1px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+/* Text in select boxes and status dropdowns - readable size */
+.rounded-full span,
+[role="combobox"] span,
+[data-radix-select-trigger] span,
+select option {
+  font-size: 0.875rem !important; /* text-sm - readable */
+  font-weight: 500 !important; /* font-medium */
+  line-height: 1.25rem !important;
+}
+
+/* Action buttons - consistent height, NOT pill-like */
+button.btn-primary,
+button.btn-secondary,
+button.btn-accent {
+  height: 2.25rem !important;
+  min-height: 2.25rem !important;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+  border-radius: 0.375rem !important;
+}
+
+/* Keep customer cards rectangular with normal size */
+.mobile-customer-card {
+  border-radius: 0.5rem !important; /* Normal rounded corners */
+  padding: 1rem !important; /* Normal padding */
+}
+
+.glass-card {
+  border-radius: 1rem !important; /* Normal rounded corners */
+  padding: 1.5rem !important; /* Normal padding */
+}
+
+/* Ensure table content is readable */
+table td,
+table th {
+  padding: 0.75rem 1rem !important; /* Normal table padding */
+  font-size: 0.875rem !important; /* text-sm */
+  line-height: 1.25rem !important;
+}
+
+/* Ensure headings remain readable */
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit !important; /* Don't shrink headings */
+  line-height: inherit !important;
+}
+
+/* Ensure body text remains readable */
+p, span:not(.rounded-full span), div:not(.rounded-full) {
+  font-size: inherit !important; /* Don't shrink all text */
+  line-height: inherit !important;
+}
+
+/* Mobile responsive - PILL-LIKE select boxes only, consistent height */
+@media (max-width: 1279px) {
+  /* Only select boxes and status dropdowns get pill styling */
+  .mobile-customer-card .rounded-full,
+  .mobile-customer-card select,
+  .mobile-customer-card [role="combobox"],
+  .mobile-customer-card [data-radix-select-trigger] {
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 10px !important;
+    border-radius: 50px !important;
+    border-width: 1px !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    line-height: 1.25rem !important;
+  }
+  
+  /* Regular buttons get consistent height but NOT pill-like */
+  .mobile-customer-card button.btn-primary,
+  .mobile-customer-card button.btn-secondary,
+  .mobile-customer-card button.btn-accent {
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0.25rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    border-radius: 0.375rem !important;
+  }
+  
+  /* Keep cards rectangular */
+  .mobile-customer-card {
+    border-radius: 0.5rem !important; /* Normal rounded corners */
+    padding: 1rem !important; /* Normal padding */
+  }
+  
+  /* Ensure mobile text remains readable */
+  .mobile-customer-card .text-xs,
+  .mobile-customer-card .text-sm {
+    font-size: 0.875rem !important; /* text-sm - readable */
+    line-height: 1.25rem !important;
+  }
+}

@@ -25,6 +25,12 @@ class Leave(models.Model):
     end_date = models.DateField()
     reason = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    company = models.ForeignKey(
+        'accounts.Company',
+        on_delete=models.PROTECT,
+        related_name='leaves',
+        help_text="Company this leave belongs to"
+    )
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_leaves')
     rejection_reason = models.TextField(blank=True, null=True)
     document = models.FileField(upload_to='leave_documents/', blank=True, null=True)
@@ -33,6 +39,10 @@ class Leave(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['company']),
+            models.Index(fields=['company', 'created_at']),
+        ]
 
     def __str__(self):
         return f"{self.user_name} - {self.leave_type} ({self.start_date} to {self.end_date})"

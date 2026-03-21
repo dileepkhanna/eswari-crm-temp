@@ -2,21 +2,36 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models, transaction
 from .models import Lead
 from .serializers import LeadSerializer
-from accounts.permissions import filter_by_user_access
+from accounts.permissions import filter_by_user_access, can_hr_access_module, CompanyAccessPermission
+from utils.mixins import CompanyFilterMixin
 
-class LeadViewSet(viewsets.ModelViewSet):
+
+class LeadPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 500
+
+
+class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     serializer_class = LeadSerializer
-    # Enable pagination for better performance
-    # pagination_class = None  # Disable pagination to show all leads
+    permission_classes = [CompanyAccessPermission]
+    pagination_class = LeadPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'source', 'assigned_to', 'requirement_type']
     search_fields = ['name', 'email', 'address', 'description']
     ordering_fields = ['created_at', 'updated_at', 'name']
     ordering = ['-created_at']
+    
+    def check_permissions(self, request):
+        """Block HR users from accessing leads"""
+        super().check_permissions(request)
+        if request.user.role == 'hr':
+            raise PermissionDenied("Access denied. HR users do not have permission to access this module.")
     
     def get_queryset(self):
         """
@@ -26,7 +41,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         
         # Base queryset with optimized joins
         base_queryset = Lead.objects.select_related(
-            'assigned_to', 'created_by'
+            'company', 'assigned_to', 'created_by'
         ).prefetch_related(
             'assigned_to__employees'  # For manager queries
         )
@@ -107,9 +122,57 @@ class LeadViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to delete leads.")
     
     @action(detail=False, methods=['post'])
+    def bulk_import(self, request):
+        """
+        Bulk import leads in a single DB transaction.
+        Expects: {"leads": [{...}, ...]}
+        Returns: {"imported": N, "errors": [...]}
+        """
+        rows = request.data.get('leads', [])
+        if not isinstance(rows, list) or len(rows) == 0:
+            return Response({'error': 'No leads provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        company = getattr(user, 'company', None)
+        if not company:
+            return Response({'error': 'User has no company assigned'}, status=status.HTTP_400_BAD_REQUEST)
+
+        to_create = []
+        errors = []
+
+        for i, row in enumerate(rows):
+            try:
+                obj = Lead(
+                    name=row.get('name', ''),
+                    phone=row.get('phone', ''),
+                    email=row.get('email', ''),
+                    address=row.get('address', ''),
+                    requirement_type=row.get('requirement_type', 'apartment'),
+                    bhk_requirement=row.get('bhk_requirement', '2'),
+                    budget_min=row.get('budget_min', 0) or 0,
+                    budget_max=row.get('budget_max', 0) or 0,
+                    preferred_location=row.get('preferred_location', ''),
+                    status=row.get('status', 'new'),
+                    source=row.get('source', 'website'),
+                    description=row.get('description', ''),
+                    company=company,
+                    created_by=user,
+                )
+                to_create.append(obj)
+            except Exception as e:
+                errors.append({'row': i + 1, 'error': str(e)})
+
+        imported = 0
+        if to_create:
+            with transaction.atomic():
+                created = Lead.objects.bulk_create(to_create, batch_size=500)
+                imported = len(created)
+
+        return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
         """
-        Bulk delete multiple leads at once.
         Expects: {"lead_ids": [1, 2, 3, ...]}
         """
         user = request.user
@@ -192,3 +255,43 @@ class LeadViewSet(viewsets.ModelViewSet):
             response_data['deletion_errors'] = deletion_errors
         
         return Response(response_data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'])
+    def bulk_delete_by_filter(self, request):
+        """
+        Delete all leads matching the given filters (search, status, source, etc.)
+        Used for cross-page "select all matching" bulk delete.
+        Expects: {"search": "...", "status": "new", ...}  (all optional)
+        Returns: {"deleted_count": N}
+        """
+        user = request.user
+        if user.role not in ['admin', 'manager']:
+            raise PermissionDenied("Only admins and managers can bulk delete by filter.")
+
+        # Build queryset using the same logic as get_queryset
+        queryset = self.get_queryset()
+
+        # Apply the same filters the frontend is using
+        search = request.data.get('search', '').strip()
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(address__icontains=search) |
+                Q(description__icontains=search)
+            )
+
+        status_filter = request.data.get('status', '').strip()
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        source_filter = request.data.get('source', '').strip()
+        if source_filter:
+            queryset = queryset.filter(source=source_filter)
+
+        count = queryset.count()
+        with transaction.atomic():
+            queryset.delete()
+
+        return Response({'deleted_count': count}, status=status.HTTP_200_OK)

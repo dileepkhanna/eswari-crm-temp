@@ -1,0 +1,25 @@
+from django.contrib import admin
+from .models import PushSubscription, Notification
+
+
+@admin.register(PushSubscription)
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'endpoint_short', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['user__username', 'user__email', 'endpoint']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def endpoint_short(self, obj):
+        return obj.endpoint[:50] + '...' if len(obj.endpoint) > 50 else obj.endpoint
+    endpoint_short.short_description = 'Endpoint'
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['user', 'notification_type', 'title', 'is_read', 'is_sent', 'created_at']
+    list_filter = ['notification_type', 'is_read', 'is_sent', 'created_at']
+    search_fields = ['user__username', 'title', 'message']
+    readonly_fields = ['created_at', 'sent_at']
+    
+    def has_add_permission(self, request):
+        return False

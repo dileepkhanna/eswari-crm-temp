@@ -3,6 +3,8 @@ import { UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import {
   Dialog,
   DialogContent,
@@ -31,13 +33,16 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { CompanyFormField } from '@/components/forms';
 
+import { logger } from '@/lib/logger';
 const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
-  role: z.enum(['admin', 'manager', 'employee'] as const),
+  role: z.enum(['admin', 'manager', 'employee', 'hr'] as const),
+  company: z.number().positive('Company is required').optional(),
   managerId: z.string().optional(),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
@@ -52,6 +57,15 @@ const createUserSchema = z.object({
 }, {
   message: "Manager must be assigned for employees",
   path: ["managerId"],
+}).refine((data) => {
+  // Company is required for manager and employee roles
+  if ((data.role === 'manager' || data.role === 'employee') && !data.company) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Company is required for manager and employee roles",
+  path: ["company"],
 });
 
 const editUserSchema = z.object({
@@ -59,6 +73,7 @@ const editUserSchema = z.object({
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
   managerId: z.string().optional(),
+  company: z.number().positive('Company is required').optional(),
   newPassword: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^(?=.*[a-zA-Z])/, 'Password must contain at least one letter')
@@ -77,6 +92,7 @@ interface EditUser {
   address: string | null;
   role?: string;
   manager_id?: string | null;
+  company?: { id: number; name: string; code: string } | null;
 }
 
 interface UserFormModalProps {
@@ -89,6 +105,7 @@ interface UserFormModalProps {
     phone: string;
     address: string;
     role: UserRole;
+    company?: number; // Made optional for admin/HR
     managerId?: string;
   }) => Promise<{ success: boolean; userId?: string }>;
   onUpdate?: (userId: string, userData: {
@@ -96,9 +113,10 @@ interface UserFormModalProps {
     phone: string;
     address: string;
     managerId?: string;
+    company?: number;
     newPassword?: string;
   }) => Promise<{ success: boolean }>;
-  managers?: { id: string; name: string }[];
+  managers?: { id: string; name: string; company?: number }[];
   isSubmitting?: boolean;
   editUser?: EditUser | null;
 }
@@ -114,8 +132,13 @@ export default function UserFormModal({
 }: UserFormModalProps) {
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { user } = useAuth();
+  const { canSelectCompany } = useCompany();
   
   const isEditMode = !!editUser;
+
+  // Auto-assign the logged-in user's company as default (admin/hr can still change it)
+  const defaultCompanyId = (user?.company as any)?.id || (user?.company as any) || undefined;
 
   const createForm = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
@@ -124,7 +147,8 @@ export default function UserFormModal({
       email: '',
       phone: '',
       address: '',
-      role: 'staff',
+      role: 'employee',
+      company: defaultCompanyId as any, // Will be undefined for admin/hr, which is correct
       managerId: '',
       password: '',
     },
@@ -137,12 +161,33 @@ export default function UserFormModal({
       phone: '',
       address: '',
       managerId: 'none',
+      company: 0,
       newPassword: '',
     },
   });
 
   const selectedRole = createForm.watch('role');
   const nameValue = createForm.watch('name');
+  const selectedCompanyCreate = createForm.watch('company');
+  const selectedCompanyEdit = editForm.watch('company');
+
+  // Filter managers by selected company
+  const filteredManagersCreate = selectedCompanyCreate
+    ? managers.filter(m => !m.company || m.company === selectedCompanyCreate)
+    : managers;
+
+  const filteredManagersEdit = selectedCompanyEdit
+    ? managers.filter(m => !m.company || m.company === selectedCompanyEdit)
+    : managers;
+
+  // Clear manager selection when company changes
+  useEffect(() => {
+    createForm.setValue('managerId', '');
+  }, [selectedCompanyCreate]);
+
+  useEffect(() => {
+    editForm.setValue('managerId', 'none');
+  }, [selectedCompanyEdit]);
 
   // Generate preview user_id with sequential format
   const previewUserId = nameValue 
@@ -157,6 +202,7 @@ export default function UserFormModal({
           phone: editUser.phone || '',
           address: editUser.address || '',
           managerId: editUser.manager_id || 'none',
+          company: editUser.company?.id || (user?.company as any)?.id || (user?.company as any) || 0,
           newPassword: '',
         });
       } else {
@@ -166,6 +212,7 @@ export default function UserFormModal({
           phone: '',
           address: '',
           role: 'employee',
+          company: defaultCompanyId as any,
           managerId: '',
           password: '',
         });
@@ -173,9 +220,15 @@ export default function UserFormModal({
       setCreatedUserId(null);
       setCopied(false);
     }
-  }, [open, editUser, createForm, editForm]);
+  }, [open, editUser, createForm, editForm, defaultCompanyId]);
 
   const handleCreateSubmit = async (data: CreateUserFormData) => {
+    logger.log('[UserFormModal] Form data before submit:', data);
+    logger.log('[UserFormModal] Company value:', data.company, 'Type:', typeof data.company);
+    
+    // Convert company value: 0 means no company (null), otherwise use the number
+    const companyValue = data.company === 0 ? undefined : data.company;
+    
     const result = await onSave({
       email: data.email || '', // Handle empty email
       password: data.password,
@@ -183,6 +236,7 @@ export default function UserFormModal({
       phone: data.phone,
       address: data.address || '',
       role: data.role as UserRole,
+      company: companyValue,
       managerId: data.managerId || undefined,
     });
 
@@ -199,6 +253,7 @@ export default function UserFormModal({
       phone: data.phone,
       address: data.address || '',
       managerId: data.managerId === 'none' ? undefined : data.managerId,
+      company: data.company,
       newPassword: data.newPassword || undefined,
     });
 
@@ -350,6 +405,17 @@ export default function UserFormModal({
                   )}
                 />
 
+                {/* Company Selection — hidden for HR (global role) */}
+                {editUser.role !== 'hr' && (
+                  <CompanyFormField
+                    control={editForm.control}
+                    name="company"
+                    label="Company"
+                    description="Assign user to a company. Changing company will clear manager assignment."
+                    required={true}
+                  />
+                )}
+
                 {editUser.role === 'employee' && (
                   <FormField
                     control={editForm.control}
@@ -365,7 +431,7 @@ export default function UserFormModal({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">No Manager</SelectItem>
-                            {managers.map((manager) => (
+                            {filteredManagersEdit.map((manager) => (
                               <SelectItem key={manager.id} value={manager.id}>
                                 {manager.name}
                               </SelectItem>
@@ -535,6 +601,7 @@ export default function UserFormModal({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="hr">HR</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
                         <SelectItem value="employee">Employee</SelectItem>
                       </SelectContent>
@@ -543,6 +610,20 @@ export default function UserFormModal({
                   </FormItem>
                 )}
               />
+
+              {/* Company Selection — hidden for HR (global role) */}
+              {selectedRole !== 'hr' && (
+                <CompanyFormField
+                  control={createForm.control}
+                  name="company"
+                  description={
+                    selectedRole === 'admin'
+                      ? "Optional: Select a company to assign this user to, or leave empty for global access"
+                      : "Select the company this user belongs to"
+                  }
+                  required={selectedRole === 'manager' || selectedRole === 'employee'}
+                />
+              )}
 
               {selectedRole === 'employee' && (
                 <FormField
@@ -558,7 +639,7 @@ export default function UserFormModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {managers.map((manager) => (
+                          {filteredManagersCreate.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id}>
                               {manager.name}
                             </SelectItem>

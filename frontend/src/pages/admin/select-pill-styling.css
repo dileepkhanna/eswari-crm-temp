@@ -1,0 +1,97 @@
+/* PILL SELECT BOX STYLING - DIRECT OVERRIDE */
+
+/* Target all Radix UI Select Triggers with maximum specificity */
+button[data-radix-select-trigger].select-trigger-pill,
+[data-radix-select-trigger].select-trigger-pill,
+.select-trigger-pill[data-radix-select-trigger] {
+  border-radius: 50px !important;
+  border: 1px solid #d1d5db !important;
+  background-color: white !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+/* Hover state */
+button[data-radix-select-trigger].select-trigger-pill:hover,
+[data-radix-select-trigger].select-trigger-pill:hover,
+.select-trigger-pill[data-radix-select-trigger]:hover {
+  background-color: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+/* Focus state */
+button[data-radix-select-trigger].select-trigger-pill:focus,
+[data-radix-select-trigger].select-trigger-pill:focus,
+.select-trigger-pill[data-radix-select-trigger]:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Select value text */
+button[data-radix-select-trigger].select-trigger-pill [data-radix-select-value],
+[data-radix-select-trigger].select-trigger-pill [data-radix-select-value],
+.select-trigger-pill[data-radix-select-trigger] [data-radix-select-value] {
+  font-weight: 500 !important;
+  color: #374151 !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+}
+
+/* Select icon */
+button[data-radix-select-trigger].select-trigger-pill [data-radix-select-icon],
+[data-radix-select-trigger].select-trigger-pill [data-radix-select-icon],
+.select-trigger-pill[data-radix-select-trigger] [data-radix-select-icon] {
+  color: #6b7280 !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Placeholder state */
+button[data-radix-select-trigger].select-trigger-pill[data-placeholder],
+[data-radix-select-trigger].select-trigger-pill[data-placeholder],
+.select-trigger-pill[data-radix-select-trigger][data-placeholder] {
+  color: #9ca3af !important;
+}
+
+/* Additional fallback selectors */
+.select-trigger-pill {
+  border-radius: 50px !important;
+  border: 1px solid #d1d5db !important;
+  background-color: white !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.select-trigger-pill:hover {
+  background-color: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+.select-trigger-pill:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}

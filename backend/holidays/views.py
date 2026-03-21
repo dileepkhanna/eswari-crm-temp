@@ -4,11 +4,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from .models import Holiday
 from .serializers import HolidaySerializer
+from accounts.permissions import CompanyAccessPermission
+from utils.mixins import CompanyFilterMixin
 
 class HolidayPermission(permissions.BasePermission):
     """
     Custom permission for holidays:
-    - Admin and Manager: Can create, read, update, delete
+    - Admin and HR: Can create, read, update, delete
+    - Manager: Can create, read, update, delete
     - Employee: Can only read
     """
     
@@ -20,8 +23,8 @@ class HolidayPermission(permissions.BasePermission):
         if view.action in ['list', 'retrieve']:
             return True
         
-        # Only admin and manager can create, update, delete
-        return request.user.role in ['admin', 'manager']
+        # Admin, HR, and manager can create, update, delete
+        return request.user.role in ['admin', 'hr', 'manager']
     
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
@@ -31,16 +34,16 @@ class HolidayPermission(permissions.BasePermission):
         if view.action in ['retrieve']:
             return True
         
-        # Only admin and manager can update/delete
+        # Admin, HR, and manager can update/delete
         if view.action in ['update', 'partial_update', 'destroy']:
-            return request.user.role in ['admin', 'manager']
+            return request.user.role in ['admin', 'hr', 'manager']
         
         return False
 
-class HolidayViewSet(viewsets.ModelViewSet):
+class HolidayViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     queryset = Holiday.objects.all()
     serializer_class = HolidaySerializer
-    permission_classes = [HolidayPermission]
+    permission_classes = [HolidayPermission, CompanyAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['holiday_type', 'is_recurring']
     search_fields = ['name', 'description']
@@ -50,7 +53,8 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter holidays based on query parameters"""
-        queryset = Holiday.objects.all()
+        # Optimize queries with select_related for company and created_by
+        queryset = Holiday.objects.select_related('company', 'created_by')
         
         # Filter by year if provided
         year = self.request.query_params.get('year')
@@ -66,9 +70,9 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new holiday"""
-        if request.user.role not in ['admin', 'manager']:
+        if request.user.role not in ['admin', 'hr', 'manager']:
             return Response(
-                {'error': 'Only administrators and managers can create holidays'}, 
+                {'error': 'Only administrators, HR, and managers can create holidays'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -76,9 +80,9 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         """Update a holiday"""
-        if request.user.role not in ['admin', 'manager']:
+        if request.user.role not in ['admin', 'hr', 'manager']:
             return Response(
-                {'error': 'Only administrators and managers can update holidays'}, 
+                {'error': 'Only administrators, HR, and managers can update holidays'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -86,9 +90,9 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """Delete a holiday"""
-        if request.user.role not in ['admin', 'manager']:
+        if request.user.role not in ['admin', 'hr', 'manager']:
             return Response(
-                {'error': 'Only administrators and managers can delete holidays'}, 
+                {'error': 'Only administrators, HR, and managers can delete holidays'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         

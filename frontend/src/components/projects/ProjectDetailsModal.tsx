@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import AvailabilityDisplay from './AvailabilityDisplay';
 
+import { logger } from '@/lib/logger';
 interface ProjectDetailsModalProps {
   project: Project | null;
   open: boolean;
@@ -112,7 +113,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
           toast.success(`${filename} downloaded successfully`);
           return;
         } catch (serverError) {
-          console.warn('Server download failed, falling back to direct download:', serverError);
+          logger.warn('Server download failed, falling back to direct download:', serverError);
         }
       }
       
@@ -129,7 +130,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
       window.URL.revokeObjectURL(url);
       toast.success(`${filename} downloaded successfully`);
     } catch (error) {
-      console.error('Error downloading image:', error);
+      logger.error('Error downloading image:', error);
       toast.error(`Failed to download ${filename}`);
     }
   };
@@ -250,7 +251,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
             pdf.addImage(imageBase64, 'JPEG', 20, yPosition, maxWidth, maxHeight);
             yPosition += maxHeight + 15;
           } catch (error) {
-            console.error('Error adding image to PDF:', error);
+            logger.error('Error adding image to PDF:', error);
             pdf.text(`${images[i] === project.coverImage ? 'Cover Image' : 'Blueprint'}: Failed to load`, 20, yPosition);
             yPosition += 10;
           }
@@ -268,7 +269,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
       pdf.save(filename);
       toast.success('Project PDF downloaded successfully');
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      logger.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
     } finally {
       setIsGeneratingPDF(false);
@@ -295,7 +296,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                 alt={project.name}
                 className="w-full h-full object-contain bg-gray-100"
                 onError={(e) => {
-                  console.error('Project image failed to load:', images[currentImageIndex]);
+                  logger.error('Project image failed to load:', images[currentImageIndex]);
                   // Hide the broken image and show placeholder
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
@@ -590,7 +591,7 @@ export default function ProjectDetailsModal({ project, open, onClose }: ProjectD
                 alt={project.name}
                 className="max-w-full max-h-full object-contain"
                 onError={(e) => {
-                  console.error('Full-screen image failed to load:', images[currentImageIndex]);
+                  logger.error('Full-screen image failed to load:', images[currentImageIndex]);
                   // Hide the broken image and show placeholder
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';

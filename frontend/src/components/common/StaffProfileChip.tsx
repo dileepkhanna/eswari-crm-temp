@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Phone, Mail, MapPin } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
+import { logger } from '@/lib/logger';
 interface Profile {
   id: string;
   user_id: string;
@@ -92,7 +93,7 @@ export default function StaffProfileChip({ userId, showDetails = true }: StaffPr
           setProfile(null);
         }
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        logger.error('Error fetching profile:', error);
         if (!cancelled) {
           profileCache[userId] = null;
           setProfile(null);

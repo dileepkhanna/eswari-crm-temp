@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarOff, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { logger } from '@/lib/logger';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { format, differenceInDays } from 'date-fns';
@@ -48,7 +49,7 @@ export default function LeaveStatsWidget() {
         
         setLeaves(transformedLeaves);
       } catch (error) {
-        console.error('Error fetching leaves:', error);
+        logger.error('Error fetching leaves:', error);
         setLeaves([]);
       } finally {
         setLoading(false);

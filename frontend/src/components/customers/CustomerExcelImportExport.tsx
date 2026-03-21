@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 interface CustomerExcelImportExportProps {
   customers: Customer[];
   onImport: (customers: Partial<Customer>[]) => void;
@@ -57,7 +58,7 @@ export default function CustomerExcelImportExport({
       XLSX.writeFile(wb, `customers_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Customer data exported successfully');
     } catch (error) {
-      console.error('Export error:', error);
+      logger.error('Export error:', error);
       toast.error('Failed to export customer data');
     }
   };
@@ -119,7 +120,7 @@ export default function CustomerExcelImportExport({
 
         if (errors.length > 0) {
           toast.error(`Import completed with ${errors.length} error(s). Check console for details.`);
-          console.error('Import errors:', errors);
+          logger.error('Import errors:', errors);
         }
 
         if (importedCustomers.length > 0) {
@@ -129,7 +130,7 @@ export default function CustomerExcelImportExport({
           toast.error('No valid customer data found in the file');
         }
       } catch (error) {
-        console.error('Import error:', error);
+        logger.error('Import error:', error);
         toast.error('Failed to import customer data. Please check the file format.');
       }
     };

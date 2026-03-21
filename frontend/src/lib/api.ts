@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '';
 
@@ -66,7 +68,21 @@ class ApiClient {
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    // Add company filter to URL if company is selected
+    let url = `${this.baseURL}${endpoint}`;
+    const selectedCompanyStr = localStorage.getItem('selectedCompany');
+    if (selectedCompanyStr) {
+      try {
+        const selectedCompany = JSON.parse(selectedCompanyStr);
+        if (selectedCompany && selectedCompany.id) {
+          const separator = endpoint.includes('?') ? '&' : '?';
+          url = `${url}${separator}company=${selectedCompany.id}`;
+        }
+      } catch (error) {
+        logger.error('Failed to parse selected company:', error);
+      }
+    }
+
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string> || {}),
     };
@@ -81,9 +97,9 @@ class ApiClient {
     
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
-      console.log(`API Request: ${options.method || 'GET'} ${endpoint} - Token exists: ${!!this.token}`);
+      logger.log(`API Request: ${options.method || 'GET'} ${endpoint} - Token exists: ${!!this.token}`);
     } else {
-      console.warn(`API Request: ${options.method || 'GET'} ${endpoint} - No token available`);
+      logger.warn(`API Request: ${options.method || 'GET'} ${endpoint} - No token available`);
     }
 
     const response = await fetch(url, {
@@ -91,18 +107,18 @@ class ApiClient {
       headers,
     });
 
-    console.log(`API Response: ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`);
+    logger.log(`API Response: ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`);
 
     if (response.status === 401) {
-      console.log('API: 401 Unauthorized, attempting token refresh...');
+      logger.log('API: 401 Unauthorized, attempting token refresh...');
       // Token expired, try to refresh
       const refreshResult = await this.refreshToken();
       if (refreshResult) {
-        console.log('API: Token refresh successful, retrying request...');
+        logger.log('API: Token refresh successful, retrying request...');
         // Retry the request with new token
         headers['Authorization'] = `Bearer ${this.token}`;
         const retryResponse = await fetch(url, { ...options, headers });
-        console.log(`API Retry Response: ${options.method || 'GET'} ${endpoint} - Status: ${retryResponse.status}`);
+        logger.log(`API Retry Response: ${options.method || 'GET'} ${endpoint} - Status: ${retryResponse.status}`);
         
         if (!retryResponse.ok) {
           let errorData = {};
@@ -123,11 +139,11 @@ class ApiClient {
         try {
           return await retryResponse.json();
         } catch (jsonError) {
-          console.warn('Failed to parse JSON response, returning null:', jsonError);
+          logger.warn('Failed to parse JSON response, returning null:', jsonError);
           return null;
         }
       } else {
-        console.error('API: Token refresh failed, clearing tokens');
+        logger.error('API: Token refresh failed, clearing tokens');
         // Refresh failed, clear tokens and throw error
         this.logout();
         
@@ -168,13 +184,27 @@ class ApiClient {
       return await response.json();
     } catch (jsonError) {
       // If JSON parsing fails but status is OK, return null
-      console.warn('Failed to parse JSON response, returning null:', jsonError);
+      logger.warn('Failed to parse JSON response, returning null:', jsonError);
       return null;
     }
   }
 
   private async requestBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Add company filter to URL if company is selected
+    let url = `${this.baseURL}${endpoint}`;
+    const selectedCompanyStr = localStorage.getItem('selectedCompany');
+    if (selectedCompanyStr) {
+      try {
+        const selectedCompany = JSON.parse(selectedCompanyStr);
+        if (selectedCompany && selectedCompany.id) {
+          const separator = endpoint.includes('?') ? '&' : '?';
+          url = `${url}${separator}company=${selectedCompany.id}`;
+        }
+      } catch (error) {
+        logger.error('Failed to parse selected company:', error);
+      }
+    }
+
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string> || {}),
     };
@@ -239,37 +269,37 @@ class ApiClient {
 
   private async refreshToken(): Promise<boolean> {
     const refreshToken = localStorage.getItem('refresh_token');
-    console.log(`API: Attempting token refresh - Refresh token exists: ${!!refreshToken}`);
+    logger.log(`API: Attempting token refresh - Refresh token exists: ${!!refreshToken}`);
     
     if (!refreshToken) {
-      console.warn('API: No refresh token available');
+      logger.warn('API: No refresh token available');
       return false;
     }
 
     try {
-      console.log('API: Making token refresh request...');
+      logger.log('API: Making token refresh request...');
       const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh: refreshToken }),
       });
 
-      console.log(`API: Token refresh response status: ${response.status}`);
+      logger.log(`API: Token refresh response status: ${response.status}`);
 
       if (response.ok) {
         const data = await response.json();
         this.token = data.access;
         localStorage.setItem('access_token', data.access);
-        console.log('API: Token refresh successful');
+        logger.log('API: Token refresh successful');
         return true;
       } else {
-        console.error('API: Token refresh failed - invalid refresh token');
+        logger.error('API: Token refresh failed - invalid refresh token');
         // Refresh token is invalid
         this.logout();
         return false;
       }
     } catch (error) {
-      console.error('API: Token refresh failed with error:', error);
+      logger.error('API: Token refresh failed with error:', error);
       this.logout();
       return false;
     }
@@ -368,8 +398,9 @@ class ApiClient {
   }
 
   // Users
-  async getUsers(): Promise<User[]> {
-    return this.request('/auth/users/');
+  async getUsers(params?: { company?: string | number }): Promise<User[]> {
+    const query = params?.company ? `?company=${params.company}` : '';
+    return this.request(`/auth/users/${query}`);
   }
 
   async getManagers(): Promise<User[]> {
@@ -384,8 +415,10 @@ class ApiClient {
     last_name: string;
     phone: string;
     role: string;
+    company: number;
     manager?: number;
   }) {
+    logger.log('[API] createUser called with data:', userData);
     return this.request('/auth/register/', {
       method: 'POST',
       body: JSON.stringify(userData),
@@ -393,25 +426,25 @@ class ApiClient {
   }
 
   async deleteUser(userId: number) {
-    console.log(`API: Attempting to delete user ${userId}`);
+    logger.log(`API: Attempting to delete user ${userId}`);
     
     try {
       const result = await this.request(`/auth/users/${userId}/delete/`, {
         method: 'DELETE',
       });
-      console.log(`API: Delete user ${userId} successful:`, result);
+      logger.log(`API: Delete user ${userId} successful:`, result);
       return result;
     } catch (error) {
-      console.error(`API: Delete user ${userId} failed:`, error);
+      logger.error(`API: Delete user ${userId} failed:`, error);
       throw error;
     }
   }
 
   async simpleDeleteUser(userId: number) {
-    console.log(`API: Attempting simple delete for user ${userId}`);
-    console.log(`API: Base URL: ${this.baseURL}`);
-    console.log(`API: Token exists: ${!!this.token}`);
-    console.log(`API: Token from localStorage: ${!!localStorage.getItem('access_token')}`);
+    logger.log(`API: Attempting simple delete for user ${userId}`);
+    logger.log(`API: Base URL: ${this.baseURL}`);
+    logger.log(`API: Token exists: ${!!this.token}`);
+    logger.log(`API: Token from localStorage: ${!!localStorage.getItem('access_token')}`);
     
     // Force refresh token from localStorage
     this.token = localStorage.getItem('access_token');
@@ -427,9 +460,9 @@ class ApiClient {
     
     const body = JSON.stringify({ user_id: userId });
     
-    console.log(`API: Making direct fetch to ${url}`);
-    console.log(`API: Headers:`, headers);
-    console.log(`API: Body:`, body);
+    logger.log(`API: Making direct fetch to ${url}`);
+    logger.log(`API: Headers:`, headers);
+    logger.log(`API: Body:`, body);
     
     try {
       const response = await fetch(url, {
@@ -438,20 +471,20 @@ class ApiClient {
         body,
       });
       
-      console.log(`API: Response status: ${response.status}`);
-      console.log(`API: Response headers:`, Object.fromEntries(response.headers.entries()));
+      logger.log(`API: Response status: ${response.status}`);
+      logger.log(`API: Response headers:`, Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`API: Error response:`, errorText);
+        logger.error(`API: Error response:`, errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
       
       const result = await response.json();
-      console.log(`API: Simple delete user ${userId} successful:`, result);
+      logger.log(`API: Simple delete user ${userId} successful:`, result);
       return result;
     } catch (error) {
-      console.error(`API: Simple delete user ${userId} failed:`, error);
+      logger.error(`API: Simple delete user ${userId} failed:`, error);
       throw error;
     }
   }
@@ -462,6 +495,7 @@ class ApiClient {
     address: string;
     newPassword?: string;
     managerId?: string;
+    company?: number;
   }) {
     return this.request(`/auth/users/${userId}/update/`, {
       method: 'PUT',
@@ -469,9 +503,26 @@ class ApiClient {
     });
   }
 
+  async promoteEmployeeToManager(userId: string) {
+    logger.log(`API: Promoting employee ${userId} to manager`);
+    try {
+      const response = await this.request(`/auth/users/${userId}/promote/`, {
+        method: 'POST',
+      });
+      logger.log(`API: Promotion successful for user ${userId}:`, response);
+      return response;
+    } catch (error) {
+      logger.error(`API: Promotion failed for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
   // Customers
-  async getCustomers(): Promise<Customer[]> {
-    return this.request('/customers/');
+  async getCustomers(params?: Record<string, any>): Promise<any> {
+    const query = params ? '?' + new URLSearchParams(
+      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+    ).toString() : '';
+    return this.request(`/customers/${query}`);
   }
 
   async createCustomer(customerData: Partial<Customer>) {
@@ -517,6 +568,67 @@ class ApiClient {
     });
   }
 
+  async getConversionForm(customerId: string) {
+    return this.request(`/customers/${customerId}/conversion-form/`);
+  }
+
+  async convertCustomer(customerId: string, leadData: any) {
+    return this.request(`/customers/${customerId}/convert-to-lead/`, {
+      method: 'POST',
+      body: JSON.stringify(leadData),
+    });
+  }
+
+  async bulkConvertCustomers(customerIds: string[], defaultValues: any) {
+    return this.request('/customers/bulk-convert/', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer_ids: customerIds,
+        default_values: defaultValues,
+      }),
+    });
+  }
+
+  async importCustomers(formData: FormData) {
+    return this.request('/customers/import/', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async previewImport(formData: FormData) {
+    return this.request('/customers/import/preview/', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async downloadImportTemplate() {
+    return this.requestBlob('/customers/import/template/', {
+      method: 'GET',
+    });
+  }
+
+  // Analytics
+  async getConversionRate(startDate?: string, endDate?: string) {
+    let endpoint = '/customers/analytics/conversion-rate/';
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (params.toString()) {
+      endpoint += '?' + params.toString();
+    }
+    return this.request(endpoint);
+  }
+
+  async getConversionByUser() {
+    return this.request('/customers/analytics/conversion-by-user/');
+  }
+
+  async getConversionTrend(days: number = 30) {
+    return this.request(`/customers/analytics/conversion-trend/?days=${days}`);
+  }
+
   // Call Allocations
   async getCallAllocations(): Promise<CallAllocation[]> {
     return this.request('/allocations/');
@@ -559,6 +671,27 @@ class ApiClient {
     return this.request('/leads/bulk_delete/', {
       method: 'POST',
       body: JSON.stringify({ lead_ids: leadIds }),
+    });
+  }
+
+  async bulkDeleteLeadsByFilter(filters: { search?: string; status?: string; source?: string }) {
+    return this.request('/leads/bulk_delete_by_filter/', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  }
+
+  async bulkImportLeads(leads: any[]) {
+    return this.request('/leads/bulk_import/', {
+      method: 'POST',
+      body: JSON.stringify({ leads }),
+    });
+  }
+
+  async bulkImportTasks(tasks: any[]) {
+    return this.request('/tasks/bulk_import/', {
+      method: 'POST',
+      body: JSON.stringify({ tasks }),
     });
   }
 
@@ -646,18 +779,36 @@ class ApiClient {
     return this.request('/announcements/unread/');
   }
 
-  async createAnnouncement(announcementData: any) {
-    return this.request('/announcements/', {
+  async createAnnouncement(announcementData: FormData | any) {
+    const options: RequestInit = {
       method: 'POST',
-      body: JSON.stringify(announcementData),
-    });
+    };
+
+    // Handle FormData (for file uploads) vs regular JSON
+    if (announcementData instanceof FormData) {
+      options.body = announcementData;
+      // Don't set Content-Type for FormData - browser will set it with boundary
+    } else {
+      options.body = JSON.stringify(announcementData);
+    }
+
+    return this.request('/announcements/', options);
   }
 
-  async updateAnnouncement(id: number, announcementData: any) {
-    return this.request(`/announcements/${id}/`, {
+  async updateAnnouncement(id: number, announcementData: FormData | any) {
+    const options: RequestInit = {
       method: 'PUT',
-      body: JSON.stringify(announcementData),
-    });
+    };
+
+    // Handle FormData (for file uploads) vs regular JSON
+    if (announcementData instanceof FormData) {
+      options.body = announcementData;
+      // Don't set Content-Type for FormData - browser will set it with boundary
+    } else {
+      options.body = JSON.stringify(announcementData);
+    }
+
+    return this.request(`/announcements/${id}/`, options);
   }
 
   async deleteAnnouncement(id: number) {
@@ -866,6 +1017,93 @@ class ApiClient {
     return this.requestBlob(`/projects/${projectId}/download_blueprint_image/`, {
       method: 'GET',
     });
+  }
+
+  // HR Reports
+  async getHRDashboardMetrics() {
+    return this.request('/hr/reports/dashboard/');
+  }
+
+  async getEmployeeStatistics() {
+    return this.request('/hr/reports/employees/');
+  }
+
+  async getLeaveStatistics() {
+    return this.request('/hr/reports/leaves/');
+  }
+
+  // HR User Management
+  async getAllUsers(): Promise<User[]> {
+    return this.request('/auth/users/');
+  }
+
+  async updateUser(userId: number, userData: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    manager?: number | null;
+  }) {
+    return this.request(`/auth/users/${userId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  // Companies
+  async getCompanies() {
+    return this.request('/auth/companies/');
+  }
+
+  async createCompany(companyData: FormData) {
+    return this.request('/auth/companies/', {
+      method: 'POST',
+      body: companyData,
+    });
+  }
+
+  async updateCompany(companyId: number, companyData: FormData) {
+    return this.request(`/auth/companies/${companyId}/`, {
+      method: 'PATCH',
+      body: companyData,
+    });
+  }
+
+  async deleteCompany(companyId: number, force = false) {
+    const url = force
+      ? `/auth/companies/${companyId}/?force=true`
+      : `/auth/companies/${companyId}/`;
+    return this.request(url, { method: 'DELETE' });
+  }
+
+  async getActiveCompanies() {
+    return this.request('/auth/companies/active/');
+  }
+
+  // Generic HTTP methods for external services
+  async get(endpoint: string, options?: RequestInit) {
+    return this.request(endpoint, { ...options, method: 'GET' });
+  }
+
+  async post(endpoint: string, data?: any, options?: RequestInit) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'POST',
+      body: data instanceof FormData ? data : JSON.stringify(data),
+    });
+  }
+
+  async patch(endpoint: string, data?: any, options?: RequestInit) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: data instanceof FormData ? data : JSON.stringify(data),
+    });
+  }
+
+  async delete(endpoint: string, options?: RequestInit) {
+    return this.request(endpoint, { ...options, method: 'DELETE' });
   }
 }
 

@@ -10,6 +10,7 @@ import TaskExcelImportExport from "./TaskExcelImportExport";
 import StaffProfileChip from "@/components/common/StaffProfileChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiClient } from '@/lib/api';
 import {
   Select,
   SelectContent,
@@ -48,6 +49,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
+import { logger } from '@/lib/logger';
 interface TaskListProps {
   canEdit?: boolean;
   canCreate?: boolean;
@@ -145,7 +147,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           await deleteTask(id);
           successfulDeletions.push(id);
         } catch (error) {
-          console.error(`Failed to delete task ${id}:`, error);
+          logger.error(`Failed to delete task ${id}:`, error);
           failedDeletions.push(id);
         }
       }
@@ -212,22 +214,25 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   };
 
   const handleImportTasks = async (importedTasks: Partial<Task>[]) => {
-    for (const taskData of importedTasks) {
-      if (!taskData.lead) continue;
-      try {
-        await addTask({
-          leadId: taskData.lead.id,
-          lead: taskData.lead as Lead,
-          status: taskData.status || "in_progress",
-          nextActionDate: taskData.nextActionDate,
-          notes: taskData.notes || [],
-          attachments: taskData.attachments || [],
-          assignedTo: taskData.assignedTo || user?.id || "unknown",
-          assignedProject: taskData.assignedProject,
-        });
-      } catch (error) {
-        // Continue with next task
-      }
+    if (importedTasks.length === 0) return;
+    try {
+      const payload = importedTasks.map(t => ({
+        title: t.lead?.name || 'Imported Task',
+        description: t.notes?.map(n => n.content).join('; ') || '',
+        status: t.status || 'in_progress',
+        priority: 'medium',
+        lead_id: t.leadId || null,
+        project_id: t.assignedProject || null,
+        assigned_to_id: t.assignedTo || null,
+        due_date: t.nextActionDate?.toISOString() || null,
+      }));
+      toast.info(`Uploading ${payload.length} tasks...`);
+      const result: any = await apiClient.bulkImportTasks(payload);
+      toast.success(`Imported ${result.imported} tasks${result.errors?.length ? ` (${result.errors.length} errors)` : ''}`);
+      window.location.reload();
+    } catch (error) {
+      logger.error('Bulk task import failed:', error);
+      toast.error('Failed to import tasks');
     }
   };
 

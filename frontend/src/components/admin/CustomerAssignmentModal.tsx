@@ -8,9 +8,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import { toast } from 'sonner';
 import { User, Users, UserCheck, UserX, Search, Loader2 } from 'lucide-react';
 
+import { logger } from '@/lib/logger';
 interface Customer {
   id: string;
   name: string;
@@ -37,6 +40,8 @@ export default function CustomerAssignmentModal({
   onClose,
   onAssignmentComplete
 }: CustomerAssignmentModalProps) {
+  const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
@@ -56,9 +61,12 @@ export default function CustomerAssignmentModal({
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Determine which company to filter employees by
+      const companyId = selectedCompany?.id || user?.company?.id;
+
       const [customersResponse, employeesResponse] = await Promise.all([
         apiClient.getCustomers(),
-        apiClient.getUsers()
+        apiClient.getUsers(companyId ? { company: companyId } : undefined)
       ]);
 
       // Transform customers data
@@ -74,8 +82,10 @@ export default function CustomerAssignmentModal({
         assignedToName: customer.assigned_to_name
       }));
 
-      // Filter and transform employees
-      const employeesData = employeesResponse.filter((user: any) => user.role === 'employee');
+      // Filter to employees and managers (admins can assign to both)
+      const employeesData = employeesResponse.filter((user: any) => 
+        user.role === 'employee' || user.role === 'manager' || user.role === 'telecaller'
+      );
       const transformedEmployees: Employee[] = employeesData.map((user: any) => ({
         id: user.id.toString(),
         name: user.first_name && user.last_name 
@@ -88,7 +98,7 @@ export default function CustomerAssignmentModal({
       setCustomers(transformedCustomers);
       setEmployees(transformedEmployees);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -159,7 +169,7 @@ export default function CustomerAssignmentModal({
       await fetchData();
       onAssignmentComplete();
     } catch (error) {
-      console.error('Error assigning customers:', error);
+      logger.error('Error assigning customers:', error);
       toast.error('Failed to assign customers');
     } finally {
       setAssigning(false);

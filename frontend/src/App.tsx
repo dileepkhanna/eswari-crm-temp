@@ -8,7 +8,12 @@ import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DataProvider } from "@/contexts/DataContextDjango";
 import { CustomerProvider } from "@/contexts/CustomerContext";
+import { ASECustomerProvider } from "@/contexts/ASECustomerContext";
+import { ASELeadProvider } from "@/contexts/ASELeadContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { CompanyProvider } from "@/contexts/CompanyContext";
+import { CompanyAuthBridge } from "@/contexts/CompanyAuthBridge";
+import { CompanyBranding } from "@/components/CompanyBranding";
 import AppRouter from "@/components/AppRouter";
 import { useEffect } from "react";
 import { initTokenCleaner } from "@/lib/tokenCleaner";
@@ -25,21 +30,30 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <AppSettingsProvider>
-            <NotificationProvider>
-              <DataProvider>
-                <CustomerProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <Sonner />
-                    <BrowserRouter>
-                      <AppRouter />
-                    </BrowserRouter>
-                  </TooltipProvider>
-                </CustomerProvider>
-              </DataProvider>
-            </NotificationProvider>
-          </AppSettingsProvider>
+          <CompanyProvider>
+            <CompanyAuthBridge>
+              <AppSettingsProvider>
+                <CompanyBranding />
+                <NotificationProvider>
+                  <DataProvider>
+                    <CustomerProvider>
+                      <ASECustomerProvider>
+                        <ASELeadProvider>
+                          <TooltipProvider>
+                            <Toaster />
+                            <Sonner />
+                            <BrowserRouter>
+                              <AppRouter />
+                            </BrowserRouter>
+                          </TooltipProvider>
+                        </ASELeadProvider>
+                      </ASECustomerProvider>
+                    </CustomerProvider>
+                  </DataProvider>
+                </NotificationProvider>
+              </AppSettingsProvider>
+            </CompanyAuthBridge>
+          </CompanyProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

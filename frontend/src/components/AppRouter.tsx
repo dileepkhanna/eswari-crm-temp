@@ -21,6 +21,18 @@ import AdminReports from '@/pages/admin/AdminReports';
 import AdminBranding from '@/pages/admin/AdminBranding';
 import AdminHolidays from '@/pages/admin/AdminHolidays';
 import AdminCustomers from '@/pages/admin/AdminCustomers';
+import AdminCompanies from '@/pages/admin/AdminCompanies';
+import AdminCampaigns from '@/pages/admin/AdminCampaigns';
+import AdminSocialMedia from '@/pages/admin/AdminSocialMedia';
+import AdminContent from '@/pages/admin/AdminContent';
+import AdminEmailMarketing from '@/pages/admin/AdminEmailMarketing';
+import AdminSEO from '@/pages/admin/AdminSEO';
+import AdminTeam from '@/pages/admin/AdminTeam';
+import AdminConversionAnalytics from '@/pages/admin/AdminConversionAnalytics';
+import AdminASECustomers from '@/pages/admin/AdminASECustomers';
+import AdminASELeads from '@/pages/admin/AdminASELeads';
+import AdminDocumentation from '@/pages/admin/AdminDocumentation';
+import AdminBirthdays from '@/pages/admin/AdminBirthdays';
 
 // Manager Pages
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
@@ -33,6 +45,20 @@ import ManagerHolidays from '@/pages/manager/ManagerHolidays';
 import ManagerCustomers from '@/pages/manager/ManagerCustomers';
 import ManagerReports from '@/pages/manager/ManagerReports';
 import ManagerActivity from '@/pages/manager/ManagerActivity';
+import ManagerCampaigns from '@/pages/manager/ManagerCampaigns';
+import ManagerSocialMedia from '@/pages/manager/ManagerSocialMedia';
+import ManagerContent from '@/pages/manager/ManagerContent';
+import ManagerEmailMarketing from '@/pages/manager/ManagerEmailMarketing';
+import ManagerSEO from '@/pages/manager/ManagerSEO';
+import ManagerTeam from '@/pages/manager/ManagerTeam';
+
+import ManagerConversionAnalytics from '@/pages/manager/ManagerConversionAnalytics';
+import ManagerASECustomers from '@/pages/manager/ManagerASECustomers';
+import ManagerASELeads from '@/pages/manager/ManagerASELeads';
+import ManagerWebsites from '@/pages/manager/ManagerWebsites';
+import ManagerMediaLibrary from '@/pages/manager/ManagerMediaLibrary';
+import ManagerPostScheduler from '@/pages/manager/ManagerPostScheduler';
+import ManagerASEProjects from '@/pages/manager/ManagerASEProjects';
 
 // Staff Pages
 import StaffDashboard from '@/pages/staff/StaffDashboard';
@@ -43,6 +69,23 @@ import StaffProjects from '@/pages/staff/StaffProjects';
 import StaffAnnouncements from '@/pages/staff/StaffAnnouncements';
 import StaffHolidays from '@/pages/staff/StaffHolidays';
 import StaffCustomers from '@/pages/staff/StaffCustomers';
+import StaffCampaigns from '@/pages/staff/StaffCampaigns';
+import StaffSocialMedia from '@/pages/staff/StaffSocialMedia';
+import StaffContent from '@/pages/staff/StaffContent';
+import StaffEmailMarketing from '@/pages/staff/StaffEmailMarketing';
+import StaffASECustomers from '@/pages/staff/StaffASECustomers';
+import StaffASELeads from '@/pages/staff/StaffASELeads';
+
+import StaffConversionAnalytics from '@/pages/staff/StaffConversionAnalytics';
+
+// HR Pages
+import HRDashboard from '@/pages/hr/HRDashboard';
+import HREmployees from '@/pages/hr/HREmployees';
+import HRLeaves from '@/pages/hr/HRLeaves';
+import HRHolidays from '@/pages/hr/HRHolidays';
+import HRAnnouncements from '@/pages/hr/HRAnnouncements';
+import HRReports from '@/pages/hr/HRReports';
+import HRBirthdays from '@/pages/hr/HRBirthdays';
 
 // Shared Pages
 import SettingsPage from '@/pages/settings/SettingsPage';
@@ -84,26 +127,51 @@ const AppRouter = () => {
       {/* Admin Routes */}
       <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
         <Route index element={<AdminDashboard />} />
+        <Route path="ase-customers" element={<AdminASECustomers />} />
+        <Route path="ase-leads" element={<AdminASELeads />} />
+        <Route path="campaigns" element={<AdminCampaigns />} />
+        <Route path="social-media" element={<AdminSocialMedia />} />
+        <Route path="content" element={<AdminContent />} />
+        <Route path="email-marketing" element={<AdminEmailMarketing />} />
+        <Route path="seo" element={<AdminSEO />} />
+        <Route path="team" element={<AdminTeam />} />
         <Route path="leads" element={<AdminLeads />} />
         <Route path="customers" element={<AdminCustomers />} />
+        <Route path="conversion-analytics" element={<AdminConversionAnalytics />} />
         <Route path="tasks" element={<AdminTasks />} />
         <Route path="projects" element={<AdminProjects />} />
         <Route path="leaves" element={<AdminLeaves />} />
         <Route path="holidays" element={<AdminHolidays />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="companies" element={<AdminCompanies />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="branding" element={<AdminBranding />} />
         <Route path="activity" element={<AdminActivity />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="documentation" element={<AdminDocumentation />} />
+        <Route path="birthdays" element={<AdminBirthdays />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       {/* Manager Routes */}
       <Route path="/manager" element={<DashboardLayout requiredRole="manager" />}>
         <Route index element={<ManagerDashboard />} />
+        <Route path="ase-customers" element={<ManagerASECustomers />} />
+        <Route path="ase-leads" element={<ManagerASELeads />} />
+        <Route path="websites" element={<ManagerWebsites />} />
+        <Route path="media-library" element={<ManagerMediaLibrary />} />
+        <Route path="post-scheduler" element={<ManagerPostScheduler />} />
+        <Route path="ase-projects" element={<ManagerASEProjects />} />
+        <Route path="campaigns" element={<ManagerCampaigns />} />
+        <Route path="social-media" element={<ManagerSocialMedia />} />
+        <Route path="content" element={<ManagerContent />} />
+        <Route path="email-marketing" element={<ManagerEmailMarketing />} />
+        <Route path="seo" element={<ManagerSEO />} />
+        <Route path="team" element={<ManagerTeam />} />
         <Route path="leads" element={<ManagerLeads />} />
         <Route path="customers" element={<ManagerCustomers />} />
+        <Route path="conversion-analytics" element={<ManagerConversionAnalytics />} />
         <Route path="tasks" element={<ManagerTasks />} />
         <Route path="projects" element={<ManagerProjects />} />
         <Route path="leaves" element={<ManagerLeaves />} />
@@ -118,8 +186,15 @@ const AppRouter = () => {
       {/* Staff Routes (for employee role) */}
       <Route path="/staff" element={<DashboardLayout requiredRole="employee" />}>
         <Route index element={<StaffDashboard />} />
+        <Route path="ase-customers" element={<StaffASECustomers />} />
+        <Route path="ase-leads" element={<StaffASELeads />} />
+        <Route path="campaigns" element={<StaffCampaigns />} />
+        <Route path="social-media" element={<StaffSocialMedia />} />
+        <Route path="content" element={<StaffContent />} />
+        <Route path="email-marketing" element={<StaffEmailMarketing />} />
         <Route path="leads" element={<StaffLeads />} />
         <Route path="customers" element={<StaffCustomers />} />
+        <Route path="conversion-analytics" element={<StaffConversionAnalytics />} />
         <Route path="tasks" element={<StaffTasks />} />
         <Route path="projects" element={<StaffProjects />} />
         <Route path="leaves" element={<StaffLeaves />} />
@@ -127,6 +202,18 @@ const AppRouter = () => {
         <Route path="calendar" element={<Calendar />} />
         <Route path="announcements" element={<StaffAnnouncements />} />
         <Route path="settings" element={<EmployeeSettings />} />
+      </Route>
+
+      {/* HR Routes */}
+      <Route path="/hr" element={<DashboardLayout requiredRole="hr" />}>
+        <Route index element={<HRDashboard />} />
+        <Route path="employees" element={<HREmployees />} />
+        <Route path="leaves" element={<HRLeaves />} />
+        <Route path="holidays" element={<HRHolidays />} />
+        <Route path="announcements" element={<HRAnnouncements />} />
+        <Route path="birthdays" element={<HRBirthdays />} />
+        <Route path="reports" element={<HRReports />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       {/* Legacy redirect: /employee -> /staff */}

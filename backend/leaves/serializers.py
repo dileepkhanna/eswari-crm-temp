@@ -2,11 +2,18 @@ from rest_framework import serializers
 from .models import Leave
 from accounts.serializers import UserSerializer
 
+class CompanyNestedSerializer(serializers.Serializer):
+    """Lightweight nested serializer for company information"""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    code = serializers.CharField(read_only=True)
+
 class LeaveSerializer(serializers.ModelSerializer):
     user_detail = UserSerializer(source='user', read_only=True)
     approved_by_detail = UserSerializer(source='approved_by', read_only=True)
     duration_days = serializers.ReadOnlyField()
     document_url = serializers.SerializerMethodField()
+    company_detail = CompanyNestedSerializer(source='company', read_only=True)
     
     class Meta:
         model = Leave

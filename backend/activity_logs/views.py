@@ -27,19 +27,22 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         """Filter activity logs based on user role and manager-employee hierarchy"""
         user = self.request.user
         
+        # Optimize queries with select_related for company and user
+        base_queryset = ActivityLog.objects.select_related('company', 'user')
+        
         if user.role == 'admin':
             # Admins can see all activity logs
-            return ActivityLog.objects.all()
+            return base_queryset
         elif user.role == 'manager':
             # Managers can only see activity logs from their assigned employees + their own
             assigned_employees = user.employees.all()  # Using the related_name from User model
             employee_ids = [emp.id for emp in assigned_employees]
             employee_ids.append(user.id)  # Include manager's own logs
             
-            return ActivityLog.objects.filter(user__id__in=employee_ids)
+            return base_queryset.filter(user__id__in=employee_ids)
         else:
             # Employees can only see their own activity logs
-            return ActivityLog.objects.filter(user=user)
+            return base_queryset.filter(user=user)
     
     def create(self, request, *args, **kwargs):
         """Override create to ensure proper user assignment and logging"""

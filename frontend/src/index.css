@@ -1,4 +1,7 @@
+@import './mobile-fix.css';
+@import './pill-select-styling.css';
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import './select-box-override.css';
 
 @tailwind base;
 @tailwind components;
@@ -190,6 +193,10 @@
 
   .btn-primary {
     @apply bg-primary text-primary-foreground hover:opacity-90 shadow-md hover:shadow-lg transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-md hover:shadow-lg transition-all duration-200;
   }
 
   .btn-accent {
@@ -487,8 +494,9 @@
   }
   
   /* Ensure buttons don't overflow */
-  .btn-accent, .btn-primary {
+  .btn-accent, .btn-primary, .btn-secondary {
     @apply text-sm px-3 py-2;
+    min-height: 40px; /* Ensure touch-friendly size */
   }
   
   /* Better mobile grid spacing */
@@ -504,6 +512,23 @@
   .mobile-card-actions .btn {
     @apply flex-1 min-w-[70px] text-xs;
   }
+  
+  /* Prevent text overflow on mobile */
+  h1, h2, h3 {
+    @apply break-words;
+  }
+  
+  /* Ensure proper touch targets */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better mobile typography */
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
 }
 
 /* Tablet responsive improvements */
@@ -514,6 +539,46 @@
   
   .glass-card {
     @apply p-5;
+  }
+  
+  /* Tablet-optimized button sizing */
+  .btn-accent, .btn-primary, .btn-secondary {
+    @apply text-base px-4 py-2.5;
+  }
+}
+
+/* Small mobile devices (320px - 480px) */
+@media (max-width: 480px) {
+  /* Extra compact spacing for very small screens */
+  .glass-card {
+    @apply p-2;
+  }
+  
+  .stat-card {
+    @apply p-3;
+  }
+  
+  /* Smaller text on very small screens */
+  h1 {
+    @apply text-xl;
+  }
+  
+  h2 {
+    @apply text-lg;
+  }
+  
+  h3 {
+    @apply text-base;
+  }
+  
+  /* Ensure grid items stack properly */
+  .grid {
+    @apply grid-cols-1;
+  }
+  
+  /* Compact buttons for small screens */
+  .btn-accent, .btn-primary, .btn-secondary {
+    @apply text-xs px-2 py-2;
   }
 }
 /* Prevent form fields from being disabled */

@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getMediaUrl } from '@/lib/api';
 
+import { logger } from '@/lib/logger';
 interface ProjectListItemProps {
   project: Project;
   onView?: (project: Project) => void;
@@ -49,7 +50,7 @@ export default function ProjectListItem({
             alt={project.name}
             className="w-full h-full object-contain hover:scale-105 transition-transform duration-200"
             onError={(e) => {
-              console.error('Project list item image failed to load:', getMediaUrl(project.coverImage));
+              logger.error('Project list item image failed to load:', getMediaUrl(project.coverImage));
               // Hide the broken image and show placeholder
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 
+import { logger } from '@/lib/logger';
 interface AppSettings {
   id: string;
   app_name: string;
@@ -37,7 +38,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isLoading, setIsLoading] = useState(true);
 
   const applySettings = useCallback((s: AppSettings) => {
-    console.log('🎨 Applying settings:', s); // Debug log
+    logger.log('🎨 Applying settings:', s); // Debug log
     
     const root = document.documentElement;
     
@@ -46,7 +47,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       root.style.setProperty('--primary', s.primary_color);
       // Update primary gradient
       root.style.setProperty('--gradient-primary', `linear-gradient(135deg, hsl(${s.primary_color}) 0%, hsl(${s.primary_color}) 100%)`);
-      console.log('🎨 Set --primary to:', s.primary_color);
+      logger.log('🎨 Set --primary to:', s.primary_color);
     }
     
     // Apply accent color and related variables
@@ -56,7 +57,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       root.style.setProperty('--sidebar-ring', s.accent_color);
       // Update accent gradient
       root.style.setProperty('--gradient-accent', `linear-gradient(135deg, hsl(${s.accent_color}) 0%, hsl(${s.accent_color}) 100%)`);
-      console.log('🎨 Set --accent to:', s.accent_color);
+      logger.log('🎨 Set --accent to:', s.accent_color);
     }
     
     // Apply sidebar color and related variables
@@ -68,7 +69,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const darkerLightness = Math.max(lightness - 5, 0); // Make it 5% darker for gradient
       const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
       root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${s.sidebar_color}) 0%, hsl(${gradientColor}) 100%)`);
-      console.log('🎨 Set --sidebar-background to:', s.sidebar_color);
+      logger.log('🎨 Set --sidebar-background to:', s.sidebar_color);
     }
     
     // CRITICAL FIX: Force Tailwind CSS to recognize the new colors
@@ -163,7 +164,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       styleElement.textContent = dynamicCSS;
       document.head.appendChild(styleElement);
       
-      console.log('🎨 Dynamic CSS overrides applied');
+      logger.log('🎨 Dynamic CSS overrides applied');
     };
     
     // Apply color updates immediately
@@ -205,7 +206,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Update favicon
     let faviconLink = document.querySelector("link[rel='icon']") as HTMLLinkElement;
     if (s.favicon_url) {
-      console.log('🌐 Setting favicon URL:', s.favicon_url); // Debug log
+      logger.log('🌐 Setting favicon URL:', s.favicon_url); // Debug log
       if (!faviconLink) {
         faviconLink = document.createElement('link');
         faviconLink.rel = 'icon';
@@ -229,21 +230,21 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       document.head.appendChild(style);
     }
     
-    console.log('🎨 All color variables and overrides applied successfully');
+    logger.log('🎨 All color variables and overrides applied successfully');
     
     // Debug: Log current CSS variable values after a delay
     setTimeout(() => {
       const computedStyle = getComputedStyle(root);
-      console.log('🔍 Current CSS variables after application:');
-      console.log('  --primary:', computedStyle.getPropertyValue('--primary').trim());
-      console.log('  --accent:', computedStyle.getPropertyValue('--accent').trim());
-      console.log('  --sidebar-background:', computedStyle.getPropertyValue('--sidebar-background').trim());
+      logger.log('🔍 Current CSS variables after application:');
+      logger.log('  --primary:', computedStyle.getPropertyValue('--primary').trim());
+      logger.log('  --accent:', computedStyle.getPropertyValue('--accent').trim());
+      logger.log('  --sidebar-background:', computedStyle.getPropertyValue('--sidebar-background').trim());
       
       // Also check if dynamic overrides are present
       const dynamicStyle = document.getElementById('dynamic-color-overrides');
-      console.log('🔍 Dynamic color overrides present:', !!dynamicStyle);
+      logger.log('🔍 Dynamic color overrides present:', !!dynamicStyle);
       if (dynamicStyle) {
-        console.log('🔍 Dynamic CSS length:', dynamicStyle.textContent?.length);
+        logger.log('🔍 Dynamic CSS length:', dynamicStyle.textContent?.length);
       }
     }, 100);
   }, []);
@@ -262,7 +263,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         applySettings(defaultSettings);
       }
     } catch (err) {
-      console.error('Error fetching app settings:', err);
+      logger.error('Error fetching app settings:', err);
       
       // Fallback: try to load from localStorage as backup
       try {
@@ -277,7 +278,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setSettings(settingsToUse);
         applySettings(settingsToUse);
       } catch (localError) {
-        console.error('Error loading backup settings:', localError);
+        logger.error('Error loading backup settings:', localError);
         setSettings(defaultSettings);
         applySettings(defaultSettings);
       }
@@ -327,7 +328,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         throw new Error('Invalid response from server');
       }
     } catch (error: any) {
-      console.error('Error updating settings:', error);
+      logger.error('Error updating settings:', error);
       
       // Fallback: save to localStorage only
       const newSettings = { ...settings, ...updates };
@@ -336,7 +337,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setSettings(newSettings);
         applySettings(newSettings);
       } catch (localError) {
-        console.error('Error saving settings locally:', localError);
+        logger.error('Error saving settings locally:', localError);
         throw new Error('Failed to save settings');
       }
       
@@ -345,7 +346,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const refreshSettings = async () => {
-    console.log('🔄 Refreshing app settings...');
+    logger.log('🔄 Refreshing app settings...');
     setIsLoading(true);
     await fetchSettings();
     
@@ -359,7 +360,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const separator = originalSrc.includes('?') ? '&' : '?';
         imgElement.src = `${originalSrc}${separator}refresh=${Date.now()}`;
       });
-      console.log('🔄 Forced refresh of', logoImages.length, 'logo images');
+      logger.log('🔄 Forced refresh of', logoImages.length, 'logo images');
     }, 100);
   };
 

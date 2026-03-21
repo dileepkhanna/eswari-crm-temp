@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { toast } from 'sonner';
 import TopBar from '@/components/layout/TopBar';
 import { apiClient } from '@/lib/api';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { 
   User, 
   Moon, 
@@ -27,6 +28,7 @@ import {
   Palette
 } from 'lucide-react';
 
+import { logger } from '@/lib/logger';
 export default function EmployeeSettings() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
@@ -40,10 +42,6 @@ export default function EmployeeSettings() {
   });
   
   // Appearance settings
-  const [notifications, setNotifications] = useState(() => {
-    return localStorage.getItem('staff_push_notifications') !== 'false';
-  });
-  
   const [compactView, setCompactView] = useState(() => {
     return localStorage.getItem('compactView') === 'true';
   });
@@ -64,12 +62,6 @@ export default function EmployeeSettings() {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     toast.success(`Switched to ${newTheme} mode`);
-  };
-
-  const handleToggleNotifications = (checked: boolean) => {
-    setNotifications(checked);
-    localStorage.setItem('staff_push_notifications', checked.toString());
-    toast.success(checked ? 'Notifications enabled' : 'Notifications disabled');
   };
 
   const handleToggleCompactView = (checked: boolean) => {
@@ -105,7 +97,7 @@ export default function EmployeeSettings() {
 
       toast.success('Profile updated successfully');
     } catch (error: any) {
-      console.error('Profile update error:', error);
+      logger.error('Profile update error:', error);
       if (error.message?.includes('Email address is already in use')) {
         toast.error('Email address is already in use by another user');
       } else {
@@ -138,7 +130,7 @@ export default function EmployeeSettings() {
         confirmPassword: ''
       });
     } catch (error: any) {
-      console.error('Password change error:', error);
+      logger.error('Password change error:', error);
       
       // Handle specific error messages from the backend
       if (error.message?.includes('Current password is incorrect')) {
@@ -169,7 +161,7 @@ export default function EmployeeSettings() {
             }
           }
         } catch (parseError) {
-          console.warn('Failed to parse error details:', parseError);
+          logger.warn('Failed to parse error details:', parseError);
         }
         
         toast.error(errorMessage);
@@ -184,6 +176,9 @@ export default function EmployeeSettings() {
       <TopBar title="Settings" subtitle="Manage your account and preferences" />
       
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+        {/* Push Notifications Settings */}
+        <NotificationSettings />
+
         {/* Profile Settings */}
         <Card>
           <CardHeader>
@@ -274,23 +269,6 @@ export default function EmployeeSettings() {
               >
                 {theme === 'dark' ? 'Light' : 'Dark'}
               </Button>
-            </div>
-
-            <Separator />
-
-            {/* Notifications Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {notifications ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-                <div>
-                  <Label className="font-medium">Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications for updates</p>
-                </div>
-              </div>
-              <Switch
-                checked={notifications}
-                onCheckedChange={handleToggleNotifications}
-              />
             </div>
 
             <Separator />

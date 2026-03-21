@@ -1,4 +1,6 @@
 // Activity Logger Utility for Manager Panel
+import { logger } from '@/lib/logger';
+
 export interface ActivityLogData {
   module: 'leads' | 'customers' | 'tasks' | 'projects' | 'leaves' | 'announcements' | 'users' | 'reports';
   action: 'create' | 'update' | 'delete' | 'view' | 'approve' | 'reject' | 'assign' | 'complete';
@@ -14,11 +16,11 @@ export class ActivityLogger {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        console.warn('No auth token found, skipping activity log');
+        logger.warn('No auth token found, skipping activity log');
         return false;
       }
 
-      console.log('🔄 Attempting to log activity:', activityData);
+      logger.log('🔄 Attempting to log activity:', activityData);
 
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -31,15 +33,15 @@ export class ActivityLogger {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Activity logged successfully:', result);
+        logger.log('✅ Activity logged successfully:', result);
         return true;
       } else {
         const errorText = await response.text();
-        console.error('❌ Failed to log activity:', response.status, response.statusText, errorText);
+        logger.error('❌ Failed to log activity:', response.status, response.statusText, errorText);
         return false;
       }
     } catch (error) {
-      console.error('❌ Error logging activity:', error);
+      logger.error('❌ Error logging activity:', error);
       return false;
     }
   }
@@ -105,7 +107,7 @@ export class ActivityLogger {
 
   // Test method to create sample activities
   static async createTestActivities() {
-    console.log('🧪 Creating test activities...');
+    logger.log('🧪 Creating test activities...');
     
     const testActivities = [
       { module: 'leads' as const, action: 'create' as const, details: 'Created lead: John Doe - Apartment inquiry' },
@@ -121,7 +123,7 @@ export class ActivityLogger {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    console.log('🧪 Test activities creation completed');
+    logger.log('🧪 Test activities creation completed');
   }
 }
 

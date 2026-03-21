@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { UserRole } from '@/types';
+import type { Company } from '@/types';
 
+import { logger } from '@/lib/logger';
 interface AuthUser {
   id: string;
   userId: string;
@@ -15,6 +17,8 @@ interface AuthUser {
   manager_name?: string | null;
   employees_count?: number;
   employees_names?: string[];
+  company?: Company;
+  available_companies?: Company[];
 }
 
 interface AuthContextType {
@@ -41,13 +45,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [adminExists, setAdminExists] = useState<boolean | null>(null);
 
+  // Get company context functions - will be undefined if CompanyProvider is not available
+  let companyContext: any = null;
+  try {
+    // Dynamically import to avoid circular dependency
+    const CompanyModule = require('@/contexts/CompanyContext');
+    if (CompanyModule && CompanyModule.useCompany) {
+      companyContext = CompanyModule.useCompany();
+    }
+  } catch (error) {
+    // CompanyContext not available, continue without it
+    logger.log('CompanyContext not available in AuthProvider');
+  }
+
   // Check if admin exists by checking if we can access the API
   const checkAdminExists = useCallback(async () => {
     try {
       const result = await apiClient.checkAdminExists();
       setAdminExists(result.admin_exists);
     } catch (error) {
-      console.error('Error checking admin exists:', error);
+      logger.error('Error checking admin exists:', error);
       setAdminExists(null);
     }
   }, []);
@@ -70,12 +87,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: userData.manager_name,
         employees_count: userData.employees_count,
         employees_names: userData.employees_names,
+        company: userData.company_info || userData.company,
+        available_companies: userData.available_companies,
       };
 
       setUser(authUser);
       setSession({ user: userData });
+
+      // Initialize company context if available
+      if (companyContext && (userData.company_info || userData.company)) {
+        companyContext.initializeCompanyContext(
+          userData.role,
+          userData.company_info || userData.company,
+          userData.available_companies
+        );
+      }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      logger.error('Error fetching user data:', error);
       // Clear invalid tokens
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
@@ -83,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       throw error; // Re-throw to be handled by initAuth
     }
-  }, []);
+  }, [companyContext]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -94,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await fetchUserData();
         } catch (error) {
           // If fetching user data fails, clear the invalid tokens
-          console.log('Invalid token detected, clearing authentication state');
+          logger.log('Invalid token detected, clearing authentication state');
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           setUser(null);
@@ -126,16 +154,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: data.user.manager_name,
         employees_count: data.user.employees_count,
         employees_names: data.user.employees_names,
+        company: data.user.company_info || data.user.company,
+        available_companies: data.user.available_companies,
       };
 
       setUser(authUser);
       setSession({ user: data.user });
 
+      // Initialize company context after successful login
+      if (companyContext && (data.user.company_info || data.user.company)) {
+        companyContext.initializeCompanyContext(
+          data.user.role,
+          data.user.company_info || data.user.company,
+          data.user.available_companies
+        );
+      }
+
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message || 'Login failed' };
     }
-  }, []);
+  }, [companyContext]);
 
   // Login with User ID (username) instead of email
   const loginWithUserId = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -156,17 +195,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: data.user.manager_name,
         employees_count: data.user.employees_count,
         employees_names: data.user.employees_names,
+        company: data.user.company_info || data.user.company,
+        available_companies: data.user.available_companies,
       };
 
       setUser(authUser);
       setSession({ user: data.user });
 
+      // Initialize company context after successful login
+      if (companyContext && (data.user.company_info || data.user.company)) {
+        companyContext.initializeCompanyContext(
+          data.user.role,
+          data.user.company_info || data.user.company,
+          data.user.available_companies
+        );
+      }
+
       return { success: true };
     } catch (error: any) {
-      console.error('Login with User ID error:', error);
+      logger.error('Login with User ID error:', error);
       return { success: false, error: error.message || 'Invalid User ID or password' };
     }
-  }, []);
+  }, [companyContext]);
 
   const signup = useCallback(async (
     email: string, 
@@ -245,17 +295,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: data.user.manager_name,
         employees_count: data.user.employees_count,
         employees_names: data.user.employees_names,
+        company: data.user.company_info || data.user.company,
+        available_companies: data.user.available_companies,
       };
 
       setUser(authUser);
       setSession({ user: data.user });
+      
+      // Initialize company context after successful admin creation
+      if (companyContext && (data.user.company_info || data.user.company)) {
+        companyContext.initializeCompanyContext(
+          data.user.role,
+          data.user.company_info || data.user.company,
+          data.user.available_companies
+        );
+      }
+      
       await checkAdminExists();
 
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message || 'Failed to create admin' };
     }
-  }, [checkAdminExists]);
+  }, [checkAdminExists, companyContext]);
 
   const createUser = useCallback(async (
     email: string,
@@ -264,9 +326,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone: string,
     address: string,
     role: UserRole,
+    company: number,
     managerId?: string
   ): Promise<{ success: boolean; error?: string; userId?: string }> => {
     try {
+      logger.log('[AuthContext] createUser called with company:', company);
+      
       const [firstName, ...lastNameParts] = name.split(' ');
       const lastName = lastNameParts.join(' ');
       
@@ -278,13 +343,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         last_name: lastName,
         phone,
         role,
+        company, // Add company field
         ...(managerId && { manager: parseInt(managerId) }), // Add manager if provided
       };
 
+      logger.log('[AuthContext] Sending userData to API:', userData);
       const data = await apiClient.createUser(userData);
       return { success: true, userId: data.user.username }; // Return username as userId
     } catch (error: any) {
-      console.error('Create user error:', error);
+      logger.error('Create user error:', error);
       let errorMessage = 'Failed to create user';
       
       // Try to parse detailed error information
@@ -309,7 +376,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             errorMessage = details.error;
           }
         } catch (parseError) {
-          console.error('Error parsing validation details:', parseError);
+          logger.error('Error parsing validation details:', parseError);
         }
       } else if (error.message.includes('400')) {
         errorMessage = 'Invalid user data. Please check all fields.';
@@ -327,14 +394,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await apiClient.logout();
     setUser(null);
     setSession(null);
+    
+    // Clear company context on logout
+    if (companyContext) {
+      companyContext.clearCompanyContext();
+    }
+    
     await checkAdminExists();
-  }, [checkAdminExists]);
+  }, [checkAdminExists, companyContext]);
 
   const refreshUser = useCallback(async () => {
     try {
       await fetchUserData();
     } catch (error) {
-      console.error('Error refreshing user data:', error);
+      logger.error('Error refreshing user data:', error);
     }
   }, [fetchUserData]);
 

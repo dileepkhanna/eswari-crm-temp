@@ -6,6 +6,7 @@ import { Holiday } from '@/types';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 export default function StaffHolidays() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,7 @@ export default function StaffHolidays() {
       
       setHolidays(transformedHolidays);
     } catch (error) {
-      console.error('Error fetching holidays:', error);
+      logger.error('Error fetching holidays:', error);
       toast.error('Failed to fetch holidays');
     } finally {
       setLoading(false);

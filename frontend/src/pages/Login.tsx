@@ -38,7 +38,8 @@ export default function Login() {
       const roleRouteMap: Record<string, string> = {
         'admin': '/admin',
         'manager': '/manager',
-        'employee': '/staff'  // Map employee role to staff route
+        'employee': '/staff',  // Map employee role to staff route
+        'hr': '/hr'  // Map HR role to HR panel
       };
       
       const redirectPath = roleRouteMap[user.role] || '/login';

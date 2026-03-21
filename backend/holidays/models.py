@@ -18,6 +18,12 @@ class Holiday(models.Model):
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='holidays/', blank=True, null=True, help_text="Optional holiday image")
     is_recurring = models.BooleanField(default=False, help_text="Repeats every year")
+    company = models.ForeignKey(
+        'accounts.Company',
+        on_delete=models.PROTECT,
+        related_name='holidays',
+        help_text="Company this holiday belongs to"
+    )
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_holidays')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -25,6 +31,10 @@ class Holiday(models.Model):
     class Meta:
         ordering = ['start_date']
         unique_together = ['name', 'start_date']
+        indexes = [
+            models.Index(fields=['company']),
+            models.Index(fields=['company', 'start_date']),
+        ]
 
     def __str__(self):
         if self.end_date and self.end_date != self.start_date:

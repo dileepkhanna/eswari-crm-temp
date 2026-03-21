@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Leave, LeaveStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { logger } from '@/lib/logger';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { useNotifications } from '@/contexts/NotificationContext';
 import { logActivity } from '@/lib/activityLogger';
@@ -125,7 +126,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
       
       setLeaves(transformedLeaves);
     } catch (error) {
-      console.error('Error fetching leaves:', error);
+      logger.error('Error fetching leaves:', error);
       toast.error('Failed to load leaves');
     } finally {
       setLoading(false);
@@ -264,7 +265,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
 
       toast.success('Leave request deleted');
     } catch (error) {
-      console.error('Error deleting leave:', error);
+      logger.error('Error deleting leave:', error);
       toast.error('Failed to delete leave');
     }
   };
@@ -291,7 +292,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
     } catch (error) {
-      console.error('Error deleting leaves:', error);
+      logger.error('Error deleting leaves:', error);
       toast.error('Failed to delete some leaves');
     }
   };
@@ -361,7 +362,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         createdAt: new Date(),
       });
     } catch (error) {
-      console.error('Error approving leave:', error);
+      logger.error('Error approving leave:', error);
       toast.error('Failed to approve leave');
     }
   };
@@ -406,7 +407,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         createdAt: new Date(),
       });
     } catch (error) {
-      console.error('Error rejecting leave:', error);
+      logger.error('Error rejecting leave:', error);
       toast.error('Failed to reject leave');
     }
   };
@@ -470,7 +471,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         createdAt: new Date(),
       });
     } catch (error) {
-      console.error('Error creating leave:', error);
+      logger.error('Error creating leave:', error);
       toast.error('Failed to submit leave request');
     }
   };

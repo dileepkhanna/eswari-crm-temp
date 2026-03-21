@@ -9,8 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { Upload, Palette, Code, Building2, Loader2, Globe } from 'lucide-react';
+import { Upload, Palette, Code, Building2, Loader2, Globe, Building } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { Company } from '@/types';
 
+import { logger } from '@/lib/logger';
 const AdminBranding = () => {
   const { settings, updateSettings, isLoading, refreshSettings } = useAppSettings();
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -18,6 +21,13 @@ const AdminBranding = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
+  
+  // Company-specific branding state
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [isUploadingCompanyLogo, setIsUploadingCompanyLogo] = useState(false);
+  const companyLogoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     app_name: '',
@@ -38,7 +48,7 @@ const AdminBranding = () => {
       if (formData.primary_color) {
         root.style.setProperty('--primary', formData.primary_color);
         root.style.setProperty('--gradient-primary', `linear-gradient(135deg, hsl(${formData.primary_color}) 0%, hsl(${formData.primary_color}) 100%)`);
-        console.log('🎨 Preview: Set --primary to:', formData.primary_color);
+        logger.log('🎨 Preview: Set --primary to:', formData.primary_color);
       }
       
       // Apply accent color preview
@@ -47,7 +57,7 @@ const AdminBranding = () => {
         root.style.setProperty('--sidebar-primary', formData.accent_color);
         root.style.setProperty('--sidebar-ring', formData.accent_color);
         root.style.setProperty('--gradient-accent', `linear-gradient(135deg, hsl(${formData.accent_color}) 0%, hsl(${formData.accent_color}) 100%)`);
-        console.log('🎨 Preview: Set --accent to:', formData.accent_color);
+        logger.log('🎨 Preview: Set --accent to:', formData.accent_color);
       }
       
       // Apply sidebar color preview
@@ -60,9 +70,9 @@ const AdminBranding = () => {
           const darkerLightness = Math.max(lightness - 5, 0);
           const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
           root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${formData.sidebar_color}) 0%, hsl(${gradientColor}) 100%)`);
-          console.log('🎨 Preview: Set --sidebar-background to:', formData.sidebar_color);
+          logger.log('🎨 Preview: Set --sidebar-background to:', formData.sidebar_color);
         } catch (error) {
-          console.warn('Error updating sidebar gradient:', error);
+          logger.warn('Error updating sidebar gradient:', error);
         }
       }
       
@@ -146,7 +156,7 @@ const AdminBranding = () => {
         styleElement.textContent = previewCSS;
         document.head.appendChild(styleElement);
         
-        console.log('🎨 Preview CSS overrides applied');
+        logger.log('🎨 Preview CSS overrides applied');
       };
       
       // Apply preview color updates immediately
@@ -191,7 +201,7 @@ const AdminBranding = () => {
 
   useEffect(() => {
     if (settings) {
-      console.log('🖼️ Settings received in AdminBranding:', settings); // Debug log
+      logger.log('🖼️ Settings received in AdminBranding:', settings); // Debug log
       setFormData({
         app_name: settings.app_name || '',
         logo_url: settings.logo_url || '',
@@ -218,16 +228,16 @@ const AdminBranding = () => {
       // Debounce auto-save to avoid too many API calls
       const autoSaveTimer = setTimeout(async () => {
         try {
-          console.log('🔄 Auto-saving color changes...');
+          logger.log('🔄 Auto-saving color changes...');
           await updateSettings({
             primary_color: formData.primary_color,
             accent_color: formData.accent_color,
             sidebar_color: formData.sidebar_color,
           });
-          console.log('✅ Colors auto-saved successfully');
+          logger.log('✅ Colors auto-saved successfully');
           toast.success('Colors saved automatically', { duration: 2000 });
         } catch (error: any) {
-          console.error('❌ Auto-save failed:', error);
+          logger.error('❌ Auto-save failed:', error);
           toast.error('Auto-save failed. Please save manually.', { duration: 3000 });
         }
       }, 1500); // Wait 1.5 seconds after last change
@@ -235,6 +245,32 @@ const AdminBranding = () => {
       return () => clearTimeout(autoSaveTimer);
     }
   }, [formData.primary_color, formData.accent_color, formData.sidebar_color, settings, updateSettings]);
+
+  // Fetch companies for company-specific branding
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        const response = await apiClient.getCompanies();
+        logger.log('Loaded companies:', response);
+        
+        // Handle paginated response
+        const companiesData = response.results || response;
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+        
+        if (companiesData.length > 0) {
+          setSelectedCompany(companiesData[0]);
+        }
+      } catch (error: any) {
+        logger.error('Failed to fetch companies:', error);
+        toast.error('Failed to load companies');
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    };
+    
+    fetchCompanies();
+  }, []);
 
   const handleImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -273,7 +309,7 @@ const AdminBranding = () => {
       // Refresh settings to get the updated data
       await refreshSettings();
     } catch (error: any) {
-      console.error(`${type} upload error:`, error);
+      logger.error(`${type} upload error:`, error);
       
       // Parse error details from API response
       let errorMessage = `Failed to upload ${type}`;
@@ -290,6 +326,51 @@ const AdminBranding = () => {
     } finally {
       if (type === 'logo') setIsUploadingLogo(false);
       else setIsUploadingFavicon(false);
+    }
+  };
+
+  // Handle company logo upload
+  const handleCompanyLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedCompany) {
+      toast.error('Please select a company first');
+      return;
+    }
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Please upload an image under 2MB');
+      return;
+    }
+
+    setIsUploadingCompanyLogo(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+
+      const response = await apiClient.updateCompany(selectedCompany.id, formData);
+
+      // Update the selected company with new logo
+      setSelectedCompany(response);
+      
+      // Update companies list
+      setCompanies(prev => prev.map(c => 
+        c.id === selectedCompany.id ? response : c
+      ));
+
+      toast.success(`Logo uploaded for ${selectedCompany.name}`);
+    } catch (error: any) {
+      logger.error('Company logo upload error:', error);
+      toast.error('Failed to upload company logo');
+    } finally {
+      setIsUploadingCompanyLogo(false);
     }
   };
 
@@ -379,113 +460,127 @@ const AdminBranding = () => {
     <div className="flex flex-col h-full">
       <TopBar title="Branding Settings" subtitle="Customize your application appearance" />
       
-      <div className="flex-1 overflow-auto p-6 space-y-6">
-        {/* App Identity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              App Identity
-            </CardTitle>
-            <CardDescription>Set your application name and logo</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="app_name">Application Name</Label>
-              <Input
-                id="app_name"
-                value={formData.app_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, app_name: e.target.value }))}
-                placeholder="Your App Name"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Logo</Label>
-              <div className="flex items-center gap-4">
-                {formData.logo_url ? (
-                  <img 
-                    src={formData.logo_url} 
-                    alt="Logo" 
-                    className="h-16 w-16 object-contain rounded-lg border" 
-                    onError={(e) => {
-                      console.error('❌ Logo failed to load:', formData.logo_url);
-                      console.error('Error event:', e);
-                    }}
-                    onLoad={() => {
-                      console.log('✅ Logo loaded successfully:', formData.logo_url);
-                    }}
+      <div className="flex-1 overflow-auto p-6">
+        <Tabs defaultValue="global" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="global" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Global Branding
+            </TabsTrigger>
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Company Branding
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Global Branding Tab */}
+          <TabsContent value="global" className="space-y-6">
+            {/* App Identity */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  App Identity
+                </CardTitle>
+                <CardDescription>Set your global application name and logo</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="app_name">Application Name</Label>
+                  <Input
+                    id="app_name"
+                    value={formData.app_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, app_name: e.target.value }))}
+                    placeholder="Your App Name"
                   />
-                ) : (
-                  <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
-                    <Building2 className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
-                <div>
-                  <input
-                    type="file"
-                    ref={logoInputRef}
-                    onChange={(e) => handleImageUpload(e, 'logo')}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={isUploadingLogo}
-                  >
-                    {isUploadingLogo ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
-                    )}
-                    Upload Logo
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1">Recommended: 200x200px, max 2MB</p>
-                  {formData.logo_url && (
-                    <p className="text-xs text-blue-600 mt-1">Current: {formData.logo_url}</p>
-                  )}
                 </div>
-              </div>
-            </div>
-            
-            {/* Favicon Upload */}
-            <div className="space-y-2">
-              <Label>Favicon (Browser Tab Icon)</Label>
-              <div className="flex items-center gap-4">
-                {formData.favicon_url ? (
-                  <img src={formData.favicon_url} alt="Favicon" className="h-12 w-12 object-contain rounded-lg border" />
-                ) : (
-                  <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center">
-                    <Globe className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                )}
-                <div>
-                  <input
-                    type="file"
-                    ref={faviconInputRef}
-                    onChange={(e) => handleImageUpload(e, 'favicon')}
-                    accept="image/png,image/x-icon,image/svg+xml"
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => faviconInputRef.current?.click()}
-                    disabled={isUploadingFavicon}
-                  >
-                    {isUploadingFavicon ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                
+                <div className="space-y-2">
+                  <Label>Logo</Label>
+                  <div className="flex items-center gap-4">
+                    {formData.logo_url ? (
+                      <img 
+                        src={formData.logo_url} 
+                        alt="Logo" 
+                        className="h-16 w-16 object-contain rounded-lg border" 
+                        onError={(e) => {
+                          logger.error('❌ Logo failed to load:', formData.logo_url);
+                          logger.error('Error event:', e);
+                        }}
+                        onLoad={() => {
+                          logger.log('✅ Logo loaded successfully:', formData.logo_url);
+                        }}
+                      />
                     ) : (
-                      <Upload className="h-4 w-4 mr-2" />
+                      <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
+                        <Building2 className="h-8 w-8 text-muted-foreground" />
+                      </div>
                     )}
-                    Upload Favicon
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1">Recommended: 32x32px or 64x64px PNG, max 512KB</p>
+                    <div>
+                      <input
+                        type="file"
+                        ref={logoInputRef}
+                        onChange={(e) => handleImageUpload(e, 'logo')}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={isUploadingLogo}
+                      >
+                        {isUploadingLogo ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        Upload Logo
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">Recommended: 200x200px, max 2MB</p>
+                      {formData.logo_url && (
+                        <p className="text-xs text-blue-600 mt-1">Current: {formData.logo_url}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                
+                {/* Favicon Upload */}
+                <div className="space-y-2">
+                  <Label>Favicon (Browser Tab Icon)</Label>
+                  <div className="flex items-center gap-4">
+                    {formData.favicon_url ? (
+                      <img src={formData.favicon_url} alt="Favicon" className="h-12 w-12 object-contain rounded-lg border" />
+                    ) : (
+                      <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center">
+                        <Globe className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <input
+                        type="file"
+                        ref={faviconInputRef}
+                        onChange={(e) => handleImageUpload(e, 'favicon')}
+                        accept="image/png,image/x-icon,image/svg+xml"
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => faviconInputRef.current?.click()}
+                        disabled={isUploadingFavicon}
+                      >
+                        {isUploadingFavicon ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        Upload Favicon
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">Recommended: 32x32px or 64x64px PNG, max 512KB</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
         {/* Color Palette */}
         <Card>
@@ -740,6 +835,150 @@ const AdminBranding = () => {
             )}
           </Button>
         </div>
+          </TabsContent>
+
+          {/* Company Branding Tab */}
+          <TabsContent value="companies" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Company-Specific Branding
+                </CardTitle>
+                <CardDescription>
+                  Upload logos and set titles for each company. These will be displayed to employees and managers of that company.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isLoadingCompanies ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : companies.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No companies found. Create companies first.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Company Selector */}
+                    <div className="space-y-2">
+                      <Label>Select Company</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {companies.map((company) => (
+                          <button
+                            key={company.id}
+                            onClick={() => setSelectedCompany(company)}
+                            className={`p-4 rounded-lg border-2 transition-all text-left ${
+                              selectedCompany?.id === company.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {company.logo_url ? (
+                                <img
+                                  src={company.logo_url}
+                                  alt={company.name}
+                                  className="h-10 w-10 object-contain rounded"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                                  <Building className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{company.name}</p>
+                                <p className="text-xs text-muted-foreground">{company.code}</p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Selected Company Branding */}
+                    {selectedCompany && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold">{selectedCompany.name}</h3>
+                            <p className="text-sm text-muted-foreground">Code: {selectedCompany.code}</p>
+                          </div>
+                          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            selectedCompany.is_active
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {selectedCompany.is_active ? 'Active' : 'Inactive'}
+                          </div>
+                        </div>
+
+                        {/* Company Logo Upload */}
+                        <div className="space-y-2">
+                          <Label>Company Logo</Label>
+                          <div className="flex items-center gap-4">
+                            {selectedCompany.logo_url ? (
+                              <img
+                                src={selectedCompany.logo_url}
+                                alt={selectedCompany.name}
+                                className="h-20 w-20 object-contain rounded-lg border-2 border-border"
+                              />
+                            ) : (
+                              <div className="h-20 w-20 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
+                                <Building className="h-10 w-10 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <input
+                                type="file"
+                                ref={companyLogoInputRef}
+                                onChange={handleCompanyLogoUpload}
+                                accept="image/*"
+                                className="hidden"
+                              />
+                              <Button
+                                variant="outline"
+                                onClick={() => companyLogoInputRef.current?.click()}
+                                disabled={isUploadingCompanyLogo}
+                                className="w-full sm:w-auto"
+                              >
+                                {isUploadingCompanyLogo ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4 mr-2" />
+                                )}
+                                {selectedCompany.logo_url ? 'Change Logo' : 'Upload Logo'}
+                              </Button>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                This logo will be displayed to {selectedCompany.name} employees and managers in the sidebar and as favicon.
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Recommended: 200x200px, max 2MB
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Company Display Info */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
+                          <ul className="text-sm text-blue-800 space-y-1">
+                            <li>• Employees and managers of {selectedCompany.name} will see this logo in the sidebar</li>
+                            <li>• The company name "{selectedCompany.name}" will appear as the app title</li>
+                            <li>• The browser tab will show "{selectedCompany.name}" as the page title</li>
+                            <li>• The company logo will be used as the favicon (browser tab icon)</li>
+                            <li>• Admin and HR users will continue to see the global branding</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

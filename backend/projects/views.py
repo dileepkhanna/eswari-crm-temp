@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.conf import settings
 from django.http import HttpResponse, Http404
@@ -12,31 +13,43 @@ import uuid
 import mimetypes
 from .models import Project
 from .serializers import ProjectSerializer
+from accounts.permissions import can_hr_access_module, CompanyAccessPermission
+from utils.mixins import CompanyFilterMixin
 
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     queryset = Project.objects.all()  # Keep this for the router
     serializer_class = ProjectSerializer
+    permission_classes = [CompanyAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'manager']
     search_fields = ['name', 'description']
     ordering_fields = ['created_at', 'start_date', 'end_date']
     ordering = ['-created_at']
     
+    def check_permissions(self, request):
+        """Block HR users from accessing projects"""
+        super().check_permissions(request)
+        if request.user.role == 'hr':
+            raise PermissionDenied("Access denied. HR users do not have permission to access this module.")
+    
     def get_queryset(self):
         """Filter projects based on user role and manager-employee hierarchy"""
         user = self.request.user
         
+        # Optimize queries with select_related for company
+        base_queryset = Project.objects.select_related('company', 'manager')
+        
         if user.role == 'admin':
             # Admins can see all projects
-            return Project.objects.all()
+            return base_queryset
         elif user.role == 'manager':
             # Managers can see all projects (projects are typically company-wide)
             # But in future, you could filter by manager field if needed
-            return Project.objects.all()
+            return base_queryset
         elif user.role == 'employee':
             # Employees can see all projects (projects are typically visible to all)
             # But in future, you could filter by assigned projects if needed
-            return Project.objects.all()
+            return base_queryset
         else:
             # Default: no access
             return Project.objects.none()

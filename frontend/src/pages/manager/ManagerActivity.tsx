@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import ActivityLogger from '@/utils/activityLogger';
 
+import { logger } from '@/lib/logger';
 interface ActivityLog {
   id: string;
   user_id: string;
@@ -78,11 +79,11 @@ export default function ManagerActivity() {
       try {
         const { apiClient } = await import('@/lib/api');
         
-        console.log('Fetching activity logs...');
+        logger.log('Fetching activity logs...');
         
         // Check if user is authenticated first
         if (!user) {
-          console.log('No authenticated user, skipping activity fetch');
+          logger.log('No authenticated user, skipping activity fetch');
           setActivities([]);
           setStaffAndManagers([]);
           setError('Please log in to view activity logs.');
@@ -106,7 +107,7 @@ export default function ManagerActivity() {
           created_at: activity.created_at,
         }));
         
-        console.log('Loaded activities:', transformedActivities.length);
+        logger.log('Loaded activities:', transformedActivities.length);
         setActivities(transformedActivities);
 
         // Fetch users for filtering
@@ -131,7 +132,7 @@ export default function ManagerActivity() {
         
         setStaffAndManagers(relevantUsers);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        logger.error('Error fetching data:', error);
         // Show user-friendly error message
         if (error instanceof Error) {
           if (error.message.includes('401')) {
@@ -161,7 +162,7 @@ export default function ManagerActivity() {
       
       // Check if user is authenticated first
       if (!user) {
-        console.log('No authenticated user, cannot refresh activities');
+        logger.log('No authenticated user, cannot refresh activities');
         setActivities([]);
         setStaffAndManagers([]);
         setError('Please log in to view activity logs.');
@@ -170,7 +171,7 @@ export default function ManagerActivity() {
       
       const { apiClient } = await import('@/lib/api');
       
-      console.log('Refreshing activities...');
+      logger.log('Refreshing activities...');
       const activityResponse = await apiClient.getActivityLogs();
       const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
       
@@ -185,7 +186,7 @@ export default function ManagerActivity() {
         created_at: activity.created_at,
       }));
       
-      console.log('Refreshed activities:', transformedActivities.length);
+      logger.log('Refreshed activities:', transformedActivities.length);
       setActivities(transformedActivities);
       setLastRefresh(new Date());
       
@@ -194,7 +195,7 @@ export default function ManagerActivity() {
         setError(null);
       }
     } catch (error: any) {
-      console.error('Error refreshing activities:', error);
+      logger.error('Error refreshing activities:', error);
       
       // Handle authentication errors
       if (error.message?.includes('401')) {
@@ -213,12 +214,12 @@ export default function ManagerActivity() {
   // useEffect(() => {
   //   // Only set up auto-refresh if user is authenticated and no error
   //   if (!user || error) {
-  //     console.log('Skipping auto-refresh: no user or error present');
+  //     logger.log('Skipping auto-refresh: no user or error present');
   //     return;
   //   }
     
   //   const interval = setInterval(() => {
-  //     console.log('Auto-refreshing activities...');
+  //     logger.log('Auto-refreshing activities...');
   //     refreshActivities();
   //   }, 30000);
   //   return () => clearInterval(interval);
@@ -229,10 +230,10 @@ export default function ManagerActivity() {
     const handleActivityLogged = () => {
       // Only refresh if user is authenticated and no error
       if (!user || error) {
-        console.log('Skipping activity refresh: no user or error present');
+        logger.log('Skipping activity refresh: no user or error present');
         return;
       }
-      console.log('Activity logged event received, refreshing...');
+      logger.log('Activity logged event received, refreshing...');
       setTimeout(refreshActivities, 1000); // Small delay to ensure backend is updated
     };
 
@@ -272,14 +273,14 @@ export default function ManagerActivity() {
             end: endOfDay(dateRange.to),
           });
         } catch (error) {
-          console.error('Date filter error:', error);
+          logger.error('Date filter error:', error);
           matchesDate = true; // Default to showing the activity if date parsing fails
         }
       } else if (dateRange.from) {
         try {
           matchesDate = new Date(activity.created_at) >= startOfDay(dateRange.from);
         } catch (error) {
-          console.error('Date filter error:', error);
+          logger.error('Date filter error:', error);
           matchesDate = true;
         }
       }
@@ -295,7 +296,7 @@ export default function ManagerActivity() {
   const leaveActivities = filteredActivities.filter(a => a.module === 'leaves');
   const otherActivities = filteredActivities.filter(a => !['leads', 'tasks', 'customers', 'leaves'].includes(a.module));
 
-  console.log('Activity counts:', {
+  logger.log('Activity counts:', {
     total: activities.length,
     filtered: filteredActivities.length,
     leads: leadActivities.length,

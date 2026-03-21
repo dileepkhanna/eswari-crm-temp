@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Popover,
@@ -17,6 +18,7 @@ import {
   ChevronLeftIcon, 
   MenuIcon 
 } from '@/components/icons';
+import CompanySelector from '@/components/CompanySelector';
 
 interface TopBarProps {
   title: string;
@@ -28,6 +30,7 @@ interface TopBarProps {
 export default function TopBar({ title, subtitle, showBackButton = true, children }: TopBarProps) {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
   const mobileNav = useMobileNav();
@@ -74,6 +77,19 @@ export default function TopBar({ title, subtitle, showBackButton = true, childre
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        {/* Company Selector */}
+        <CompanySelector />
+
+        {/* Current Company Display (for non-admin/hr users) */}
+        {selectedCompany && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+              {selectedCompany.code.charAt(0)}
+            </div>
+            <span className="text-sm font-medium text-foreground">{selectedCompany.name}</span>
+          </div>
+        )}
+
         {/* Action buttons (e.g., New Announcement) */}
         {children && (
           <div className="hidden sm:flex items-center gap-2">

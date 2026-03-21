@@ -1,16 +1,79 @@
+import { useState, useEffect } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { useData } from "@/contexts/DataContextDjango";
-import { Megaphone, AlertTriangle, Calendar, User } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { useCompany } from "@/contexts/CompanyContext";
+import { apiClient } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Search, Loader2, Eye, Download, FileText, Image, MessageSquare } from 'lucide-react';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Announcement } from '@/types';
+import DocumentViewerModal from "@/components/ui/DocumentViewerModal";
+import AnnouncementDetailModal from "@/components/announcements/AnnouncementDetailModal";
 
+import { logger } from '@/lib/logger';
 export default function StaffAnnouncements() {
   const { announcements } = useData();
+  const { selectedCompany } = useCompany();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [viewingDocument, setViewingDocument] = useState<{
+    url: string;
+    name: string;
+    title: string;
+  } | null>(null);
+  const [viewingAnnouncement, setViewingAnnouncement] = useState<Announcement | null>(null);
+
+  // Fetch announcements from API
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      logger.log('🔄 [StaffAnnouncements] Fetching announcements...');
+      const response = await apiClient.getAnnouncements();
+      
+      logger.log(`📊 [StaffAnnouncements] Fetched announcements from backend`);
+      
+    } catch (error: any) {
+      logger.error('❌ [StaffAnnouncements] Error fetching announcements:', error);
+      setError('Failed to load announcements. Please try again.');
+      toast.error('Failed to fetch announcements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
 
   // Backend already filters announcements by user role, so we just need to filter by active and expiry
   const visibleAnnouncements = announcements.filter(
     (a) => {
-      if (!a.isActive) return false;
+      if (!a.isActive && statusFilter === 'active') return false;
+      if (a.isActive && statusFilter === 'inactive') return false;
       
       // If no expiry date, show the announcement
       if (!a.expiresAt) return true;
@@ -27,104 +90,306 @@ export default function StaffAnnouncements() {
     }
   );
 
+  // Filter announcements based on search query and filters
+  const filteredAnnouncements = visibleAnnouncements.filter(announcement => {
+    const query = searchQuery.toLowerCase();
+    
+    // Search filter
+    const matchesSearch = (
+      announcement.title.toLowerCase().includes(query) ||
+      announcement.message.toLowerCase().includes(query) ||
+      (announcement.createdByName?.toLowerCase().includes(query) ?? false)
+    );
+    
+    // Priority filter
+    const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
+    
+    return matchesSearch && matchesPriority;
+  });
+
+  const getPriorityBadgeColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-100 text-red-700 border-red-300';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'low':
+        return 'bg-green-100 text-green-700 border-green-300';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getStatusBadgeColor = (isActive: boolean) => {
+    return isActive
+      ? 'bg-green-100 text-green-700 border-green-300'
+      : 'bg-gray-100 text-gray-700 border-gray-300';
+  };
+
+  const isImageFile = (filename: string) => {
+    return /\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i.test(filename);
+  };
+
+  const handleViewAnnouncement = (announcement: Announcement) => {
+    setViewingAnnouncement(announcement);
+  };
+
+  const handleViewDocument = (announcement: Announcement) => {
+    if (announcement.document_url && announcement.document_name) {
+      setViewingDocument({
+        url: announcement.document_url,
+        name: announcement.document_name,
+        title: `Document: ${announcement.title}`
+      });
+    }
+  };
+
+  const handleDownloadDocument = (announcement: Announcement) => {
+    if (announcement.document_url && announcement.document_name) {
+      try {
+        const link = document.createElement('a');
+        link.href = announcement.document_url;
+        link.download = announcement.document_name;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Downloaded ${announcement.document_name}`);
+      } catch (error) {
+        logger.error('Download failed:', error);
+        toast.error('Failed to download document');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Announcements" subtitle={`Company announcements • ${selectedCompany?.name || 'Loading...'}`} />
+        <div className="p-6">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading announcements...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Announcements" subtitle={`Company announcements • ${selectedCompany?.name || 'Error'}`} />
+        <div className="p-6">
+          <div className="glass-card rounded-2xl p-8 text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchAnnouncements} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
-      <TopBar title="Announcements" subtitle="View announcements from admin" />
-      <div className="p-4 md:p-6 space-y-4">
-        {visibleAnnouncements.length === 0 ? (
-          <div className="glass-card rounded-2xl p-8 text-center">
-            <Megaphone className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No announcements at this time</p>
-          </div>
-        ) : (
-          visibleAnnouncements.map((announcement, index) => (
-            <div
-              key={announcement.id}
-              className={cn(
-                "glass-card rounded-2xl p-4 md:p-6 animate-slide-up",
-                announcement.priority === "high"
-                  ? "border-l-4 border-l-destructive"
-                  : announcement.priority === "medium"
-                    ? "border-l-4 border-l-warning"
-                    : "border-l-4 border-l-primary"
-              )}
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className={cn(
-                    "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0",
-                    announcement.priority === "high"
-                      ? "bg-destructive/20"
-                      : announcement.priority === "medium"
-                        ? "bg-warning/20"
-                        : "bg-primary/20"
-                  )}
-                >
-                  {announcement.priority === "high" ? (
-                    <AlertTriangle className="w-5 h-5 md:w-6 md:h-6 text-destructive" />
-                  ) : (
-                    <Megaphone
-                      className={cn(
-                        "w-5 h-5 md:w-6 md:h-6",
-                        announcement.priority === "medium" ? "text-warning" : "text-primary"
-                      )}
-                    />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                    <h3
-                      className={cn(
-                        "font-semibold text-base md:text-lg",
-                        announcement.priority === "high"
-                          ? "text-destructive"
-                          : announcement.priority === "medium"
-                            ? "text-warning"
-                            : "text-primary"
-                      )}
-                    >
-                      {announcement.title}
-                    </h3>
-                    <span
-                      className={cn(
-                        "text-xs px-2 py-1 rounded-full w-fit",
-                        announcement.priority === "high"
-                          ? "bg-destructive/10 text-destructive"
-                          : announcement.priority === "medium"
-                            ? "bg-warning/10 text-warning"
-                            : "bg-primary/10 text-primary"
-                      )}
-                    >
-                      {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)} Priority
-                    </span>
-                  </div>
-                  <p className="text-sm md:text-base text-muted-foreground mb-3">{announcement.message}</p>
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                    {announcement.createdByName && (
-                      <div className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5" />
-                        By: {announcement.createdByName}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Posted: {format(announcement.createdAt, "MMM dd, yyyy")}
-                    </div>
-                    {announcement.expiresAt && (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        Expires: {format(announcement.expiresAt, "MMM dd, yyyy")}
-                      </div>
-                    )}
-                  </div>
-                </div>
+      <TopBar title="Announcements" subtitle={`Company announcements • ${selectedCompany?.name || 'All Companies'}`} />
+      <div className="p-6">
+        <div className="space-y-6">
+          {/* Search Bar and Filters */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="relative flex-1 sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search announcements..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 input-field"
+                />
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                {filteredAnnouncements.length} of {visibleAnnouncements.length} announcements
               </div>
             </div>
-          ))
-        )}
+            
+            <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+              {/* Priority Filter */}
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Filter by priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Announcement Table */}
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-semibold">Title</TableHead>
+                  <TableHead className="font-semibold hidden md:table-cell">Message</TableHead>
+                  <TableHead className="font-semibold">Priority</TableHead>
+                  <TableHead className="font-semibold hidden lg:table-cell">Document</TableHead>
+                  <TableHead className="font-semibold hidden xl:table-cell">Created</TableHead>
+                  <TableHead className="font-semibold hidden xl:table-cell">Expires</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAnnouncements.map((announcement, index) => (
+                  <TableRow 
+                    key={announcement.id} 
+                    className="table-row-hover animate-fade-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {announcement.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          By {announcement.createdByName || 'Unknown'}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <p className="text-sm text-muted-foreground line-clamp-3 max-w-lg">
+                        {announcement.message}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={cn("capitalize", getPriorityBadgeColor(announcement.priority))}
+                      >
+                        {announcement.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {announcement.document_url && announcement.document_name ? (
+                        <div className="flex items-center gap-2">
+                          {isImageFile(announcement.document_name) ? (
+                            <Image className="w-4 h-4 text-blue-500" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-primary" />
+                          )}
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDocument(announcement)}
+                              className="h-6 px-2 text-xs"
+                              title="View document"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadDocument(announcement)}
+                              className="h-6 px-2 text-xs"
+                              title="Download document"
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <p className="text-sm text-muted-foreground">
+                        {format(announcement.createdAt, 'MMM dd, yyyy')}
+                      </p>
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <p className="text-sm text-muted-foreground">
+                        {announcement.expiresAt 
+                          ? format(announcement.expiresAt, 'MMM dd, yyyy')
+                          : 'No expiration'}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={cn(getStatusBadgeColor(announcement.isActive))}
+                      >
+                        {announcement.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewAnnouncement(announcement)}
+                          className="h-8 w-8 p-0"
+                          title="View full announcement"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {filteredAnnouncements.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  {searchQuery || priorityFilter !== 'all' || statusFilter !== 'active'
+                    ? 'No announcements found matching your filters' 
+                    : 'No announcements available'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+      
+      {/* Announcement Detail Modal */}
+      <AnnouncementDetailModal
+        announcement={viewingAnnouncement}
+        open={!!viewingAnnouncement}
+        onOpenChange={() => setViewingAnnouncement(null)}
+      />
+      
+      {/* Document Viewer Modal */}
+      {viewingDocument && (
+        <DocumentViewerModal
+          open={!!viewingDocument}
+          onOpenChange={() => setViewingDocument(null)}
+          documentUrl={viewingDocument.url}
+          documentName={viewingDocument.name}
+          title={viewingDocument.title}
+        />
+      )}
     </div>
   );
 }

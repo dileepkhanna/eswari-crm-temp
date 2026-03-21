@@ -2,10 +2,12 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { Customer, CallAllocation, User, Lead } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData, apiToLead } from '@/contexts/DataContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { CallStatus } from '@/types/customer';
 
+import { logger } from '@/lib/logger';
 interface CustomerContextType {
   customers: Customer[];
   employees: User[];
@@ -37,6 +39,7 @@ interface CustomerProviderProps {
 export function CustomerProvider({ children }: CustomerProviderProps) {
   const { user } = useAuth();
   const { addLeadToState } = useData(); // Use addLeadToState for immediate state update
+  const { selectedCompany } = useCompany();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<User[]>([]);
   const [callAllocations, setCallAllocations] = useState<CallAllocation[]>([]);
@@ -47,18 +50,16 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   const [isInitialLoad, setIsInitialLoad] = useState(false); // Start with false
   const CACHE_DURATION = 30000; // 30 seconds cache
 
-  // Fetch real users from the API with caching
+  // Fetch real users from the API filtered by current company
   const fetchUsers = async (forceRefresh = false) => {
-    // Check cache validity for employees
     const now = Date.now();
     const isCacheValid = !forceRefresh && (now - lastFetchTime) < CACHE_DURATION && employees.length > 0;
-    
-    if (isCacheValid) {
-      return;
-    }
+    if (isCacheValid) return;
     
     try {
-      const response = await apiClient.getUsers();
+      // Filter users by the current company so cross-company employees don't appear
+      const companyId = selectedCompany?.id || user?.company?.id;
+      const response = await apiClient.getUsers(companyId ? { company: companyId } : undefined);
       
       // Handle both paginated and non-paginated responses
       let usersData: any[];
@@ -101,18 +102,20 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         };
       });
       
-      // Filter only employees
-      const employeeUsers = transformedUsers.filter((u: User) => u.role === 'employee');
+      // Filter employees and managers (admins can assign to both)
+      const employeeUsers = transformedUsers.filter((u: User) => 
+        u.role === 'employee' || u.role === 'manager' || (u.role as string) === 'telecaller'
+      );
       setEmployees(employeeUsers);
       
       // Cache employees data to localStorage
       try {
         localStorage.setItem(`employees_${user?.id}`, JSON.stringify(employeeUsers));
       } catch (error) {
-        console.error('❌ Error caching employee data:', error);
+        logger.error('❌ Error caching employee data:', error);
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      logger.error('Error fetching users:', error);
       // Don't clear existing employees on error
       if (employees.length === 0) {
         setEmployees([]);
@@ -120,97 +123,89 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     }
   };
 
-  // Fetch customers from API with caching
+  // Fetch customers from API with pagination
   const fetchCustomers = async (forceRefresh = false) => {
-    if (!user) {
-      return;
-    }
+    if (!user) return;
     
-    // Check cache validity
     const now = Date.now();
     const isCacheValid = !forceRefresh && (now - lastFetchTime) < CACHE_DURATION && customers.length > 0;
-    
-    if (isCacheValid) {
-      return;
-    }
+    if (isCacheValid) return;
     
     try {
-      // Only show loading for forced refresh or when no cached data exists
-      if (forceRefresh && customers.length === 0) {
-        setLoading(true);
+      if (forceRefresh && customers.length === 0) setLoading(true);
+      
+      // Fetch all pages so employees see all their assigned customers
+      let allCustomers: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await apiClient.getCustomers({ page, page_size: 100 } as any);
+        let pageData: any[];
+        if (Array.isArray(response)) {
+          pageData = response;
+          hasMore = false;
+        } else if ((response as any).results) {
+          pageData = (response as any).results;
+          hasMore = !!(response as any).next;
+        } else {
+          pageData = [];
+          hasMore = false;
+        }
+        allCustomers = allCustomers.concat(pageData);
+        page++;
+        if (page > 20) break; // safety cap
       }
       
-      const response = await apiClient.getCustomers();
-      
-      // Handle paginated response from Django REST Framework
-      let customersData: any[];
-      if (Array.isArray(response)) {
-        // Direct array response
-        customersData = response;
-      } else if (response && (response as any).results) {
-        // Paginated response: { count, next, previous, results }
-        customersData = (response as any).results;
-      } else {
-        console.warn('Unexpected API response structure:', response);
-        customersData = [];
-      }
-      
-      // Transform API response to frontend format
-      const transformedCustomers: Customer[] = customersData.map((customer: any) => {
-        const transformedCustomer = {
-          id: customer.id.toString(),
-          name: customer.name,
-          phone: customer.phone,
-          callStatus: customer.call_status as CallStatus,
-          customCallStatus: customer.custom_call_status,
-          assignedTo: customer.assigned_to ? customer.assigned_to.toString() : undefined,
-          assignedToName: customer.assigned_to_name,
-          createdBy: customer.created_by.toString(),
-          createdByName: customer.created_by_name,
-          createdAt: new Date(customer.created_at),
-          updatedAt: new Date(customer.updated_at),
-          scheduledDate: customer.scheduled_date ? new Date(customer.scheduled_date) : undefined,
-          callDate: customer.call_date ? new Date(customer.call_date) : undefined,
-          notes: customer.notes,
-          isConverted: customer.is_converted,
-          convertedLeadId: customer.converted_lead_id,
-        };
-        
-        return transformedCustomer;
-      });
+      const transformedCustomers: Customer[] = allCustomers.map((customer: any) => ({
+        id: customer.id.toString(),
+        name: customer.name,
+        phone: customer.phone,
+        callStatus: customer.call_status as CallStatus,
+        customCallStatus: customer.custom_call_status,
+        assignedTo: customer.assigned_to ? customer.assigned_to.toString() : undefined,
+        assignedToName: customer.assigned_to_name,
+        createdBy: customer.created_by.toString(),
+        createdByName: customer.created_by_name,
+        createdAt: new Date(customer.created_at),
+        updatedAt: new Date(customer.updated_at),
+        scheduledDate: customer.scheduled_date ? new Date(customer.scheduled_date) : undefined,
+        callDate: customer.call_date ? new Date(customer.call_date) : undefined,
+        notes: customer.notes,
+        isConverted: customer.is_converted,
+        convertedLeadId: customer.converted_lead_id,
+      }));
       
       setCustomers(transformedCustomers);
       setLastFetchTime(now);
       setLoading(false);
       
-      // Cache data to localStorage for faster subsequent loads
       if (user) {
         try {
           localStorage.setItem(`customers_${user.id}`, JSON.stringify(transformedCustomers));
-        } catch (error) {
-          console.error('❌ Error caching customer data:', error);
-        }
+        } catch {}
       }
     } catch (error) {
-      console.error('❌ Error fetching customers:', error);
-      
-      // Handle authentication errors
+      logger.error('❌ Error fetching customers:', error);
       if (error instanceof Error && error.message.includes('401')) {
-        console.warn('Authentication failed while fetching customers. Clearing tokens.');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
       }
-      
-      // Don't clear existing data on error unless it's initial load
-      if (isInitialLoad) {
-        setCustomers([]);
-      }
+      if (isInitialLoad) setCustomers([]);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     if (user) {
+      // HR users don't have access to customers module
+      if (user.role === 'hr') {
+        logger.log('👤 HR user detected - skipping customer data fetch');
+        setCustomers([]);
+        setEmployees([]);
+        return;
+      }
+      
       // Load cached data immediately for instant UI
       const cachedCustomers = localStorage.getItem(`customers_${user.id}`);
       const cachedEmployees = localStorage.getItem(`employees_${user.id}`);
@@ -239,7 +234,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
           setEmployees(restoredEmployees);
           setLastFetchTime(Date.now() - CACHE_DURATION + 5000); // Mark as slightly stale
         } catch (error) {
-          console.error('❌ Error parsing cached data:', error);
+          logger.error('❌ Error parsing cached data:', error);
         }
       }
       
@@ -249,7 +244,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
           fetchUsers(),
           fetchCustomers()
         ]).catch(error => {
-          console.error('❌ Error during background data fetch:', error);
+          logger.error('❌ Error during background data fetch:', error);
         });
       }, 100); // Small delay to allow UI to render first
     } else {
@@ -260,6 +255,16 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
 
   const addCustomer = useCallback(async (customerData: Partial<Customer>) => {
     try {
+      // Validate required fields
+      if (!customerData.phone?.trim()) {
+        throw new Error('Phone number is required');
+      }
+
+      // Get company ID - use selectedCompany or user's company
+      const companyId = selectedCompany?.id || user?.company?.id;
+      if (!companyId) {
+        throw new Error('Company information is required');
+      }
       
       // Auto-assign to current user if they are a manager and no assignment is specified
       let assignedTo = customerData.assignedTo;
@@ -269,21 +274,24 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       
       const apiData = {
         name: customerData.name,
-        phone: customerData.phone!,
+        phone: customerData.phone.trim(),
         call_status: customerData.callStatus || 'pending',
         custom_call_status: customerData.customCallStatus,
+        company: companyId, // Add company field
         assigned_to: assignedTo ? parseInt(assignedTo) : null,
         scheduled_date: customerData.scheduledDate?.toISOString(),
         notes: customerData.notes,
       };
       
+      logger.log('🔄 Creating customer with data:', apiData);
       const response = await apiClient.createCustomer(apiData);
+      logger.log('✅ Customer created successfully:', response);
 
-      // Refresh customers list
+      // Refresh customers list to show the new customer
       await fetchCustomers();
       toast.success('Customer added successfully');
     } catch (error) {
-      console.error('❌ Error adding customer:', error);
+      logger.error('❌ Error adding customer:', error);
       
       // Handle duplicate phone number error
       if (error instanceof Error && error.message.includes('phone')) {
@@ -292,17 +300,19 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         } else {
           toast.error('Invalid phone number format');
         }
+      } else if (error instanceof Error && error.message.includes('Company')) {
+        toast.error('Company information is missing. Please try again.');
       } else {
         toast.error('Failed to add customer');
       }
       
       // Log more details about the error
       if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
+        logger.error('Error message:', error.message);
+        logger.error('Error stack:', error.stack);
       }
     }
-  }, [user]);
+  }, [user, selectedCompany]);
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
     try {
@@ -310,7 +320,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       // Check if customer exists in our local state first
       const existingCustomer = customers.find(c => c.id === id);
       if (!existingCustomer) {
-        console.error('❌ Customer not found in local state:', id);
+        logger.error('❌ Customer not found in local state:', id);
         toast.error('Customer not found. The data may have been updated by another user.');
         // Refresh customers to get latest data
         await fetchCustomers();
@@ -378,7 +388,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       
       toast.success('Customer updated successfully');
     } catch (error) {
-      console.error('❌ Error updating customer:', error);
+      logger.error('❌ Error updating customer:', error);
       
       // Revert optimistic update on error
       setCustomers(prevCustomers => 
@@ -405,8 +415,8 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
           toast.error('Failed to update customer. Please try again.');
         }
         
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
+        logger.error('Error message:', error.message);
+        logger.error('Error stack:', error.stack);
       } else {
         toast.error('Failed to update customer');
       }
@@ -419,7 +429,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       await fetchCustomers();
       toast.success('Customer deleted successfully');
     } catch (error) {
-      console.error('Error deleting customer:', error);
+      logger.error('Error deleting customer:', error);
       toast.error('Failed to delete customer');
     }
   }, []);
@@ -462,7 +472,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         }
         
         toast.warning(message);
-        console.error('Import issues:', response.errors);
+        logger.error('Import issues:', response.errors);
       }
       
       if (response.created > 0) {
@@ -474,7 +484,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         toast.info('No new customers were imported');
       }
     } catch (error) {
-      console.error('Error importing customers:', error);
+      logger.error('Error importing customers:', error);
       toast.error('Failed to import customers');
     }
   }, [user]);
@@ -485,7 +495,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       await fetchCustomers();
       // Don't show success toast here as it will be shown by the calling component
     } catch (error) {
-      console.error('Error converting customer to lead:', error);
+      logger.error('Error converting customer to lead:', error);
       toast.error('Failed to convert customer to lead');
     }
   }, []);
@@ -528,7 +538,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       
       // Don't show success toast here as it will be shown by the calling component
     } catch (error) {
-      console.error('❌ Error creating lead from customer:', error);
+      logger.error('❌ Error creating lead from customer:', error);
       throw error; // Re-throw to let the calling component handle the error
     }
   }, [addLeadToState, user]);
@@ -546,7 +556,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         fetchCustomers(true) // Force refresh
       ]);
     } catch (error) {
-      console.error('❌ Error refreshing customers:', error);
+      logger.error('❌ Error refreshing customers:', error);
       toast.error('Failed to refresh customer data');
     } finally {
       setLoading(false);

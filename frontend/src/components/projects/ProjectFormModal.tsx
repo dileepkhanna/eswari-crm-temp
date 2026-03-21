@@ -33,6 +33,7 @@ import {
 } from '@/components/icons';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 interface ProjectFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -163,8 +164,8 @@ export default function ProjectFormModal({
       availability: availabilityText,
     };
 
-    console.log('🔍 Submitting project with availability:', availabilityText);
-    console.log('🔍 Full project data:', projectToSubmit);
+    logger.log('🔍 Submitting project with availability:', availabilityText);
+    logger.log('🔍 Full project data:', projectToSubmit);
 
     onSubmit(projectToSubmit);
 
@@ -229,13 +230,13 @@ export default function ProjectFormModal({
       // Use the existing apiClient instance instead of dynamic import
       const uploadResult = await apiClient.uploadCoverImage(file);
       
-      console.log('Cover upload successful:', uploadResult);
+      logger.log('Cover upload successful:', uploadResult);
       // Apply getMediaUrl to ensure proper URL formatting
       const fullImageUrl = getMediaUrl(uploadResult.url);
       setCoverImage(fullImageUrl);
       toast.success('Cover image uploaded successfully');
     } catch (error: any) {
-      console.error('Error uploading cover image:', error);
+      logger.error('Error uploading cover image:', error);
       
       // Handle specific authentication errors
       if (error.message?.includes('401') || error.message?.includes('token')) {
@@ -267,13 +268,13 @@ export default function ProjectFormModal({
       // Use the existing apiClient instance instead of dynamic import
       const uploadResult = await apiClient.uploadBlueprintImage(file);
       
-      console.log('Blueprint upload successful:', uploadResult);
+      logger.log('Blueprint upload successful:', uploadResult);
       // Apply getMediaUrl to ensure proper URL formatting
       const fullImageUrl = getMediaUrl(uploadResult.url);
       setBlueprintImage(fullImageUrl);
       toast.success('Blueprint image uploaded successfully');
     } catch (error: any) {
-      console.error('Error uploading blueprint image:', error);
+      logger.error('Error uploading blueprint image:', error);
       
       // Handle specific authentication errors
       if (error.message?.includes('401') || error.message?.includes('token')) {
@@ -325,7 +326,7 @@ export default function ProjectFormModal({
                   alt={`Project image ${currentImageIndex + 1}`}
                   className="w-full h-full object-contain bg-gray-50"
                   onError={(e) => {
-                    console.error('Project image failed to load:', images[currentImageIndex]);
+                    logger.error('Project image failed to load:', images[currentImageIndex]);
                     // Hide the broken image and show placeholder
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
@@ -465,7 +466,7 @@ export default function ProjectFormModal({
                     alt="Cover" 
                     className="w-full h-full object-contain"
                     onError={(e) => {
-                      console.error('Cover image failed to load:', coverImage);
+                      logger.error('Cover image failed to load:', coverImage);
                       // Hide the broken image and show placeholder
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -561,7 +562,7 @@ export default function ProjectFormModal({
                     alt="Blueprint" 
                     className="w-full h-full object-contain"
                     onError={(e) => {
-                      console.error('Blueprint image failed to load:', blueprintImage);
+                      logger.error('Blueprint image failed to load:', blueprintImage);
                       // Hide the broken image and show placeholder
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';

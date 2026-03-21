@@ -2,11 +2,37 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Customer, CallAllocation
 from accounts.permissions import should_hide_contact_details
+from utils.validators import CompanyValidationMixin
 
 
-class CustomerSerializer(serializers.ModelSerializer):
+class CompanyNestedSerializer(serializers.Serializer):
+    """Lightweight nested serializer for company information"""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    code = serializers.CharField(read_only=True)
+
+
+class ConvertedLeadSerializer(serializers.Serializer):
+    """Nested serializer for converted lead information"""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+    phone = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    requirement_type = serializers.CharField(read_only=True)
+    bhk_requirement = serializers.CharField(read_only=True)
+    budget_min = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    budget_max = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    preferred_location = serializers.CharField(read_only=True)
+    source = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class CustomerSerializer(CompanyValidationMixin, serializers.ModelSerializer):
     assigned_to_name = serializers.ReadOnlyField()
     created_by_name = serializers.ReadOnlyField()
+    company_detail = CompanyNestedSerializer(source='company', read_only=True)
+    converted_lead = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
@@ -14,9 +40,31 @@ class CustomerSerializer(serializers.ModelSerializer):
             'id', 'name', 'phone', 'call_status', 'custom_call_status',
             'assigned_to', 'assigned_to_name', 'created_by', 'created_by_name',
             'scheduled_date', 'call_date', 'notes', 'is_converted',
-            'converted_lead_id', 'created_at', 'updated_at'
+            'converted_lead_id', 'converted_lead', 'created_at', 'updated_at', 'company', 'company_detail'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'assigned_to_name', 'created_by_name']
+    
+    def get_converted_lead(self, obj):
+        """Include converted lead object if customer is converted"""
+        # Only include converted_lead in detail view (retrieve action)
+        request = self.context.get('request')
+        if not request:
+            return None
+        
+        # Check if this is a detail view (retrieve action)
+        view = self.context.get('view')
+        if view and view.action != 'retrieve':
+            return None
+        
+        # If customer is converted and has a lead ID, fetch the lead
+        if obj.is_converted and obj.converted_lead_id:
+            try:
+                from leads.models import Lead
+                lead = Lead.objects.get(id=obj.converted_lead_id, company=obj.company)
+                return ConvertedLeadSerializer(lead).data
+            except Lead.DoesNotExist:
+                return None
+        return None
     
     def to_representation(self, instance):
         """Mask contact details based on user permissions"""

@@ -1,6 +1,8 @@
 // Global token cleaner utility
+import { logger } from '@/lib/logger';
+
 export const clearInvalidTokens = () => {
-  console.log('🧹 Clearing invalid authentication tokens...');
+  logger.log('🧹 Clearing invalid authentication tokens...');
   
   // Clear all authentication-related items from localStorage
   localStorage.removeItem('access_token');
@@ -11,7 +13,7 @@ export const clearInvalidTokens = () => {
   // Clear sessionStorage as well
   sessionStorage.clear();
   
-  console.log('✅ Tokens cleared successfully');
+  logger.log('✅ Tokens cleared successfully');
   
   // Don't automatically reload - let the app handle the state change
   // The authentication context will handle redirecting to login
@@ -20,7 +22,7 @@ export const clearInvalidTokens = () => {
 // Auto-detect and clear invalid tokens on 401 errors
 export const handleAuthError = (error: any) => {
   if (error?.message?.includes('401') || error?.status === 401) {
-    console.warn('🚨 401 Unauthorized detected - clearing invalid tokens');
+    logger.warn('🚨 401 Unauthorized detected - clearing invalid tokens');
     clearInvalidTokens();
     return true;
   }
@@ -33,7 +35,7 @@ export const initTokenCleaner = () => {
   const hasTokens = localStorage.getItem('access_token') || localStorage.getItem('refresh_token');
   
   if (hasTokens) {
-    console.log('🔍 Tokens found, will validate on first API call...');
+    logger.log('🔍 Tokens found, will validate on first API call...');
   }
   
   // Listen for unhandled promise rejections that might be auth errors
@@ -43,5 +45,5 @@ export const initTokenCleaner = () => {
     }
   });
   
-  console.log('🛡️ Token cleaner initialized');
+  logger.log('🛡️ Token cleaner initialized');
 };

@@ -44,7 +44,8 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
     const roleRouteMap: Record<UserRole, string> = {
       'admin': '/admin',
       'manager': '/manager',
-      'employee': '/staff'  // Map employee role to staff route
+      'employee': '/staff',  // Map employee role to staff route
+      'hr': '/hr'
     };
     
     const redirectPath = roleRouteMap[user?.role] || '/login';

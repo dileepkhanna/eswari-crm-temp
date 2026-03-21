@@ -25,7 +25,9 @@ import {
   Edit
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 interface LeadDetailsModalProps {
   open: boolean;
   onClose: () => void;
@@ -53,6 +55,7 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
     walk_in: 'Walk In',
     website: 'Website',
     referral: 'Referral',
+    customer_conversion: 'Customer Conversion',
   };
 
   return (
@@ -72,6 +75,28 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
                     <Badge variant="outline" className="text-xs">
                       {sourceLabels[lead.source] || lead.source}
                     </Badge>
+                  )}
+                  {lead.source === 'customer_conversion' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // TODO: Find and show the original customer
+                        // For now, show a toast indicating this feature
+                        toast.info("Original Customer", {
+                          description: "This lead was converted from a customer",
+                          action: {
+                            label: "View Customer",
+                            onClick: () => {
+                              logger.log('Navigate to original customer for lead:', lead.id);
+                            }
+                          }
+                        });
+                      }}
+                      className="text-xs"
+                    >
+                      View Original Customer
+                    </Button>
                   )}
                 </div>
               </div>

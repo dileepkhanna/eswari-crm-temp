@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -109,12 +109,49 @@ def login_view(request):
         print(f"LOGIN DEBUG - Username auth result: {user is not None}")
     
     if user is not None:
+        # Check if user's company is active (Requirement 2.6)
+        if not user.company.is_active:
+            print(f"LOGIN DEBUG - Company inactive for user: {user.username}")
+            return Response({
+                'error': 'Your company account is inactive. Please contact your administrator.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         print(f"LOGIN DEBUG - Success for user: {user.username}")
+        
+        # Build company context for authentication response
+        user_serializer = UserSerializer(user, context={'request': request})
+        
+        # Prepare company information with logo URL
+        company_info = {
+            'id': user.company.id,
+            'name': user.company.name,
+            'code': user.company.code,
+            'logo_url': request.build_absolute_uri(user.company.logo.url) if user.company.logo else None
+        }
+        
+        # For admin/hr users, include list of all active companies
+        # For manager/employee users, include only their assigned company
+        if user.role in ['admin', 'hr']:
+            from .models import Company
+            active_companies = Company.objects.filter(is_active=True)
+            companies_list = [{
+                'id': company.id,
+                'name': company.name,
+                'code': company.code,
+                'logo_url': request.build_absolute_uri(company.logo.url) if company.logo else None
+            } for company in active_companies]
+        else:
+            # Company-restricted roles only get their assigned company
+            companies_list = [company_info]
+        
         refresh = RefreshToken.for_user(user)
+        
         return Response({
-            'user': UserSerializer(user).data,
+            'user': user_serializer.data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'company': company_info,  # User's assigned company
+            'companies': companies_list,  # Available companies based on role
         }, status=status.HTTP_200_OK)
     else:
         print("LOGIN DEBUG - Authentication failed")
@@ -128,13 +165,26 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]  # Only authenticated users (admins) can create users
 
     def create(self, request, *args, **kwargs):
-        # Only admins can create users
-        if request.user.role != 'admin':
+        # Only admins and HR can create users
+        if request.user.role not in ['admin', 'hr']:
             return Response({
-                'error': 'Only administrators can create users'
+                'error': 'Only administrators and HR can create users'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = self.get_serializer(data=request.data)
+        # HR can only create manager and employee users
+        if request.user.role == 'hr':
+            role = request.data.get('role')
+            if role not in ['manager', 'employee']:
+                return Response({
+                    'error': 'HR can only create manager and employee users'
+                }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Auto-assign creator's company if no company provided and creator has one
+        data = request.data.copy()
+        if not data.get('company') and request.user.company_id:
+            data['company'] = request.user.company_id
+        
+        serializer = self.get_serializer(data=data)
         
         if not serializer.is_valid():
             return Response({
@@ -422,25 +472,31 @@ class UserListView(generics.ListAPIView):
     pagination_class = None  # Disable pagination for user list
 
     def get_queryset(self):
-        """Filter users based on role and manager relationship"""
+        """Filter users based on strict role-based access control"""
         user = self.request.user
         
         if user.role == 'admin':
-            # Admins can see all users
-            return User.objects.all().order_by('-created_at')
+            # Admin can see all users, but optionally filter by company
+            company_id = self.request.query_params.get('company')
+            qs = User.objects.all().order_by('-created_at')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
+            return qs
+        
+        elif user.role == 'hr':
+            # HR can see all users within their company only
+            return User.objects.filter(company=user.company).order_by('-created_at')
+        
         elif user.role == 'manager':
-            # Managers can see their employees and other managers/admins
+            # Manager can see ONLY their assigned employees + themselves
             return User.objects.filter(
-                models.Q(manager=user) |  # Their employees
-                models.Q(role__in=['admin', 'manager'])  # Other managers and admins
+                models.Q(manager=user) |  # Their assigned employees only
+                models.Q(id=user.id)      # Themselves
             ).order_by('-created_at')
-        else:
-            # Employees can only see themselves, their manager, and other managers/admins
-            return User.objects.filter(
-                models.Q(id=user.id) |  # Themselves
-                models.Q(id=user.manager.id if user.manager else None) |  # Their manager
-                models.Q(role__in=['admin', 'manager'])  # Other managers and admins
-            ).order_by('-created_at')
+        
+        else:  # employee role
+            # Employee can see ONLY themselves
+            return User.objects.filter(id=user.id).order_by('-created_at')
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -473,6 +529,7 @@ def admin_update_user_view(request, user_id):
         address = request.data.get('address', '').strip()
         new_password = request.data.get('newPassword', '').strip()
         manager_id = request.data.get('managerId')  # New field for manager assignment
+        company_id = request.data.get('company')  # Company assignment
         
         # Validate required fields
         if not name:
@@ -497,6 +554,23 @@ def admin_update_user_view(request, user_id):
         # Note: Django User model doesn't have address field by default
         # If you need address, you'll need to add it to your custom User model
         
+        # Update company assignment if provided
+        if company_id is not None:
+            from .models import Company
+            try:
+                company = Company.objects.get(id=company_id, is_active=True)
+                old_company = user_to_update.company
+                user_to_update.company = company
+                
+                # If company changed, clear manager assignment (manager must be from same company)
+                if old_company and old_company.id != company.id:
+                    user_to_update.manager = None
+                    
+            except Company.DoesNotExist:
+                return Response({
+                    'error': 'Selected company not found or is inactive'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
         # Update manager assignment if provided
         if manager_id is not None:
             if manager_id == '' or manager_id == 'null' or manager_id == 'none':
@@ -505,6 +579,11 @@ def admin_update_user_view(request, user_id):
             else:
                 try:
                     manager = User.objects.get(id=manager_id, role='manager')
+                    # Validate manager is from same company
+                    if manager.company_id != user_to_update.company_id:
+                        return Response({
+                            'error': 'Manager must be from the same company'
+                        }, status=status.HTTP_400_BAD_REQUEST)
                     user_to_update.manager = manager
                 except User.DoesNotExist:
                     return Response({
@@ -735,3 +814,191 @@ def simple_delete_user_view(request):
             'error': 'Failed to delete user',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def promote_employee_to_manager_view(request, user_id):
+    """Promote an employee to manager role"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can promote employees'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user_to_promote = User.objects.get(id=user_id)
+        
+        # Validate user is an employee
+        if user_to_promote.role != 'employee':
+            return Response({
+                'error': f'User is currently a {user_to_promote.role}, only employees can be promoted to manager'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Store old information for announcement
+        old_username = user_to_promote.username
+        old_role = user_to_promote.role
+        user_name = f"{user_to_promote.first_name} {user_to_promote.last_name}".strip() or user_to_promote.username
+        
+        # Update role and remove manager assignment
+        user_to_promote.role = 'manager'
+        user_to_promote.manager = None
+        
+        # Generate new username with manager role
+        user_to_promote.username = user_to_promote.generate_username()
+        
+        # Save changes
+        user_to_promote.save()
+        
+        # Create promotion announcement
+        try:
+            from announcements.models import Announcement
+            from accounts.models import Company
+            
+            # Create promotion announcement
+            announcement_title = f"🎉 Congratulations {user_to_promote.first_name}!"
+            announcement_message = f"""🚀 We are excited to announce that {user_name} has been promoted to Manager!
+
+{user_to_promote.first_name} has shown exceptional dedication and leadership qualities, and we're confident they will excel in their new role.
+
+Please join us in congratulating {user_to_promote.first_name} on this well-deserved promotion! 👏
+
+**Role Change:**
+• Previous: Employee ({old_username})
+• New: Manager ({user_to_promote.username})
+
+We look forward to seeing the great things {user_to_promote.first_name} will accomplish as a manager!"""
+            
+            # Create the announcement
+            announcement = Announcement.objects.create(
+                title=announcement_title,
+                message=announcement_message,
+                priority='high',
+                target_roles=[],  # Empty means all roles
+                is_active=True,
+                created_by=request.user
+            )
+            
+            # Add all active companies to the announcement
+            active_companies = Company.objects.filter(is_active=True)
+            announcement.companies.set(active_companies)
+            
+            print(f"DEBUG: Created promotion announcement for {user_name} (ID: {announcement.id})")
+            
+        except Exception as e:
+            print(f"DEBUG: Failed to create promotion announcement: {str(e)}")
+            # Don't fail the promotion if announcement creation fails
+        
+        return Response({
+            'message': f'{user_name} has been successfully promoted to Manager!',
+            'user': UserSerializer(user_to_promote).data,
+            'promotion_details': {
+                'old_role': old_role,
+                'new_role': 'manager',
+                'old_username': old_username,
+                'new_username': user_to_promote.username,
+                'promoted_by': request.user.username,
+                'promotion_date': user_to_promote.updated_at.isoformat()
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"DEBUG: Error promoting user {user_id}: {str(e)}")
+        return Response({
+            'error': 'Failed to promote user',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import Company
+from .serializers import CompanySerializer, CompanyListSerializer
+
+
+class IsAdminUser(permissions.BasePermission):
+    """
+    Custom permission to only allow admin users.
+    """
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and request.user.role == 'admin'
+
+
+class CompanyViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing companies.
+    
+    - Admin users can perform all CRUD operations
+    - Other authenticated users can only view active companies
+    - Supports multipart/form-data for logo upload
+    """
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def get_permissions(self):
+        """
+        Only admins can create or update companies.
+        """
+        if self.action in ['create', 'update', 'partial_update']:
+            return [IsAuthenticated(), IsAdminUser()]
+        return super().get_permissions()
+    
+    def get_queryset(self):
+        """
+        Admin sees all companies, others see only active companies.
+        """
+        if self.request.user.role == 'admin':
+            return Company.objects.all()
+        # Others see only active companies
+        return Company.objects.filter(is_active=True)
+    
+    def get_serializer_class(self):
+        """
+        Use lightweight serializer for list action.
+        """
+        if self.action == 'list':
+            return CompanyListSerializer
+        return CompanySerializer
+    
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Handle partial updates (PATCH) for company.
+        Properly handles is_active toggle without requiring all fields.
+        """
+        instance = self.get_object()
+        
+        # Convert 'true'/'false' strings to boolean for is_active
+        if 'is_active' in request.data:
+            is_active_value = request.data.get('is_active')
+            if isinstance(is_active_value, str):
+                request.data._mutable = True
+                request.data['is_active'] = is_active_value.lower() == 'true'
+                request.data._mutable = False
+        
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """
+        Get list of active companies.
+        Endpoint: /api/companies/active/
+        """
+        companies = Company.objects.filter(is_active=True)
+        serializer = CompanyListSerializer(companies, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Company deletion is disabled. Use deactivation instead."""
+        return Response(
+            {'error': 'Company deletion is not allowed. Please deactivate the company instead.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )

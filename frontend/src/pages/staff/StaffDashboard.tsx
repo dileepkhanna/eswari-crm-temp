@@ -34,7 +34,7 @@ export default function StaffDashboard() {
       
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Announcements */}
-        <AnnouncementBanner userRole="employee" />
+        <AnnouncementBanner userRole="employee" maxDisplay={2} />
         
         {/* Manager Information */}
         {user?.manager_name && (

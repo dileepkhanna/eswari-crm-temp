@@ -25,6 +25,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import cache_control
 import os
 from . import views
+from accounts.hr_reports import dashboard_metrics, employee_statistics, leave_statistics
 
 def serve_media_with_cors(request, path):
     """Serve media files with CORS headers"""
@@ -50,7 +51,15 @@ urlpatterns = [
     path("api/activity-logs/", include("activity_logs.urls")),
     path("api/", include("holidays.urls")),
     path("api/", include("customers.urls")),
+    path("api/", include("ase_customers.urls")),  # ASE Customers URLs
+    path("api/", include("ase_leads.urls")),      # ASE Leads URLs
     path("api/app-settings/", include("app_settings.urls")),
+    path("api/notifications/", include("notifications.urls")),
+    path("api/hr/reports/dashboard/", dashboard_metrics, name="hr_dashboard_metrics"),
+    path("api/hr/reports/employees/", employee_statistics, name="hr_employee_statistics"),
+    path("api/hr/reports/leaves/", leave_statistics, name="hr_leave_statistics"),
+    path("api/documentation/", include("documentation.urls")),
+    path("api/", include("birthdays.urls")),  # Birthday calendar URLs
 ]
 
 # Add media URLs with CORS support

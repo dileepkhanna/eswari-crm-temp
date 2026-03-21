@@ -1,0 +1,84 @@
+/* PILL SELECT STYLING - DEDICATED FILE */
+
+/* Target filter row select triggers (not the colored status dropdowns in table rows) */
+html body [data-radix-select-trigger]:not(.status-select-trigger),
+html body button[data-radix-select-trigger]:not(.status-select-trigger),
+[data-radix-select-trigger]:not(.status-select-trigger),
+button[data-radix-select-trigger]:not(.status-select-trigger),
+.select-trigger-pill {
+  border-radius: 50px !important;
+  border-top-left-radius: 50px !important;
+  border-top-right-radius: 50px !important;
+  border-bottom-left-radius: 50px !important;
+  border-bottom-right-radius: 50px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 12px !important;
+  border: 1px solid #d1d5db !important;
+  background-color: white !important;
+  background: white !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+/* Status dropdowns in table rows - pill shape but preserve color classes */
+[data-radix-select-trigger].rounded-full {
+  border-radius: 50px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+
+/* Hover effects */
+html body [data-radix-select-trigger]:not(.status-select-trigger):hover,
+html body button[data-radix-select-trigger]:not(.status-select-trigger):hover,
+[data-radix-select-trigger]:not(.status-select-trigger):hover,
+button[data-radix-select-trigger]:not(.status-select-trigger):hover,
+.select-trigger-pill:hover {
+  background-color: #f9fafb !important;
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+/* Focus effects */
+html body [data-radix-select-trigger]:focus,
+html body button[data-radix-select-trigger]:focus,
+[data-radix-select-trigger]:focus,
+button[data-radix-select-trigger]:focus,
+.select-trigger-pill:focus,
+html body [data-radix-select-trigger]:focus-visible,
+html body button[data-radix-select-trigger]:focus-visible,
+[data-radix-select-trigger]:focus-visible,
+button[data-radix-select-trigger]:focus-visible,
+.select-trigger-pill:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Ensure all states maintain pill styling */
+[data-radix-select-trigger][data-state="open"],
+[data-radix-select-trigger][data-state="closed"],
+[data-radix-select-trigger][aria-expanded="true"],
+[data-radix-select-trigger][aria-expanded="false"],
+button[data-radix-select-trigger][data-state="open"],
+button[data-radix-select-trigger][data-state="closed"],
+button[data-radix-select-trigger][aria-expanded="true"],
+button[data-radix-select-trigger][aria-expanded="false"] {
+  border-radius: 50px !important;
+}

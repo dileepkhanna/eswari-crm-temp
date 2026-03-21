@@ -4,9 +4,11 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
 import CustomerStatusChip from './CustomerStatusChip';
 import CustomerFormModal from './CustomerFormModal';
+import { logger } from '@/lib/logger';
 // Lazy load heavy components
 const CustomerExcelImportExport = lazy(() => import('./CustomerExcelImportExport'));
-const LeadFormModal = lazy(() => import('../leads/LeadFormModal'));
+const ConversionFormModal = lazy(() => import('./ConversionFormModal'));
+const BulkConversionModal = lazy(() => import('./BulkConversionModal'));
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { Button } from '@/components/ui/button';
@@ -48,7 +50,8 @@ import {
   CheckIcon,
   XIcon,
   ArrowRightIcon,
-  TargetIcon
+  TargetIcon,
+  UploadIcon
 } from '@/components/icons';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -94,7 +97,10 @@ function CustomerList({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]); // Default to today
+  const [conversionFilter, setConversionFilter] = useState<string>('all'); // New: conversion status filter
+  const [sortField, setSortField] = useState<'created_at' | 'call_status' | 'name'>('created_at'); // New: sort field
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc'); // New: sort direction
+  const [selectedDate, setSelectedDate] = useState<string>(''); // Default to all data
   const [showDatePicker, setShowDatePicker] = useState(false); // Show/hide date picker
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -105,6 +111,8 @@ function CustomerList({
   
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
   const [convertingCustomer, setConvertingCustomer] = useState<Customer | null>(null);
+  const [isConversionModalOpen, setIsConversionModalOpen] = useState(false);
+  const [isBulkConversionModalOpen, setIsBulkConversionModalOpen] = useState(false);
   
   const [customStatusInputs, setCustomStatusInputs] = useState<Record<string, string>>({});
   const [showCustomInput, setShowCustomInput] = useState<Record<string, boolean>>({});
@@ -200,6 +208,14 @@ function CustomerList({
         }
       }
 
+      // Conversion filter - NEW
+      let matchesConversion = true;
+      if (conversionFilter === 'converted') {
+        matchesConversion = customer.isConverted === true;
+      } else if (conversionFilter === 'not_converted') {
+        matchesConversion = customer.isConverted === false;
+      }
+
       // Assignee filter
       const matchesAssignee = assigneeFilter === 'all' || 
         (assigneeFilter === 'unassigned' && !customer.assignedTo) ||
@@ -225,26 +241,63 @@ function CustomerList({
         hasAccess = customerAssignedToStr === userIdStr;
       }
 
-      return matchesSearch && matchesStatus && matchesAssignee && matchesDate && hasAccess;
+      return matchesSearch && matchesStatus && matchesConversion && matchesAssignee && matchesDate && hasAccess;
     });
-  }, [customers, debouncedSearchQuery, statusFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
+  }, [customers, debouncedSearchQuery, statusFilter, conversionFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
 
   // Virtual scrolling for large lists
   const ITEMS_PER_PAGE = 50;
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Apply sorting to filtered customers - NEW
+  const sortedCustomers = useMemo(() => {
+    const sorted = [...filteredCustomers];
+    
+    sorted.sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortField === 'created_at') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortField === 'call_status') {
+        const statusA = a.callStatus === 'custom' ? (a.customCallStatus || '') : a.callStatus;
+        const statusB = b.callStatus === 'custom' ? (b.customCallStatus || '') : b.callStatus;
+        comparison = statusA.localeCompare(statusB);
+      } else if (sortField === 'name') {
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        comparison = nameA.localeCompare(nameB);
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return sorted;
+  }, [filteredCustomers, sortField, sortDirection]);
+  
   const paginatedCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredCustomers.slice(startIndex, endIndex);
-  }, [filteredCustomers, currentPage]);
+    return sortedCustomers.slice(startIndex, endIndex);
+  }, [sortedCustomers, currentPage]);
   
-  const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(sortedCustomers.length / ITEMS_PER_PAGE);
   
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, statusFilter, assigneeFilter, selectedDate]);
+  }, [debouncedSearchQuery, statusFilter, conversionFilter, assigneeFilter, selectedDate, sortField, sortDirection]);
+
+  // Handle sort column click - NEW
+  const handleSort = useCallback((field: 'created_at' | 'call_status' | 'name') => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default direction
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }, [sortField]);
 
   const handlePhoneCall = useCallback((customer: Customer) => {
     const phoneUrl = `tel:${customer.phone}`;
@@ -287,7 +340,7 @@ function CustomerList({
           assignedTo: customer?.assignedTo,
         });
       } catch (error) {
-        console.error('Error updating customer status:', error);
+        logger.error('Error updating customer status:', error);
         toast.error('Failed to update customer status');
       } finally {
         setUpdatingCustomers(prev => {
@@ -329,7 +382,7 @@ function CustomerList({
         });
         toast.success('Custom status updated successfully');
       } catch (error) {
-        console.error('Error updating custom status:', error);
+        logger.error('Error updating custom status:', error);
         toast.error('Failed to update custom status');
         
         // Show custom input again on error
@@ -356,28 +409,12 @@ function CustomerList({
     }
     
     setConvertingCustomer(customer);
-    setIsLeadFormOpen(true);
+    setIsConversionModalOpen(true);
   };
 
-  const handleLeadFormSave = async (leadData: any) => {
-    if (!convertingCustomer) return;
-    
-    try {
-      await onCreateLead({
-        ...leadData,
-        source: 'customer_conversion',
-      });
-      
-      await onConvertToLead(convertingCustomer.id);
-      
-      setIsLeadFormOpen(false);
-      setConvertingCustomer(null);
-      
-      toast.success(`Customer "${convertingCustomer.name || convertingCustomer.phone}" converted to lead successfully`);
-    } catch (error) {
-      console.error('Error converting customer to lead:', error);
-      toast.error('Failed to convert customer to lead');
-    }
+  const handleConversionComplete = async () => {
+    // Refresh customer list after successful conversion
+    await onRefreshCustomers();
   };
 
   const handleBulkDelete = async () => {
@@ -398,7 +435,7 @@ function CustomerList({
           // Immediately mark as deleted for UI update
           setDeletedCustomers(prev => new Set(prev).add(id));
         } catch (error) {
-          console.error(`Failed to delete customer ${id}:`, error);
+          logger.error(`Failed to delete customer ${id}:`, error);
           // Continue with other deletions even if one fails
         }
         // Small delay between deletions for smooth animation
@@ -411,13 +448,13 @@ function CustomerList({
         // Clear the deleted customers set after successful refresh
         setDeletedCustomers(new Set());
       } catch (refreshError) {
-        console.error('Failed to refresh customers after deletion:', refreshError);
+        logger.error('Failed to refresh customers after deletion:', refreshError);
         // If refresh fails, try to reload the page as fallback
         window.location.reload();
       }
       
     } catch (error) {
-      console.error('Bulk delete failed:', error);
+      logger.error('Bulk delete failed:', error);
       toast.error(
         `Failed to delete customers. Please try again.`,
         {
@@ -467,7 +504,7 @@ function CustomerList({
       
       await onRefreshCustomers();
     } catch (error) {
-      console.error('Error assigning customers:', error);
+      logger.error('Error assigning customers:', error);
       toast.error('Failed to assign customers');
     }
   };
@@ -521,8 +558,8 @@ function CustomerList({
     
     const targetDateStr = selectedDateStr || today;
     
-    for (const customer of filteredCustomers) {
-      // Count converted customers from filtered list
+    for (const customer of sortedCustomers) {
+      // Count converted customers from sorted list
       if (customer.isConverted) {
         converted++;
       }
@@ -551,13 +588,13 @@ function CustomerList({
     
     return {
       displayDate,
-      displayCount: filteredCustomers.length,
+      displayCount: sortedCustomers.length,
       todayCalls,
       answered,
       pending,
       converted,
     };
-  }, [filteredCustomers, selectedDate, customers]);
+  }, [sortedCustomers, selectedDate, customers]);
 
   return (
     <div className="space-y-6">
@@ -632,7 +669,7 @@ function CustomerList({
 
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-40 h-10">
+                  <SelectTrigger className="w-full sm:w-36 h-9">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -651,11 +688,22 @@ function CustomerList({
                   </SelectContent>
                 </Select>
 
+                <Select value={conversionFilter} onValueChange={setConversionFilter}>
+                  <SelectTrigger className="w-full sm:w-36 h-9">
+                    <SelectValue placeholder="All Customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Customers</SelectItem>
+                    <SelectItem value="converted">Converted</SelectItem>
+                    <SelectItem value="not_converted">Not Converted</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <div className="relative flex-shrink-0" ref={datePickerRef}>
                   <Button
                     variant="outline"
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="h-10 px-3 w-full sm:w-40 justify-start text-left font-normal"
+                    className="h-9 px-3 w-full sm:w-40 justify-start text-left font-normal"
                   >
                     <CalendarIcon className="w-4 h-4 mr-2" />
                     {selectedDate ? format(new Date(selectedDate), 'MMM dd, yyyy') : 'Filter by date'}
@@ -719,14 +767,14 @@ function CustomerList({
                       setSelectedDate(today);
                     }
                   }}
-                  className="h-10 px-4 w-full sm:w-auto flex-shrink-0"
+                  className="h-9 px-4 w-full sm:w-auto flex-shrink-0"
                 >
                   Today
                 </Button>
 
                 {canManageAll && (
                   <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                    <SelectTrigger className="w-full sm:w-40 h-10">
+                    <SelectTrigger className="w-full sm:w-36 h-9">
                       <SelectValue placeholder="All Assignees" />
                     </SelectTrigger>
                     <SelectContent>
@@ -764,6 +812,16 @@ function CustomerList({
                       <TargetIcon className="w-4 h-4 mr-1" />
                       Assign ({selectedIds.size})
                     </Button>
+                    
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={() => setIsBulkConversionModalOpen(true)}
+                      className="text-xs"
+                    >
+                      <ArrowRightIcon className="w-4 h-4 mr-1" />
+                      Convert to Leads ({selectedIds.size})
+                    </Button>
                   </>
                 )}
               </div>
@@ -772,7 +830,7 @@ function CustomerList({
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end">
               {!isManagerView && (
                 <>
-                  <Suspense fallback={<div className="w-32 h-10 bg-muted animate-pulse rounded"></div>}>
+                  <Suspense fallback={<div className="w-32 h-8 bg-muted animate-pulse rounded"></div>}>
                     <CustomerExcelImportExport
                       customers={filteredCustomers}
                       onImport={onBulkImport}
@@ -798,7 +856,7 @@ function CustomerList({
               <div className="p-4 border-b flex items-center justify-between">
                 <span className="text-sm font-medium">Customer List</span>
                 <span className="text-sm text-muted-foreground">
-                  {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''}
+                  {sortedCustomers.length} customer{sortedCustomers.length !== 1 ? 's' : ''}
                 </span>
               </div>
               <Table>
@@ -807,16 +865,52 @@ function CustomerList({
                     {!isManagerView && (
                       <TableHead className="w-12">
                         <Checkbox 
-                          checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0} 
+                          checked={selectedIds.size === sortedCustomers.length && sortedCustomers.length > 0} 
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
                     )}
                     <TableHead className="font-semibold">Phone</TableHead>
-                    <TableHead className="font-semibold">Name</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead 
+                      className="font-semibold cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Name
+                        {sortField === 'name' && (
+                          <span className="text-xs">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="font-semibold cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('call_status')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Status
+                        {sortField === 'call_status' && (
+                          <span className="text-xs">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
                     {canManageAll && <TableHead className="font-semibold">Assigned To</TableHead>}
-                    <TableHead className="font-semibold">Last Call</TableHead>
+                    <TableHead 
+                      className="font-semibold cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('created_at')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Last Call
+                        {sortField === 'created_at' && (
+                          <span className="text-xs">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead className="font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -898,15 +992,26 @@ function CustomerList({
                         ) : (
                           <div className={`relative ${updatingCustomers.has(customer.id) ? 'opacity-70' : ''}`}>
                             <Select 
-                              value={customer.callStatus} 
+                              value={customer.callStatus === 'custom' ? 'custom' : customer.callStatus}
                               onValueChange={(value: CallStatus) => handleStatusChange(customer.id, value)}
                               disabled={updatingCustomers.has(customer.id)}
                             >
-                              <SelectTrigger className="w-32 h-8">
-                                <CustomerStatusChip 
-                                  status={customer.callStatus} 
-                                  customStatus={customer.customCallStatus}
-                                />
+                              <SelectTrigger className={`w-36 border rounded-full px-3 text-xs font-medium flex items-center justify-between gap-1 ${
+                                customer.callStatus === 'answered' ? 'bg-green-50 border-green-300 text-green-700' :
+                                customer.callStatus === 'pending' ? 'bg-yellow-50 border-yellow-300 text-yellow-700' :
+                                customer.callStatus === 'not_answered' ? 'bg-red-50 border-red-300 text-red-700' :
+                                customer.callStatus === 'busy' ? 'bg-orange-50 border-orange-300 text-orange-700' :
+                                customer.callStatus === 'not_interested' ? 'bg-gray-50 border-gray-300 text-gray-700' :
+                                'bg-purple-50 border-purple-300 text-purple-700'
+                              }`}>
+                                <span className="truncate">
+                                  {customer.callStatus === 'custom' && customer.customCallStatus
+                                    ? customer.customCallStatus
+                                    : customer.callStatus === 'not_answered' ? 'Not Answered'
+                                    : customer.callStatus === 'not_interested' ? 'Not Interested'
+                                    : customer.callStatus.charAt(0).toUpperCase() + customer.callStatus.slice(1)
+                                  }
+                                </span>
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="pending">Pending</SelectItem>
@@ -918,7 +1023,7 @@ function CustomerList({
                               </SelectContent>
                             </Select>
                             {updatingCustomers.has(customer.id) && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded">
+                              <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-full">
                                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                               </div>
                             )}
@@ -951,21 +1056,25 @@ function CustomerList({
                                 <EditIcon className="w-3 h-3 mr-1" />
                                 Edit
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleConvert(customer)}
-                                disabled={customer.isConverted}
-                                className="text-xs"
-                              >
-                                {customer.isConverted ? 'Converted' : 'Convert to Lead'}
-                              </Button>
+                              {!customer.isConverted && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleConvert(customer)}
+                                  className="text-xs"
+                                >
+                                  Convert to Lead
+                                </Button>
+                              )}
                             </>
                           )}
                           {customer.isConverted && (
-                            <Badge variant="secondary" className="text-xs">
-                              Lead
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default" className="text-xs bg-blue-600">
+                                ✓ Converted
+                              </Badge>
+                              {/* View Lead button removed - convertedLeadId: {customer.convertedLeadId} */}
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -980,7 +1089,7 @@ function CustomerList({
                 {!isManagerView && (
                   <div className="flex items-center gap-2">
                     <Checkbox 
-                      checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0} 
+                      checked={selectedIds.size === sortedCustomers.length && sortedCustomers.length > 0} 
                       onCheckedChange={toggleSelectAll}
                     />
                     <span className="text-sm font-medium">
@@ -989,7 +1098,7 @@ function CustomerList({
                   </div>
                 )}
                 <span className="text-sm text-muted-foreground">
-                  {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''}
+                  {sortedCustomers.length} customer{sortedCustomers.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
@@ -1029,9 +1138,12 @@ function CustomerList({
                             </Button>
                           </div>
                           {customer.isConverted && (
-                            <Badge variant="secondary" className="text-xs">
-                              Lead
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">
+                                Lead
+                              </Badge>
+                              {/* View Lead button removed - convertedLeadId: {customer.convertedLeadId} */}
+                            </div>
                           )}
                         </div>
 
@@ -1084,15 +1196,26 @@ function CustomerList({
                           ) : (
                             <div className={`relative ${updatingCustomers.has(customer.id) ? 'opacity-70' : ''}`}>
                               <Select 
-                                value={customer.callStatus} 
+                                value={customer.callStatus === 'custom' ? 'custom' : customer.callStatus}
                                 onValueChange={(value: CallStatus) => handleStatusChange(customer.id, value)}
                                 disabled={updatingCustomers.has(customer.id)}
                               >
-                                <SelectTrigger className="w-full h-8">
-                                  <CustomerStatusChip 
-                                    status={customer.callStatus} 
-                                    customStatus={customer.customCallStatus}
-                                  />
+                                <SelectTrigger className={`w-full border rounded-full px-3 text-xs font-medium flex items-center justify-between gap-1 ${
+                                  customer.callStatus === 'answered' ? 'bg-green-50 border-green-300 text-green-700' :
+                                  customer.callStatus === 'pending' ? 'bg-yellow-50 border-yellow-300 text-yellow-700' :
+                                  customer.callStatus === 'not_answered' ? 'bg-red-50 border-red-300 text-red-700' :
+                                  customer.callStatus === 'busy' ? 'bg-orange-50 border-orange-300 text-orange-700' :
+                                  customer.callStatus === 'not_interested' ? 'bg-gray-50 border-gray-300 text-gray-700' :
+                                  'bg-purple-50 border-purple-300 text-purple-700'
+                                }`}>
+                                  <span className="truncate">
+                                    {customer.callStatus === 'custom' && customer.customCallStatus
+                                      ? customer.customCallStatus
+                                      : customer.callStatus === 'not_answered' ? 'Not Answered'
+                                      : customer.callStatus === 'not_interested' ? 'Not Interested'
+                                      : customer.callStatus.charAt(0).toUpperCase() + customer.callStatus.slice(1)
+                                    }
+                                  </span>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="pending">Pending</SelectItem>
@@ -1140,15 +1263,24 @@ function CustomerList({
                               <EditIcon className="w-3 h-3 mr-1" />
                               Edit
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleConvert(customer)}
-                              disabled={customer.isConverted}
-                              className="text-xs"
-                            >
-                              {customer.isConverted ? 'Converted' : 'Convert to Lead'}
-                            </Button>
+                            {!customer.isConverted && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleConvert(customer)}
+                                className="text-xs"
+                              >
+                                Convert to Lead
+                              </Button>
+                            )}
+                            {customer.isConverted && (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="default" className="text-xs bg-blue-600">
+                                  ✓ Converted
+                                </Badge>
+                                {/* View Lead button removed - convertedLeadId: {customer.convertedLeadId} */}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1158,13 +1290,13 @@ function CustomerList({
               </div>
             </div>
 
-            {filteredCustomers.length === 0 && customers.length === 0 && !loading && (
+            {sortedCustomers.length === 0 && customers.length === 0 && !loading && (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">No customers available</p>
               </div>
             )}
 
-            {filteredCustomers.length === 0 && customers.length > 0 && (
+            {sortedCustomers.length === 0 && customers.length > 0 && (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">No customers found matching your filters</p>
               </div>
@@ -1174,7 +1306,7 @@ function CustomerList({
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t">
                 <div className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length} customers
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, sortedCustomers.length)} of {sortedCustomers.length} customers
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -1268,7 +1400,7 @@ function CustomerList({
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Employee</label>
                 <Select value={bulkAssignEmployee} onValueChange={setBulkAssignEmployee}>
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-8">
                     <SelectValue placeholder="Choose employee or unassign" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1294,39 +1426,28 @@ function CustomerList({
 
       {!isManagerView && (
         <Suspense fallback={<div></div>}>
-          <LeadFormModal
-            open={isLeadFormOpen}
+          <ConversionFormModal
+            open={isConversionModalOpen}
             onClose={() => {
-              setIsLeadFormOpen(false);
+              setIsConversionModalOpen(false);
               setConvertingCustomer(null);
             }}
-            onSave={handleLeadFormSave}
-            lead={convertingCustomer ? {
-              id: '',
-              name: convertingCustomer.name || '',
-              phone: convertingCustomer.phone,
-              email: '',
-              address: '',
-              requirementType: 'apartment',
-              bhkRequirement: '2',
-              budgetMin: 0,
-              budgetMax: 0,
-              description: convertingCustomer.notes || '',
-              preferredLocation: '',
-              source: 'customer_conversion',
-              status: 'new',
-              followUpDate: undefined,
-              assignedTo: user?.role === 'employee' ? user.id : undefined,
-              notes: [],
-              createdBy: '',
-              assignedProjects: [],
-              assignedProject: '',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            } : null}
-            projects={projects || []}
-            employees={employees}
-            showAssignment={user?.role !== 'manager'}
+            customer={convertingCustomer}
+            onConversionComplete={handleConversionComplete}
+          />
+        </Suspense>
+      )}
+
+      {!isManagerView && (
+        <Suspense fallback={<div></div>}>
+          <BulkConversionModal
+            open={isBulkConversionModalOpen}
+            onClose={() => {
+              setIsBulkConversionModalOpen(false);
+              setSelectedIds(new Set()); // Clear selection after closing
+            }}
+            selectedCustomerIds={Array.from(selectedIds)}
+            onConversionComplete={onRefreshCustomers}
           />
         </Suspense>
       )}

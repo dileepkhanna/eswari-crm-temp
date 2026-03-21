@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '@/lib/logger';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import {
   AlertDialog,
@@ -73,7 +74,7 @@ export default function UserDeleteConfirmDialog({
         activityLogs: 0,
       });
     } catch (error) {
-      console.error('Error fetching data counts:', error);
+      logger.error('Error fetching data counts:', error);
       // Set default counts on error
       setDataCounts({
         leads: 0,
@@ -100,7 +101,7 @@ export default function UserDeleteConfirmDialog({
       }
       onClose();
     } catch (error) {
-      console.error(`Action ${action} failed:`, error);
+      logger.error(`Action ${action} failed:`, error);
     } finally {
       setIsProcessing(false);
       setAction(null);

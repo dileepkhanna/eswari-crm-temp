@@ -1,0 +1,160 @@
+/* FORCE PILL STYLING - NUCLEAR OPTION - HIGHEST PRIORITY */
+
+/* Target every possible selector combination for Radix UI Select */
+html body div [data-radix-select-trigger].select-trigger-pill,
+html body [data-radix-select-trigger].select-trigger-pill,
+html body button[data-radix-select-trigger].select-trigger-pill,
+html body .select-trigger-pill[data-radix-select-trigger],
+html body .select-trigger-pill,
+[data-radix-select-trigger].select-trigger-pill,
+button[data-radix-select-trigger].select-trigger-pill,
+.select-trigger-pill[data-radix-select-trigger],
+.select-trigger-pill {
+  border-radius: 50px !important;
+  border-top-left-radius: 50px !important;
+  border-top-right-radius: 50px !important;
+  border-bottom-left-radius: 50px !important;
+  border-bottom-right-radius: 50px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 1px solid #d1d5db !important;
+  background-color: white !important;
+  background: white !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+/* SPECIFIC TARGETING FOR ASE FILTER SELECTS */
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger],
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 button[data-radix-select-trigger],
+.lg\\:grid-cols-5 [data-radix-select-trigger],
+.lg\\:grid-cols-5 button[data-radix-select-trigger] {
+  border-radius: 50px !important;
+  border-top-left-radius: 50px !important;
+  border-top-right-radius: 50px !important;
+  border-bottom-left-radius: 50px !important;
+  border-bottom-right-radius: 50px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  border: 1px solid #d1d5db !important;
+  background-color: white !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+/* Force hover effects */
+html body div [data-radix-select-trigger].select-trigger-pill:hover,
+html body [data-radix-select-trigger].select-trigger-pill:hover,
+html body button[data-radix-select-trigger].select-trigger-pill:hover,
+html body .select-trigger-pill[data-radix-select-trigger]:hover,
+html body .select-trigger-pill:hover,
+[data-radix-select-trigger].select-trigger-pill:hover,
+button[data-radix-select-trigger].select-trigger-pill:hover,
+.select-trigger-pill[data-radix-select-trigger]:hover,
+.select-trigger-pill:hover,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger]:hover,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 button[data-radix-select-trigger]:hover,
+.lg\\:grid-cols-5 [data-radix-select-trigger]:hover,
+.lg\\:grid-cols-5 button[data-radix-select-trigger]:hover {
+  background-color: #f9fafb !important;
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+/* Force focus effects */
+html body div [data-radix-select-trigger].select-trigger-pill:focus,
+html body [data-radix-select-trigger].select-trigger-pill:focus,
+html body button[data-radix-select-trigger].select-trigger-pill:focus,
+html body .select-trigger-pill[data-radix-select-trigger]:focus,
+html body .select-trigger-pill:focus,
+[data-radix-select-trigger].select-trigger-pill:focus,
+button[data-radix-select-trigger].select-trigger-pill:focus,
+.select-trigger-pill[data-radix-select-trigger]:focus,
+.select-trigger-pill:focus,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger]:focus,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 button[data-radix-select-trigger]:focus,
+.lg\\:grid-cols-5 [data-radix-select-trigger]:focus,
+.lg\\:grid-cols-5 button[data-radix-select-trigger]:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Override any Tailwind classes that might interfere */
+.select-trigger-pill.rounded-md,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger].rounded-md,
+.lg\\:grid-cols-5 [data-radix-select-trigger].rounded-md {
+  border-radius: 50px !important;
+}
+
+.select-trigger-pill.rounded-lg,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger].rounded-lg,
+.lg\\:grid-cols-5 [data-radix-select-trigger].rounded-lg {
+  border-radius: 50px !important;
+}
+
+.select-trigger-pill.rounded,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger].rounded,
+.lg\\:grid-cols-5 [data-radix-select-trigger].rounded {
+  border-radius: 50px !important;
+}
+
+.select-trigger-pill.h-10,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger].h-10,
+.lg\\:grid-cols-5 [data-radix-select-trigger].h-10 {
+  height: 36px !important;
+}
+
+.select-trigger-pill.h-8,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger].h-8,
+.lg\\:grid-cols-5 [data-radix-select-trigger].h-8 {
+  height: 36px !important;
+}
+
+/* Force override any existing styles */
+.select-trigger-pill *,
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger] *,
+.lg\\:grid-cols-5 [data-radix-select-trigger] * {
+  border-radius: inherit !important;
+}
+
+/* Ensure the pill styling applies to all states */
+.select-trigger-pill[data-state="open"],
+.select-trigger-pill[data-state="closed"],
+.select-trigger-pill[aria-expanded="true"],
+.select-trigger-pill[aria-expanded="false"],
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger][data-state="open"],
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger][data-state="closed"],
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger][aria-expanded="true"],
+.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5.gap-3 [data-radix-select-trigger][aria-expanded="false"],
+.lg\\:grid-cols-5 [data-radix-select-trigger][data-state="open"],
+.lg\\:grid-cols-5 [data-radix-select-trigger][data-state="closed"],
+.lg\\:grid-cols-5 [data-radix-select-trigger][aria-expanded="true"],
+.lg\\:grid-cols-5 [data-radix-select-trigger][aria-expanded="false"] {
+  border-radius: 50px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+}

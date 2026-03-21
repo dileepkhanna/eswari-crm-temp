@@ -6,14 +6,18 @@ import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
+import TeamPerformanceDashboard from '@/components/ase-customers/TeamPerformanceDashboard';
 import { useData } from '@/contexts/DataContextDjango';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
+import { logger } from '@/lib/logger';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity, Users } from 'lucide-react';
 
 export default function ManagerDashboard() {
   const { leads, tasks, projects, announcements } = useData();
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const [pendingLeaves, setPendingLeaves] = useState(0);
 
   useEffect(() => {
@@ -23,7 +27,7 @@ export default function ManagerDashboard() {
         // For now, set mock data
         setPendingLeaves(0);
       } catch (error) {
-        console.error('Manager Dashboard - Error fetching data:', error);
+        logger.error('Manager Dashboard - Error fetching data:', error);
         setPendingLeaves(0);
       }
     };
@@ -41,7 +45,7 @@ export default function ManagerDashboard() {
       
       <div className="p-6 space-y-6">
         {/* Announcements */}
-        <AnnouncementBanner userRole="manager" />
+        <AnnouncementBanner userRole="manager" maxDisplay={2} />
         
         {/* Assigned Employees Section */}
         {employeeCount > 0 && (
@@ -135,6 +139,8 @@ export default function ManagerDashboard() {
           <TaskStatusChart tasks={tasks} title="Team Tasks by Status" />
         </div>
 
+        {/* Team Performance Dashboard */}
+        <TeamPerformanceDashboard />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Reminders Widget */}
           <RemindersWidget />

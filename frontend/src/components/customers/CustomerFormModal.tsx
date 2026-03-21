@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 interface CustomerFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -54,11 +55,11 @@ export default function CustomerFormModal({
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   useEffect(() => {
-    console.log('🔍 CustomerFormModal - customer prop changed:', customer);
-    console.log('🔍 CustomerFormModal - modal open:', open);
+    logger.log('🔍 CustomerFormModal - customer prop changed:', customer);
+    logger.log('🔍 CustomerFormModal - modal open:', open);
     
     if (customer) {
-      console.log('📝 Setting form data for editing customer:', customer);
+      logger.log('📝 Setting form data for editing customer:', customer);
       setFormData({
         name: customer.name || '',
         phone: customer.phone,
@@ -69,7 +70,7 @@ export default function CustomerFormModal({
         notes: customer.notes || '',
       });
     } else {
-      console.log('➕ Setting form data for new customer');
+      logger.log('➕ Setting form data for new customer');
       setFormData({
         name: '',
         phone: '',
@@ -135,7 +136,7 @@ export default function CustomerFormModal({
                 placeholder="Enter phone number"
                 maxLength={15}
                 required
-                className="input-field h-10"
+                className="input-field h-8"
               />
             </div>
 
@@ -146,7 +147,7 @@ export default function CustomerFormModal({
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter customer name"
-                className="input-field h-10"
+                className="input-field h-8"
               />
             </div>
 
@@ -157,7 +158,7 @@ export default function CustomerFormModal({
                 value={formData.callStatus}
                 onValueChange={(value: CallStatus) => setFormData({ ...formData, callStatus: value })}
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger className="h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -177,7 +178,7 @@ export default function CustomerFormModal({
                     placeholder="Enter custom call status"
                     value={formData.customCallStatus}
                     onChange={(e) => setFormData({ ...formData, customCallStatus: e.target.value })}
-                    className="input-field h-10"
+                    className="input-field h-8"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Examples: "Callback Requested", "Wrong Number", "Interested but Busy"
@@ -194,7 +195,7 @@ export default function CustomerFormModal({
                   value={formData.assignedTo || "unassigned"}
                   onValueChange={(value) => setFormData({ ...formData, assignedTo: value === "unassigned" ? "" : value })}
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-8">
                     <SelectValue placeholder="Select employee (optional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,7 +219,7 @@ export default function CustomerFormModal({
                     <Button
                       variant="outline"
                       className={cn(
-                        "flex-1 justify-start text-left font-normal h-10",
+                        "flex-1 justify-start text-left font-normal h-8",
                         !formData.scheduledDate && "text-muted-foreground"
                       )}
                     >
@@ -246,7 +247,7 @@ export default function CustomerFormModal({
                     variant="outline"
                     size="sm"
                     onClick={() => setFormData({ ...formData, scheduledDate: null })}
-                    className="px-3 h-10"
+                    className="px-3 h-8"
                   >
                     Clear
                   </Button>
@@ -269,10 +270,10 @@ export default function CustomerFormModal({
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose} className="h-10">
+            <Button type="button" variant="outline" onClick={onClose} className="h-8">
               Cancel
             </Button>
-            <Button type="submit" className="btn-primary h-10">
+            <Button type="submit" className="btn-primary h-8">
               {customer ? 'Update Customer' : 'Add Customer'}
             </Button>
           </div>

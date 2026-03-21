@@ -25,6 +25,12 @@ class Project(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='apartment')
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pre_launch')
+    company = models.ForeignKey(
+        'accounts.Company',
+        on_delete=models.PROTECT,
+        related_name='projects',
+        help_text="Company this project belongs to"
+    )
     
     # Pricing information
     priceMin = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Minimum price in rupees")
@@ -86,3 +92,7 @@ class Project(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['company']),
+            models.Index(fields=['company', 'created_at']),
+        ]

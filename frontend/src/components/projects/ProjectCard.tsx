@@ -5,6 +5,7 @@ import { Building, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+import { logger } from '@/lib/logger';
 interface ProjectCardProps {
   project: Project;
   delay?: number;
@@ -44,7 +45,7 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
           alt={project.name}
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           onError={(e) => {
-            console.error('Project card image failed to load:', project.coverImage);
+            logger.error('Project card image failed to load:', project.coverImage);
             // Hide the broken image and show placeholder
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';

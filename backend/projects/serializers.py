@@ -3,9 +3,16 @@ from .models import Project
 from accounts.serializers import UserSerializer
 import json
 
+class CompanyNestedSerializer(serializers.Serializer):
+    """Lightweight nested serializer for company information"""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    code = serializers.CharField(read_only=True)
+
 class ProjectSerializer(serializers.ModelSerializer):
     manager_detail = UserSerializer(source='manager', read_only=True)
     team_members_detail = UserSerializer(source='team_members', many=True, read_only=True)
+    company_detail = CompanyNestedSerializer(source='company', read_only=True)
     
     # Handle both new and legacy field names
     coverImage = serializers.CharField(required=False, allow_blank=True)

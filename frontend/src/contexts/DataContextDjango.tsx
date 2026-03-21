@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Announcement, Lead, Project, Task, Leave } from '@/types';
 import { useNotifications } from './NotificationContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
@@ -7,8 +7,17 @@ import { getMediaUrl } from '@/lib/api';
 import { logLeadActivity, logTaskActivity, logProjectActivity, logLeaveActivity } from '@/lib/activityLogger';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 interface DataContextType {
   leads: Lead[];
+  leadsPage: number;
+  leadsTotalPages: number;
+  leadsTotalCount: number;
+  leadsSearch: string;
+  leadsStatus: string;
+  setLeadsPage: (page: number) => void;
+  setLeadsSearch: (s: string) => void;
+  setLeadsStatus: (s: string) => void;
   tasks: Task[];
   projects: Project[];
   announcements: Announcement[];
@@ -20,6 +29,7 @@ interface DataContextType {
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
   bulkDeleteLeads: (ids: string[]) => Promise<any>; // Add bulk delete function
+  bulkDeleteLeadsByFilter: (filters: { search?: string; status?: string; source?: string }) => Promise<{ deleted_count: number }>;
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateTask: (id: string, data: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
@@ -173,6 +183,20 @@ const apiToTask = (apiTask: any): Task => ({
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [leadsPage, setLeadsPage] = useState(1);
+  const [leadsTotalPages, setLeadsTotalPages] = useState(1);
+  const [leadsTotalCount, setLeadsTotalCount] = useState(0);
+  const [leadsSearch, setLeadsSearchRaw] = useState('');
+  const [leadsStatus, setLeadsStatus] = useState('');
+  const [debouncedLeadsSearch, setDebouncedLeadsSearch] = useState('');
+  const leadsSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setLeadsSearch = (s: string) => {
+    setLeadsSearchRaw(s);
+    if (leadsSearchTimer.current) clearTimeout(leadsSearchTimer.current);
+    leadsSearchTimer.current = setTimeout(() => setDebouncedLeadsSearch(s), 400);
+  };
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -185,7 +209,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchLeaves = useCallback(async () => {
     // Don't make API calls if no user is authenticated
     if (!user) {
-      console.log('No authenticated user, skipping leaves fetch');
+      logger.log('No authenticated user, skipping leaves fetch');
       return [];
     }
     
@@ -196,11 +220,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLeaves(leavesList);
       return leavesList;
     } catch (error: any) {
-      console.error('Error fetching leaves:', error);
+      logger.error('Error fetching leaves:', error);
       
       // Handle authentication errors
       if (error.message?.includes('401')) {
-        console.warn('Authentication failed while fetching leaves. Clearing tokens.');
+        logger.warn('Authentication failed while fetching leaves. Clearing tokens.');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
       }
@@ -210,155 +234,71 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const fetchProjects = useCallback(async () => {
-    // Don't make API calls if no user is authenticated
-    if (!user) {
-      console.log('No authenticated user, skipping projects fetch');
-      return [];
-    }
+    if (!user) return [];
     
     try {
-      // Fetch all pages of projects
-      let allProjects: any[] = [];
-      let page = 1;
-      let hasMore = true;
-      
-      while (hasMore) {
-        const response = await apiClient.getProjects({ page });
-        const pageResults = response.results || [];
-        allProjects = allProjects.concat(pageResults);
-        
-        // Check if there are more pages
-        hasMore = !!response.next;
-        page++;
-        
-        // Safety check to prevent infinite loops
-        if (page > 50) {
-          console.warn('Reached maximum page limit (50) while fetching projects');
-          break;
-        }
-      }
-      
-      console.log(`Fetched ${allProjects.length} projects across ${page - 1} pages`);
-      const projectsList = allProjects.map(apiToProject);
+      const response = await apiClient.getProjects({ page: 1, page_size: 500 });
+      const pageResults = response.results || (Array.isArray(response) ? response : []);
+      const projectsList = pageResults.map(apiToProject);
       setProjects(projectsList);
       return projectsList;
     } catch (error: any) {
-      console.error('Error fetching projects:', error);
-      
-      // Handle authentication errors
+      logger.error('Error fetching projects:', error);
       if (error.message?.includes('401')) {
-        console.warn('Authentication failed while fetching projects. Clearing tokens.');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
       }
-      
       return [];
     }
   }, [user]);
 
   const fetchLeads = useCallback(async () => {
-    // Don't make API calls if no user is authenticated
-    if (!user) {
-      console.log('No authenticated user, skipping leads fetch');
-      return [];
-    }
-    
-    // Don't fetch if we're in the middle of deleting a lead
-    if (isDeletingLead) {
-      return [];
-    }
+    if (!user) return [];
+    if (isDeletingLead) return [];
     
     try {
-      // Fetch all pages of leads
-      let allLeads: any[] = [];
-      let page = 1;
-      let hasMore = true;
+      const PAGE_SIZE = 50;
+      const params: Record<string, any> = { page: leadsPage, page_size: PAGE_SIZE };
+      if (debouncedLeadsSearch) params.search = debouncedLeadsSearch;
+      if (leadsStatus) params.status = leadsStatus;
+
+      const response = await apiClient.getLeads(params);
       
-      while (hasMore) {
-        const response = await apiClient.getLeads({ page });
-        
-        // Handle both paginated and non-paginated responses
-        if (Array.isArray(response)) {
-          // Non-paginated response (direct array)
-          allLeads = response;
-          hasMore = false;
-        } else if (response.results) {
-          // Paginated response
-          const pageResults = response.results || [];
-          allLeads = allLeads.concat(pageResults);
-          hasMore = !!response.next;
-          page++;
-        } else {
-          hasMore = false;
-        }
-        
-        // Safety check to prevent infinite loops
-        if (page > 50) {
-          console.warn('Reached maximum page limit (50) while fetching leads');
-          break;
-        }
+      if (Array.isArray(response)) {
+        setLeads(response.map(apiToLead));
+        setLeadsTotalCount(response.length);
+        setLeadsTotalPages(1);
+      } else if (response.results) {
+        setLeads(response.results.map(apiToLead));
+        setLeadsTotalCount(response.count || 0);
+        setLeadsTotalPages(Math.ceil((response.count || 0) / PAGE_SIZE) || 1);
       }
-      
-      const leadsList = allLeads.map(apiToLead);
-      setLeads(leadsList);
-      return leadsList;
+      return leads;
     } catch (error: any) {
-      console.error('❌ Error fetching leads:', error);
-      
-      // Handle authentication errors
+      logger.error('❌ Error fetching leads:', error);
       if (error.message?.includes('401')) {
-        console.warn('Authentication failed while fetching leads. Clearing tokens.');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
       }
-      
       return [];
     }
-  }, [user, isDeletingLead]);
+  }, [user, isDeletingLead, leadsPage, debouncedLeadsSearch, leadsStatus]);
 
   const fetchTasks = useCallback(async () => {
-    // Don't make API calls if no user is authenticated
-    if (!user) {
-      console.log('No authenticated user, skipping tasks fetch');
-      return [];
-    }
+    if (!user) return [];
     
     try {
-      // Fetch all pages of tasks
-      let allTasks: any[] = [];
-      let page = 1;
-      let hasMore = true;
-      
-      while (hasMore) {
-        const response = await apiClient.getTasks({ page });
-        const pageResults = response.results || [];
-        allTasks = allTasks.concat(pageResults);
-        
-        // Check if there are more pages
-        hasMore = !!response.next;
-        page++;
-        
-        // Safety check to prevent infinite loops
-        if (page > 50) {
-          console.warn('Reached maximum page limit (50) while fetching tasks');
-          break;
-        }
-      }
-      
-      console.log(`Fetched ${allTasks.length} tasks across ${page - 1} pages`);
-      const tasksList = allTasks.map(apiToTask);
+      const response = await apiClient.getTasks({ page: 1, page_size: 500 });
+      const pageResults = response.results || (Array.isArray(response) ? response : []);
+      const tasksList = pageResults.map(apiToTask);
       setTasks(tasksList);
       return tasksList;
     } catch (error: any) {
-      console.error('Error fetching tasks:', error);
-      
-      // Handle authentication errors
+      logger.error('Error fetching tasks:', error);
       if (error.message?.includes('401')) {
-        console.warn('Authentication failed while fetching tasks. Clearing tokens.');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
       }
-      
       return [];
     }
   }, [user]);
@@ -366,14 +306,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchAnnouncements = useCallback(async () => {
     // Don't make API calls if no user is authenticated
     if (!user) {
-      console.log('No authenticated user, skipping announcements fetch');
+      logger.log('🔍 [DataContext] No authenticated user, skipping announcements fetch');
       return [];
     }
     
     try {
+      logger.log('🔍 [DataContext] Fetching announcements...');
+      logger.log('🔍 [DataContext] User:', user?.email, 'Role:', user?.role);
+      
+      // Check localStorage for selected company
+      const selectedCompanyStr = localStorage.getItem('selectedCompany');
+      logger.log('🔍 [DataContext] Selected company from localStorage:', selectedCompanyStr);
+      
       const response = await apiClient.getAnnouncements();
+      logger.log('🔍 [DataContext] API Response:', response);
+      
       // Handle paginated response from Django REST framework
       const announcementsData = Array.isArray(response) ? response : (response as any).results || [];
+      logger.log('🔍 [DataContext] Announcements data:', announcementsData);
       
       // Transform Django announcement data to match frontend interface
       const transformedAnnouncements: Announcement[] = announcementsData.map((announcement: any) => ({
@@ -384,6 +334,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         targetRoles: announcement.target_roles,
         assignedEmployeeIds: announcement.assigned_employee_ids || [],
         assignedEmployeeDetails: announcement.assigned_employee_details || [],
+        document_url: announcement.document_url,
+        document_name: announcement.document_name,
         createdByName: announcement.created_by_name,
         isActive: announcement.is_active,
         expiresAt: announcement.expires_at ? new Date(announcement.expires_at) : undefined,
@@ -391,14 +343,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(announcement.created_at),
       }));
       
+      logger.log('🔍 [DataContext] Transformed announcements:', transformedAnnouncements);
+      logger.log('🔍 [DataContext] Announcements with documents:', 
+        transformedAnnouncements.filter(a => a.document_url || a.document_name)
+      );
+      
       setAnnouncements(transformedAnnouncements);
       return transformedAnnouncements;
     } catch (error: any) {
-      console.error('Error fetching announcements:', error);
+      logger.error('❌ [DataContext] Error fetching announcements:', error);
       
       // Handle authentication errors
       if (error.message?.includes('401')) {
-        console.warn('Authentication failed while fetching announcements. Clearing tokens.');
+        logger.warn('Authentication failed while fetching announcements. Clearing tokens.');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
       }
@@ -416,7 +373,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    console.log('🔄 Refreshing all data...', showLoading ? '(with loading)' : '(silent)');
+    logger.log('🔄 Refreshing all data...', showLoading ? '(with loading)' : '(silent)');
     if (showLoading) {
       setLoading(true);
     }
@@ -429,13 +386,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fetchAnnouncements(),
         fetchLeaves(),
       ]);
-      console.log('✅ Data refresh completed successfully');
+      logger.log('✅ Data refresh completed successfully');
     } catch (error) {
-      console.error('❌ Error refreshing data:', error);
+      logger.error('❌ Error refreshing data:', error);
       
       // If we get authentication errors, it might mean tokens are invalid
       if (error instanceof Error && error.message.includes('401')) {
-        console.warn('Authentication failed during data refresh. Tokens may be invalid.');
+        logger.warn('Authentication failed during data refresh. Tokens may be invalid.');
       }
     } finally {
       if (showLoading) {
@@ -459,19 +416,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Initial fetch when user changes - TEMPORARILY DISABLED TO TEST DELETION
   useEffect(() => {
     if (user) {
-      console.log('🔄 Initial data fetch triggered by user change');
-      // Call fetch functions directly to avoid circular dependency
-      Promise.all([
-        fetchProjects(),
-        fetchLeads(),
-        fetchTasks(),
-        fetchAnnouncements(),
-        fetchLeaves(),
-      ]).then(() => {
-        console.log('✅ Initial data fetch completed');
+      logger.log('🔄 Initial data fetch triggered by user change');
+      logger.log('👤 User role:', user.role);
+      
+      // Fetch data based on user role
+      const fetchPromises: Promise<any>[] = [];
+      
+      // HR users only have access to announcements and leaves
+      if (user.role === 'hr') {
+        fetchPromises.push(fetchAnnouncements());
+        fetchPromises.push(fetchLeaves());
+      } 
+      // All other roles (admin, manager, employee) have access to all modules
+      else {
+        fetchPromises.push(fetchProjects());
+        fetchPromises.push(fetchLeads());
+        fetchPromises.push(fetchTasks());
+        fetchPromises.push(fetchAnnouncements());
+        fetchPromises.push(fetchLeaves());
+      }
+      
+      Promise.all(fetchPromises).then(() => {
+        logger.log('✅ Initial data fetch completed');
         setLoading(false);
       }).catch((error) => {
-        console.error('❌ Error in initial data fetch:', error);
+        logger.error('❌ Error in initial data fetch:', error);
         setLoading(false);
       });
       setLoading(true);
@@ -479,6 +448,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, [user]); // REMOVED OTHER DEPENDENCIES TO PREVENT REFETCH
+
+  // Re-fetch leads when page/search/status changes
+  useEffect(() => {
+    if (user && user.role !== 'hr') {
+      fetchLeads();
+    }
+  }, [leadsPage, debouncedLeadsSearch, leadsStatus]);
+
+  // Reset to page 1 when search/status filter changes
+  useEffect(() => {
+    setLeadsPage(1);
+  }, [debouncedLeadsSearch, leadsStatus]);
 
   // Function to add lead directly to state (for customer-to-lead conversion)
   const addLeadToState = useCallback((lead: Lead) => {
@@ -512,10 +493,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         preferred_location: lead.preferredLocation || '',
         status: lead.status,
         source: lead.source || 'website',
-        assigned_to: lead.assignedTo || null, // Employee assignment
-        assigned_projects: lead.assignedProjects || [], // New multiple projects field
-        assigned_project: lead.assignedProject || null, // Keep for backward compatibility
+        assigned_to: lead.assignedTo || null,
+        assigned_projects: lead.assignedProjects || [],
+        assigned_project: lead.assignedProject || null,
         follow_up_date: lead.followUpDate?.toISOString() || null,
+        // Auto-assign the logged-in user's company
+        company: (lead as any).company || (user?.company as any)?.id || user?.company || null,
       };
 
       // Create lead on server
@@ -529,7 +512,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       Promise.all([
         // Log activity in background
         user ? logLeadActivity(user, 'created', lead.name).catch(err => 
-          console.error('Failed to log lead activity:', err)
+          logger.error('Failed to log lead activity:', err)
         ) : Promise.resolve(),
         
         // Add notification in background
@@ -545,7 +528,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Lead created successfully');
     } catch (error) {
-      console.error('Error adding lead:', error);
+      logger.error('Error adding lead:', error);
       
       // Remove optimistic update on error
       setLeads(prev => prev.filter(l => l.id !== tempId));
@@ -595,13 +578,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const leadName = data.name || originalLead.name || 'Unknown Lead';
         logLeadActivity(user, 'updated', leadName).catch(err => 
-          console.error('Failed to log lead update activity:', err)
+          logger.error('Failed to log lead update activity:', err)
         );
       }
 
       toast.success('Lead updated successfully');
     } catch (error) {
-      console.error('Error updating lead:', error);
+      logger.error('Error updating lead:', error);
       
       // Rollback optimistic update on error
       setLeads(prev =>
@@ -638,13 +621,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           await logLeadActivity(user, 'deleted', leadName);
         } catch (activityError) {
-          console.error('Failed to log lead deletion activity:', activityError);
+          logger.error('Failed to log lead deletion activity:', activityError);
         }
       }
       
       toast.success('Lead deleted successfully');
     } catch (error) {
-      console.error('❌ Error deleting lead:', error);
+      logger.error('❌ Error deleting lead:', error);
       toast.error('Failed to delete lead');
       throw error;
     } finally {
@@ -667,7 +650,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           await logLeadActivity(user, 'deleted', `${result.deleted_count} leads (bulk)`);
         } catch (activityError) {
-          console.error('Failed to log bulk lead deletion activity:', activityError);
+          logger.error('Failed to log bulk lead deletion activity:', activityError);
         }
       }
       
@@ -677,7 +660,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       } else if (result.deleted_count > 0) {
         toast.success(`${result.deleted_count} of ${ids.length} leads deleted successfully`);
         if (result.permission_errors?.length > 0) {
-          console.warn('Permission errors:', result.permission_errors);
+          logger.warn('Permission errors:', result.permission_errors);
         }
       } else {
         toast.error('No leads could be deleted');
@@ -685,13 +668,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       
       return result;
     } catch (error) {
-      console.error('❌ Error bulk deleting leads:', error);
+      logger.error('❌ Error bulk deleting leads:', error);
       toast.error('Failed to delete leads');
       throw error;
     } finally {
       setIsDeletingLead(false); // Clear flag
     }
   }, [user]); // Remove leads dependency to prevent recreation
+
+  const bulkDeleteLeadsByFilter = useCallback(async (filters: { search?: string; status?: string; source?: string }) => {
+    setIsDeletingLead(true);
+    try {
+      const result = await apiClient.bulkDeleteLeadsByFilter(filters);
+      await fetchLeads();
+      toast.success(`${result.deleted_count} leads deleted`);
+      return result;
+    } catch (error) {
+      logger.error('❌ Error bulk deleting leads by filter:', error);
+      toast.error('Failed to delete leads');
+      throw error;
+    } finally {
+      setIsDeletingLead(false);
+    }
+  }, [fetchLeads]);
 
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     // Generate temporary ID for optimistic update
@@ -740,7 +739,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           
           toast.success('New customer created successfully');
         } catch (error) {
-          console.error('Error creating lead:', error);
+          logger.error('Error creating lead:', error);
           toast.error('Failed to create customer');
           throw error;
         }
@@ -756,6 +755,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         status: task.status,
         priority: 'medium',
         project: parseInt(projects[0].id), // Assign to first project
+        company: user?.company?.id, // Add required company field
         assigned_to: task.assignedTo ? parseInt(task.assignedTo) : null,
         due_date: task.nextActionDate?.toISOString() || null,
       };
@@ -771,7 +771,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       Promise.all([
         // Log activity in background
         user ? logTaskActivity(user, 'created', `for ${task.lead?.name || 'customer'}`).catch(err =>
-          console.error('Failed to log task activity:', err)
+          logger.error('Failed to log task activity:', err)
         ) : Promise.resolve(),
         
         // Add notification in background
@@ -787,7 +787,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Task created successfully');
     } catch (error) {
-      console.error('Error adding task:', error);
+      logger.error('Error adding task:', error);
       
       // Remove optimistic update on error
       setTasks(prev => prev.filter(t => t.id !== tempId));
@@ -828,13 +828,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           await logTaskActivity(user, 'updated', `${taskDetails} status to ${data.status}`);
         } catch (activityError) {
-          console.error('Failed to log task update activity:', activityError);
+          logger.error('Failed to log task update activity:', activityError);
         }
       }
 
       toast.success('Task updated successfully');
     } catch (error) {
-      console.error('Error updating task:', error);
+      logger.error('Error updating task:', error);
       toast.error('Failed to update task');
       throw error;
     }
@@ -846,13 +846,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setTasks(prev => prev.filter(t => t.id !== id));
       // Don't show individual success toast for bulk operations
     } catch (error: any) {
-      console.error('Error deleting task:', error);
+      logger.error('Error deleting task:', error);
       
       // Check if it's a 404 error (task not found)
       if (error.message?.includes('404')) {
         // Task might have been already deleted, remove it from local state
         setTasks(prev => prev.filter(t => t.id !== id));
-        console.warn(`Task ${id} not found on server, removing from local state`);
+        logger.warn(`Task ${id} not found on server, removing from local state`);
       } else {
         // For other errors, show error message
         toast.error(`Failed to delete task ${id}`);
@@ -910,22 +910,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         blueprint_image: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
       };
 
-      console.log('🚀 Sending project data to API:', projectData);
-      console.log('🚀 Availability in API payload:', projectData.availability);
+      logger.log('🚀 Sending project data to API:', projectData);
+      logger.log('🚀 Availability in API payload:', projectData.availability);
 
       const newProject = await apiClient.createProject(projectData);
-      console.log('✅ Received project from API:', newProject);
-      console.log('✅ Availability in API response:', newProject.availability);
+      logger.log('✅ Received project from API:', newProject);
+      logger.log('✅ Availability in API response:', newProject.availability);
       
       const convertedProject = apiToProject(newProject);
-      console.log('✅ Converted project:', convertedProject);
-      console.log('✅ Availability after conversion:', convertedProject.availability);
+      logger.log('✅ Converted project:', convertedProject);
+      logger.log('✅ Availability after conversion:', convertedProject.availability);
       
       setProjects(prev => [convertedProject, ...prev]);
 
       toast.success('Project created successfully');
     } catch (error: any) {
-      console.error('Error adding project:', error);
+      logger.error('Error adding project:', error);
       toast.error('Failed to add project');
       throw error;
     }
@@ -961,12 +961,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.coverImage !== undefined) updateData.cover_image = data.coverImage;
       if (data.blueprintImage !== undefined) updateData.blueprint_image = data.blueprintImage;
 
-      console.log('🔄 Updating project with data:', updateData);
-      console.log('🔄 Availability in update payload:', updateData.availability);
+      logger.log('🔄 Updating project with data:', updateData);
+      logger.log('🔄 Availability in update payload:', updateData.availability);
 
       await apiClient.updateProject(parseInt(id), updateData);
       
-      console.log('✅ Project updated, updating local state');
+      logger.log('✅ Project updated, updating local state');
       
       setProjects(prev =>
         prev.map(p => (p.id === id ? { ...p, ...data } : p))
@@ -974,7 +974,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Project updated successfully');
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       toast.error('Failed to update project');
       throw error;
     }
@@ -986,7 +986,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setProjects(prev => prev.filter(p => p.id !== id));
       toast.success('Project deleted successfully');
     } catch (error) {
-      console.error('Error deleting project:', error);
+      logger.error('Error deleting project:', error);
       toast.error('Failed to delete project');
       throw error;
     }
@@ -1003,6 +1003,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         is_active: announcement.isActive,
         expires_at: announcement.expiresAt?.toISOString() || null,
       };
+
+      // Add company ID from authenticated user
+      if (user?.company?.id) {
+        announcementData.company = user.company.id;
+      }
 
       // Add assigned employees if provided (for managers)
       if (announcement.assignedEmployeeIds && announcement.assignedEmployeeIds.length > 0) {
@@ -1030,7 +1035,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setAnnouncements(prev => [newAnnouncement, ...prev]);
       toast.success('Announcement created successfully');
     } catch (error: any) {
-      console.error('Error creating announcement:', error);
+      logger.error('Error creating announcement:', error);
       toast.error('Failed to create announcement');
       throw error;
     }
@@ -1069,7 +1074,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setAnnouncements(prev => prev.map(a => a.id === id ? updatedAnnouncement : a));
       toast.success('Announcement updated successfully');
     } catch (error: any) {
-      console.error('Error updating announcement:', error);
+      logger.error('Error updating announcement:', error);
       toast.error('Failed to update announcement');
       throw error;
     }
@@ -1081,7 +1086,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setAnnouncements(prev => prev.filter(a => a.id !== id));
       toast.success('Announcement deleted successfully');
     } catch (error: any) {
-      console.error('Error deleting announcement:', error);
+      logger.error('Error deleting announcement:', error);
       
       // Handle 404 errors (announcement already deleted)
       if (error.message.includes('404')) {
@@ -1117,7 +1122,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setAnnouncements(prev => prev.map(a => a.id === id ? updatedAnnouncement : a));
       toast.success('Announcement updated successfully');
     } catch (error: any) {
-      console.error('Error updating announcement:', error);
+      logger.error('Error updating announcement:', error);
       toast.error('Failed to update announcement');
       throw error;
     }
@@ -1145,7 +1150,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       
       toast.success('Leave request submitted successfully');
     } catch (error: any) {
-      console.error('Error creating leave:', error);
+      logger.error('Error creating leave:', error);
       toast.error('Failed to submit leave request');
       throw error;
     }
@@ -1166,7 +1171,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLeaves(prev => prev.map(l => l.id === id ? convertedLeave : l));
       toast.success('Leave updated successfully');
     } catch (error: any) {
-      console.error('Error updating leave:', error);
+      logger.error('Error updating leave:', error);
       toast.error('Failed to update leave');
       throw error;
     }
@@ -1178,7 +1183,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLeaves(prev => prev.filter(l => l.id !== id));
       toast.success('Leave deleted successfully');
     } catch (error: any) {
-      console.error('Error deleting leave:', error);
+      logger.error('Error deleting leave:', error);
       toast.error('Failed to delete leave');
       throw error;
     }
@@ -1192,7 +1197,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLeaves(prev => prev.map(l => l.id === id ? convertedLeave : l));
       toast.success('Leave approved successfully');
     } catch (error: any) {
-      console.error('Error approving leave:', error);
+      logger.error('Error approving leave:', error);
       toast.error('Failed to approve leave');
       throw error;
     }
@@ -1206,7 +1211,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLeaves(prev => prev.map(l => l.id === id ? convertedLeave : l));
       toast.success('Leave rejected successfully');
     } catch (error: any) {
-      console.error('Error rejecting leave:', error);
+      logger.error('Error rejecting leave:', error);
       toast.error('Failed to reject leave');
       throw error;
     }
@@ -1214,6 +1219,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     leads,
+    leadsPage,
+    leadsTotalPages,
+    leadsTotalCount,
+    leadsSearch,
+    leadsStatus,
+    setLeadsPage,
+    setLeadsSearch,
+    setLeadsStatus,
     tasks,
     projects,
     announcements,
@@ -1225,6 +1238,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updateLead,
     deleteLead,
     bulkDeleteLeads, // Add bulk delete function
+    bulkDeleteLeadsByFilter,
     addTask,
     updateTask,
     deleteTask,

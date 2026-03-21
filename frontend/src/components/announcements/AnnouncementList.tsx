@@ -13,12 +13,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Megaphone, Trash2, Users, Clock, AlertTriangle, User } from 'lucide-react';
+import { Plus, Megaphone, Trash2, Users, Clock, AlertTriangle, User, FileText, Download, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import AnnouncementFormModal from './AnnouncementFormModal';
+import DocumentViewerModal from '@/components/ui/DocumentViewerModal';
 
+import { logger } from '@/lib/logger';
 interface AnnouncementListProps {
   announcements: Announcement[];
   onAdd: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'createdBy'>) => void;
@@ -49,6 +51,11 @@ export default function AnnouncementList({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{
+    url: string;
+    name: string;
+    title: string;
+  } | null>(null);
 
   const handleDelete = () => {
     if (deleteId) {
@@ -75,6 +82,35 @@ export default function AnnouncementList({
       onAdd(data);
     }
     handleFormClose();
+  };
+
+  const handleViewDocument = (announcement: Announcement) => {
+    if (announcement.document_url && announcement.document_name) {
+      setViewingDocument({
+        url: announcement.document_url,
+        name: announcement.document_name,
+        title: `Document: ${announcement.title}`
+      });
+    }
+  };
+
+  const handleDownloadDocument = (announcement: Announcement) => {
+    if (announcement.document_url && announcement.document_name) {
+      try {
+        const link = document.createElement('a');
+        link.href = announcement.document_url;
+        link.download = announcement.document_name;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Downloaded ${announcement.document_name}`);
+      } catch (error) {
+        logger.error('Download failed:', error);
+        toast.error('Failed to download document');
+      }
+    }
   };
 
   return (
@@ -137,6 +173,38 @@ export default function AnnouncementList({
                       <p className="text-sm text-muted-foreground">
                         {announcement.message}
                       </p>
+                      
+                      {/* Document Attachment */}
+                      {announcement.document_url && announcement.document_name && (
+                        <div className="flex items-center gap-2 mt-2 p-3 bg-accent/30 rounded-lg border">
+                          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm font-medium flex-1 truncate">
+                            {announcement.document_name}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleViewDocument(announcement)}
+                              title="View document"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleDownloadDocument(announcement)}
+                              title="Download document"
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -219,6 +287,17 @@ export default function AnnouncementList({
         onSubmit={handleSubmit}
         announcement={editingAnnouncement || undefined}
       />
+
+      {/* Document Viewer Modal */}
+      {viewingDocument && (
+        <DocumentViewerModal
+          open={!!viewingDocument}
+          onOpenChange={() => setViewingDocument(null)}
+          documentUrl={viewingDocument.url}
+          documentName={viewingDocument.name}
+          title={viewingDocument.title}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

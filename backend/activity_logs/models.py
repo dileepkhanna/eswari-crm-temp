@@ -42,6 +42,12 @@ class ActivityLog(models.Model):
     module = models.CharField(max_length=20, choices=MODULE_CHOICES)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     details = models.TextField()
+    company = models.ForeignKey(
+        'accounts.Company',
+        on_delete=models.PROTECT,
+        related_name='activity_logs',
+        help_text="Company this activity log belongs to"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -50,6 +56,8 @@ class ActivityLog(models.Model):
             models.Index(fields=['user', 'created_at']),
             models.Index(fields=['module', 'created_at']),
             models.Index(fields=['action', 'created_at']),
+            models.Index(fields=['company']),
+            models.Index(fields=['company', 'created_at']),
         ]
 
     def __str__(self):

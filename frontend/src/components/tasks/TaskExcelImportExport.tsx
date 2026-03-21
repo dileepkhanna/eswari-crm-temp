@@ -8,6 +8,7 @@ import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
+import { logger } from '@/lib/logger';
 interface TaskExcelImportExportProps {
   tasks?: Task[]; // Add tasks prop for export
   onImport: (tasks: Partial<Task>[]) => void;
@@ -92,7 +93,7 @@ export default function TaskExcelImportExport({ tasks = [], onImport, getProject
       XLSX.writeFile(wb, `tasks_export_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success(`Exported ${tasks.length} tasks successfully`);
     } catch (error) {
-      console.error('Export error:', error);
+      logger.error('Export error:', error);
       toast.error('Failed to export tasks data');
     }
   };
@@ -204,7 +205,7 @@ export default function TaskExcelImportExport({ tasks = [], onImport, getProject
           toast.error('No valid tasks found in the file');
         }
       } catch (error) {
-        console.error('Error parsing Excel file:', error);
+        logger.error('Error parsing Excel file:', error);
         toast.error('Failed to parse Excel file');
       }
     };

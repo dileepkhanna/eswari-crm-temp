@@ -2,10 +2,18 @@ from rest_framework import serializers
 from .models import Lead
 from accounts.serializers import UserSerializer
 from accounts.permissions import should_hide_contact_details
+from utils.validators import CompanyValidationMixin
 
-class LeadSerializer(serializers.ModelSerializer):
+class CompanyNestedSerializer(serializers.Serializer):
+    """Lightweight nested serializer for company information"""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    code = serializers.CharField(read_only=True)
+
+class LeadSerializer(CompanyValidationMixin, serializers.ModelSerializer):
     assigned_to_detail = UserSerializer(source='assigned_to', read_only=True)
     created_by_detail = UserSerializer(source='created_by', read_only=True)
+    company_detail = CompanyNestedSerializer(source='company', read_only=True)
     
     class Meta:
         model = Lead

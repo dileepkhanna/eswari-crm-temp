@@ -9,9 +9,19 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     proxy: {
+      // Proxy API requests to Django backend
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => {
+          console.log('[Vite Proxy] Rewriting:', path);
+          return path;
+        },
+      },
       // Proxy media files to Django backend
       '/media': {
-        target: 'http://127.0.0.1:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
       },
@@ -42,4 +52,10 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000, // Increase warning limit to 1MB
   },
   base: "/",
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: true,
+  },
 }));
