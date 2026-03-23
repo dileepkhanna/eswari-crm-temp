@@ -115,8 +115,11 @@ class LeaveViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
             return base_queryset.filter(user=user)
 
     def perform_create(self, serializer):
-        """Set the user when creating a leave and send notifications"""
-        leave = serializer.save(user=self.request.user)
+        """Set the user and company when creating a leave and send notifications"""
+        user = self.request.user
+        # Auto-assign company from user for manager/employee roles
+        company = serializer.validated_data.get('company') or getattr(user, 'company', None)
+        leave = serializer.save(user=user, company=company)
         
         # Send notifications to admin, HR, and the employee's manager
         self._send_leave_request_notifications(leave)

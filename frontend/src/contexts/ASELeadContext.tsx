@@ -25,6 +25,7 @@ interface ASELeadContextType {
   priorityFilter: string;
   industryFilter: string;
   budgetRangeFilter: string;
+  createdByFilter: string;
   
   // Actions
   fetchLeads: () => Promise<void>;
@@ -39,6 +40,7 @@ interface ASELeadContextType {
   setPriorityFilter: (priority: string) => void;
   setIndustryFilter: (industry: string) => void;
   setBudgetRangeFilter: (budgetRange: string) => void;
+  setCreatedByFilter: (createdBy: string) => void;
   setCurrentPage: (page: number) => void;
   
   // Utility actions
@@ -71,6 +73,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [industryFilter, setIndustryFilter] = useState('');
   const [budgetRangeFilter, setBudgetRangeFilter] = useState('');
+  const [createdByFilter, setCreatedByFilter] = useState('');
 
   // Debounced search — only fire API after 400ms of no typing
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -93,6 +96,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
         status: statusFilter || undefined,
         priority: priorityFilter || undefined,
         industry: industryFilter || undefined,
+        created_by: createdByFilter || undefined,
         page: currentPage,
         page_size: PAGE_SIZE,
       };
@@ -220,18 +224,19 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     setPriorityFilter('');
     setIndustryFilter('');
     setBudgetRangeFilter('');
+    setCreatedByFilter('');
     setCurrentPage(1);
   };
   
   // Single effect: reset page when filters change, then fetch
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter]);
+  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter]);
 
   // Fetch whenever page or debounced filters change
   useEffect(() => {
     fetchLeads();
-  }, [currentPage, debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter]);
+  }, [currentPage, debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter]);
   
   // Initial stats fetch
   useEffect(() => {
@@ -256,6 +261,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     priorityFilter,
     industryFilter,
     budgetRangeFilter,
+    createdByFilter,
     
     // Actions
     fetchLeads,
@@ -270,6 +276,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     setPriorityFilter,
     setIndustryFilter,
     setBudgetRangeFilter,
+    setCreatedByFilter,
     setCurrentPage,
     
     // Utility actions

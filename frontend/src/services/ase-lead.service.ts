@@ -34,6 +34,7 @@ export class ASELeadService {
     priority?: string;
     industry?: string;
     assigned_to?: string;
+    created_by?: string;
     page?: number;
     page_size?: number;
   }): Promise<{

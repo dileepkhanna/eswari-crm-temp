@@ -327,7 +327,7 @@ export default function HRLeaves() {
   return (
     <div className="min-h-screen">
       <TopBar title="Leave Management" subtitle="Manage employee leave requests" />
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         <div className="space-y-6">
           {/* Search Bar and Filters */}
           <div className="flex flex-col gap-4">
@@ -415,8 +415,80 @@ export default function HRLeaves() {
             </div>
           </div>
 
-          {/* Leave Table */}
-          <div className="glass-card rounded-2xl overflow-hidden">
+          {/* Mobile Card View */}
+          <div className="flex flex-col gap-4 md:hidden">
+            {paginatedLeaves.length === 0 ? (
+              <div className="glass-card rounded-2xl text-center py-12">
+                <p className="text-muted-foreground">
+                  {searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || startDateFilter || endDateFilter
+                    ? 'No leaves found matching your filters'
+                    : 'No leave requests found'}
+                </p>
+              </div>
+            ) : paginatedLeaves.map((leave, index) => (
+              <div key={leave.id} className="glass-card rounded-2xl p-4 space-y-3 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                      {leave.user_name?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">{leave.user_name || 'Unknown User'}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(leave.created_at), 'MMM dd, yyyy')}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn("capitalize shrink-0", getStatusBadgeColor(leave.status))}>
+                    {leave.status}
+                  </Badge>
+                </div>
+
+                {/* Type + Duration */}
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className={cn("capitalize", getTypeBadgeColor(leave.leave_type))}>
+                    {leave.leave_type}
+                  </Badge>
+                  <div className="text-right text-sm">
+                    <p className="text-foreground">{format(new Date(leave.start_date), 'MMM dd')} – {format(new Date(leave.end_date), 'MMM dd, yyyy')}</p>
+                    <p className="text-xs text-muted-foreground">{calculateDuration(leave.start_date, leave.end_date)} day(s)</p>
+                  </div>
+                </div>
+
+                {/* Reason */}
+                {leave.reason && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{leave.reason}</p>
+                )}
+
+                {/* Rejection reason */}
+                {leave.status === 'rejected' && leave.rejection_reason && (
+                  <p className="text-xs text-destructive">Rejected: {leave.rejection_reason}</p>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <Button variant="outline" size="sm" onClick={() => handleViewLeave(leave)} className="h-8 text-xs gap-1">
+                    <Eye className="w-3.5 h-3.5" /> View
+                  </Button>
+                  {leave.status === 'pending' && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleApproveLeave(leave)} className="h-8 text-xs gap-1 text-green-600 border-green-300 hover:bg-green-50">
+                        <CheckCircle className="w-3.5 h-3.5" /> Approve
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleOpenRejectModal(leave)} className="h-8 text-xs gap-1 text-orange-600 border-orange-300 hover:bg-orange-50">
+                        <XCircle className="w-3.5 h-3.5" /> Reject
+                      </Button>
+                    </>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => handleOpenDeleteModal(leave)} className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 ml-auto">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Leave Table */}
+          <div className="hidden md:block glass-card rounded-2xl overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -430,38 +502,25 @@ export default function HRLeaves() {
               </TableHeader>
               <TableBody>
                 {paginatedLeaves.map((leave, index) => (
-                  <TableRow 
-                    key={leave.id} 
-                    className="table-row-hover animate-fade-in"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
+                  <TableRow key={leave.id} className="table-row-hover animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold shrink-0">
                           {leave.user_name?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">
-                            {leave.user_name || 'Unknown User'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(leave.created_at), 'MMM dd, yyyy')}
-                          </p>
+                          <p className="font-medium text-foreground">{leave.user_name || 'Unknown User'}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(leave.created_at), 'MMM dd, yyyy')}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("capitalize", getTypeBadgeColor(leave.leave_type))}
-                      >
+                      <Badge variant="outline" className={cn("capitalize", getTypeBadgeColor(leave.leave_type))}>
                         {leave.leave_type}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <p className="text-sm text-muted-foreground">
-                        {calculateDuration(leave.start_date, leave.end_date)} day(s)
-                      </p>
+                      <p className="text-sm text-muted-foreground">{calculateDuration(leave.start_date, leave.end_date)} day(s)</p>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <p className="text-sm text-muted-foreground">
@@ -469,53 +528,26 @@ export default function HRLeaves() {
                       </p>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("capitalize", getStatusBadgeColor(leave.status))}
-                      >
+                      <Badge variant="outline" className={cn("capitalize", getStatusBadgeColor(leave.status))}>
                         {leave.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewLeave(leave)}
-                          className="h-8 w-8 p-0"
-                          title="View details"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleViewLeave(leave)} className="h-8 w-8 p-0" title="View details">
                           <Eye className="w-4 h-4" />
                         </Button>
                         {leave.status === 'pending' && (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleApproveLeave(leave)}
-                              className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              title="Approve leave"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleApproveLeave(leave)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Approve leave">
                               <CheckCircle className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenRejectModal(leave)}
-                              className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                              title="Reject leave"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleOpenRejectModal(leave)} className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50" title="Reject leave">
                               <XCircle className="w-4 h-4" />
                             </Button>
                           </>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenDeleteModal(leave)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Delete leave"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenDeleteModal(leave)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete leave">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -529,7 +561,7 @@ export default function HRLeaves() {
               <div className="text-center py-12">
                 <p className="text-muted-foreground">
                   {searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || startDateFilter || endDateFilter
-                    ? 'No leaves found matching your filters' 
+                    ? 'No leaves found matching your filters'
                     : 'No leave requests found'}
                 </p>
               </div>

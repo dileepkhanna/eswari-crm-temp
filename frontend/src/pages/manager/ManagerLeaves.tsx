@@ -5,8 +5,8 @@ export default function ManagerLeaves() {
   return (
     <div className="min-h-screen">
       <TopBar title="Leave Management" subtitle="Manage and approve staff leave requests" />
-      <div className="p-6">
-        <LeaveList canApprove={true} canCreate={false} canDelete={true} showOnlyPending={false} />
+      <div className="p-3 md:p-6">
+        <LeaveList canApprove={true} canCreate={true} canDelete={true} showOnlyPending={false} />
       </div>
     </div>
   );

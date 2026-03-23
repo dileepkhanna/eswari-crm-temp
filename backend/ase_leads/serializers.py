@@ -146,6 +146,7 @@ class ASELeadListSerializer(serializers.ModelSerializer):
             'priority',
             'assigned_to',
             'assigned_to_name',
+            'created_by',
             'created_by_name',
             'company_name_display',
             'notes',

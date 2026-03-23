@@ -1,10 +1,17 @@
 import sharp from 'sharp';
 import { mkdirSync } from 'fs';
+import { resolve } from 'path';
 
 mkdirSync('public/icons', { recursive: true });
 mkdirSync('public/screenshots', { recursive: true });
 
-const SOURCE_LOGO = '../backend/media/branding/logo_b3d48569a2e947c598a790d5443122b1.png';
+// Accept logo path as CLI arg — required
+const SOURCE_LOGO = process.argv[2];
+if (!SOURCE_LOGO) {
+  console.error('Usage: node generate-icons.mjs /path/to/logo.png');
+  process.exit(1);
+}
+console.log(`Using logo: ${SOURCE_LOGO}`);
 
 const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
 

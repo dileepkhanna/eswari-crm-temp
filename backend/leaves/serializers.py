@@ -18,7 +18,7 @@ class LeaveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Leave
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'user_name', 'user_role', 'user']
+        read_only_fields = ['created_at', 'updated_at', 'user_name', 'user_role', 'user', 'company']
     
     def get_document_url(self, obj):
         """Return the full URL for the document file"""

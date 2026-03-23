@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import TopBar from '@/components/layout/TopBar';
@@ -22,6 +22,7 @@ export default function AdminASELeads() {
     statusFilter, setStatusFilter,
     priorityFilter, setPriorityFilter,
     industryFilter, setIndustryFilter,
+    createdByFilter, setCreatedByFilter,
     clearFilters,
     createLead, updateLead, deleteLead,
     currentPage, setCurrentPage, totalPages, totalCount,
@@ -34,6 +35,17 @@ export default function AdminASELeads() {
   const [deleteAllMatching, setDeleteAllMatching] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Unique creators from current page leads (for filter dropdown)
+  const uniqueCreators = useMemo(() => {
+    const map = new Map<string, string>();
+    leads.forEach(l => {
+      if (l.created_by && l.created_by_name) {
+        map.set(String(l.created_by), l.created_by_name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [leads]);
 
   // ── Selection helpers ──────────────────────────────────────────────────
   const toggleAll = () => {
@@ -316,7 +328,21 @@ export default function AdminASELeads() {
               <option value="other">Other</option>
             </select>
 
-            {(searchTerm || statusFilter || priorityFilter || industryFilter) && (
+            {(user?.role === 'admin' || user?.role === 'manager') && (
+              <select
+                value={createdByFilter}
+                onChange={(e) => setCreatedByFilter(e.target.value)}
+                className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36 md:w-40"
+                style={{ appearance: 'auto' }}
+              >
+                <option value="">All Creators</option>
+                {uniqueCreators.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+            )}
+
+            {(searchTerm || statusFilter || priorityFilter || industryFilter || createdByFilter) && (
               <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full h-7 px-3 text-xs">
                 <FilterIcon className="w-3 h-3 mr-1" />
                 Clear

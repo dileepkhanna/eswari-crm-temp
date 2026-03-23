@@ -45,6 +45,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         'priority',
         'industry',
         'assigned_to',
+        'created_by',
         'has_website',
         'has_social_media',
     ]

@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContextDjango";
 import AnnouncementFormModal from "@/components/announcements/AnnouncementFormModal";
 import DocumentViewerModal from "@/components/ui/DocumentViewerModal";
 import AnnouncementDetailModal from "@/components/announcements/AnnouncementDetailModal";
+import AnnouncementList from "@/components/announcements/AnnouncementList";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -342,163 +343,22 @@ export default function ManagerAnnouncements() {
             </div>
           </div>
 
-          {/* Announcement Table */}
-          <div className="glass-card rounded-2xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-semibold">Title</TableHead>
-                  <TableHead className="font-semibold hidden md:table-cell">Message</TableHead>
-                  <TableHead className="font-semibold">Priority</TableHead>
-                  <TableHead className="font-semibold hidden lg:table-cell">Document</TableHead>
-                  <TableHead className="font-semibold hidden xl:table-cell">Created</TableHead>
-                  <TableHead className="font-semibold hidden xl:table-cell">Expires</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAnnouncements.map((announcement, index) => (
-                  <TableRow 
-                    key={announcement.id} 
-                    className="table-row-hover animate-fade-in"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {announcement.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          By {announcement.createdByName || 'Unknown'}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <p className="text-sm text-muted-foreground line-clamp-3 max-w-lg">
-                        {announcement.message}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("capitalize", getPriorityBadgeColor(announcement.priority))}
-                      >
-                        {announcement.priority}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      {announcement.document_url && announcement.document_name ? (
-                        <div className="flex items-center gap-2">
-                          {isImageFile(announcement.document_name) ? (
-                            <Image className="w-4 h-4 text-blue-500" />
-                          ) : (
-                            <FileText className="w-4 h-4 text-primary" />
-                          )}
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewDocument(announcement)}
-                              className="h-6 px-2 text-xs"
-                              title="View document"
-                            >
-                              <Eye className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDownloadDocument(announcement)}
-                              className="h-6 px-2 text-xs"
-                              title="Download document"
-                            >
-                              <Download className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      <p className="text-sm text-muted-foreground">
-                        {format(announcement.createdAt, 'MMM dd, yyyy')}
-                      </p>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      <p className="text-sm text-muted-foreground">
-                        {announcement.expiresAt 
-                          ? format(announcement.expiresAt, 'MMM dd, yyyy')
-                          : 'No expiration'}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn(getStatusBadgeColor(announcement.isActive))}
-                      >
-                        {announcement.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewAnnouncement(announcement)}
-                          className="h-8 w-8 p-0"
-                          title="View full announcement"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                        {canManageAnnouncement(announcement) && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditClick(announcement)}
-                              className="h-8 w-8 p-0"
-                              title="Edit announcement"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleToggleActive(announcement.id)}
-                              className="h-8 w-8 p-0"
-                              title={announcement.isActive ? 'Deactivate' : 'Activate'}
-                            >
-                              <Power className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteClick(announcement)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete announcement"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {filteredAnnouncements.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {searchQuery || priorityFilter !== 'all' || statusFilter !== 'active'
-                    ? 'No announcements found matching your filters' 
-                    : 'No announcements available'}
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Announcement List - responsive cards on mobile, table on desktop */}
+          <AnnouncementList
+            announcements={filteredAnnouncements}
+            onView={handleViewAnnouncement}
+            onViewDocument={handleViewDocument}
+            onDownloadDocument={handleDownloadDocument}
+            onEdit={handleEditClick}
+            onToggleActive={handleToggleActive}
+            onDelete={handleDeleteClick}
+            canManage={canManageAnnouncement}
+            emptyMessage={
+              searchQuery || priorityFilter !== 'all' || statusFilter !== 'active'
+                ? 'No announcements found matching your filters'
+                : 'No announcements available'
+            }
+          />
         </div>
       </div>
 

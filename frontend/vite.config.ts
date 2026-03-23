@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => ({
         name: "Eswari Connects CRM",
         short_name: "Eswari CRM",
         description: "Manage your real estate business efficiently with Eswari Connects CRM",
-        theme_color: "#1e40af",
+        theme_color: "#1e5c3a",
         background_color: "#ffffff",
         display: "standalone",
         orientation: "portrait-primary",

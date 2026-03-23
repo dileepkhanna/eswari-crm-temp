@@ -689,18 +689,87 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         </div>
       )}
 
-      {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="flex flex-col gap-4 md:hidden">
+        {filteredLeaves.length === 0 ? (
+          <div className="glass-card rounded-2xl text-center py-12">
+            <p className="text-muted-foreground">No leave requests found</p>
+          </div>
+        ) : filteredLeaves.map((leave, index) => (
+          <div key={leave.id} className="glass-card rounded-2xl p-4 space-y-3 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {canDelete && (
+                  <Checkbox
+                    checked={selectedIds.has(leave.id)}
+                    onCheckedChange={() => toggleSelect(leave.id)}
+                    aria-label={`Select ${leave.user_name}`}
+                    className="mt-0.5 shrink-0"
+                  />
+                )}
+                <div>
+                  <p className="font-semibold text-foreground">{leave.user_name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{leave.user_role}</p>
+                </div>
+              </div>
+              <LeaveStatusChip status={leave.status as LeaveStatus} />
+            </div>
+
+            {/* Leave type + duration */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{getLeaveTypeLabel(leave.leave_type)}</span>
+              <div className="text-right text-sm">
+                <p className="text-foreground">{format(new Date(leave.start_date), 'MMM dd')} – {format(new Date(leave.end_date), 'MMM dd, yyyy')}</p>
+                <p className="text-xs text-muted-foreground">{differenceInDays(new Date(leave.end_date), new Date(leave.start_date)) + 1} day(s)</p>
+              </div>
+            </div>
+
+            {/* Reason */}
+            {leave.reason && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{leave.reason}</p>
+            )}
+
+            {/* Rejection reason */}
+            {leave.status === 'rejected' && leave.rejection_reason && (
+              <p className="text-xs text-destructive">Rejected: {leave.rejection_reason}</p>
+            )}
+
+            {/* Actions row */}
+            <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+              {leave.document_url && canViewDocument(leave) && (
+                <Button variant="outline" size="sm" onClick={() => openDocument(leave.document_url!)} className="h-8 text-xs gap-1">
+                  <FileText className="w-3.5 h-3.5" /> Doc
+                </Button>
+              )}
+              {canApproveLeave(leave) && (
+                <>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => handleApprove(leave.id)}>
+                    <Check className="w-3.5 h-3.5" /> Approve
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => openRejectDialog(leave)}>
+                    <X className="w-3.5 h-3.5" /> Reject
+                  </Button>
+                </>
+              )}
+              {canDeleteLeave(leave) && (
+                <Button size="sm" variant="outline" className="h-8 px-2 text-destructive border-destructive/40 hover:bg-destructive/10 ml-auto" onClick={() => setDeleteLeaveId(leave.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block glass-card rounded-2xl overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {canDelete && (
                 <TableHead className="w-12">
-                  <Checkbox 
-                    checked={allSelected} 
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all"
-                  />
+                  <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="Select all" />
                 </TableHead>
               )}
               <TableHead className="font-semibold">Employee</TableHead>
@@ -714,18 +783,10 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
           </TableHeader>
           <TableBody>
             {filteredLeaves.map((leave, index) => (
-              <TableRow 
-                key={leave.id} 
-                className="table-row-hover animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
+              <TableRow key={leave.id} className="table-row-hover animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                 {canDelete && (
                   <TableCell>
-                    <Checkbox 
-                      checked={selectedIds.has(leave.id)} 
-                      onCheckedChange={() => toggleSelect(leave.id)}
-                      aria-label={`Select ${leave.user_name}`}
-                    />
+                    <Checkbox checked={selectedIds.has(leave.id)} onCheckedChange={() => toggleSelect(leave.id)} aria-label={`Select ${leave.user_name}`} />
                   </TableCell>
                 )}
                 <TableCell>
@@ -734,17 +795,13 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
                     <p className="text-xs text-muted-foreground capitalize">{leave.user_role}</p>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <p className="text-sm">{getLeaveTypeLabel(leave.leave_type)}</p>
-                </TableCell>
+                <TableCell><p className="text-sm">{getLeaveTypeLabel(leave.leave_type)}</p></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                     <div>
                       <p>{format(new Date(leave.start_date), 'MMM dd')} - {format(new Date(leave.end_date), 'MMM dd, yyyy')}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {differenceInDays(new Date(leave.end_date), new Date(leave.start_date)) + 1} day(s)
-                      </p>
+                      <p className="text-xs text-muted-foreground">{differenceInDays(new Date(leave.end_date), new Date(leave.start_date)) + 1} day(s)</p>
                     </div>
                   </div>
                 </TableCell>
@@ -752,21 +809,14 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
                   {leave.reason ? (
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary hover:text-primary h-8 px-3"
-                        >
-                          <FileText className="w-4 h-4 mr-1" />
-                          View Reason
+                        <Button variant="ghost" size="sm" className="text-primary hover:text-primary h-8 px-3">
+                          <FileText className="w-4 h-4 mr-1" /> View Reason
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-4" align="start">
                         <div className="space-y-2">
                           <h4 className="font-medium text-sm">Leave Reason</h4>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {leave.reason}
-                          </p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{leave.reason}</p>
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -776,15 +826,8 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
                 </TableCell>
                 <TableCell>
                   {leave.document_url && canViewDocument(leave) ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openDocument(leave.document_url!)}
-                      className="text-primary hover:text-primary"
-                    >
-                      <FileText className="w-4 h-4 mr-1" />
-                      View
-                      <ExternalLink className="w-3 h-3 ml-1" />
+                    <Button variant="ghost" size="sm" onClick={() => openDocument(leave.document_url!)} className="text-primary hover:text-primary">
+                      <FileText className="w-4 h-4 mr-1" /> View <ExternalLink className="w-3 h-3 ml-1" />
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
@@ -811,31 +854,16 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
                     <div className="flex items-center gap-2">
                       {canApproveLeave(leave) && (
                         <>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
-                            onClick={() => handleApprove(leave.id)}
-                          >
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => handleApprove(leave.id)}>
                             <Check className="w-4 h-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => openRejectDialog(leave)}
-                          >
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => openRejectDialog(leave)}>
                             <X className="w-4 h-4" />
                           </Button>
                         </>
                       )}
                       {canDeleteLeave(leave) && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteLeaveId(leave.id)}
-                        >
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteLeaveId(leave.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
@@ -849,7 +877,6 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
             ))}
           </TableBody>
         </Table>
-
         {filteredLeaves.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No leave requests found</p>
