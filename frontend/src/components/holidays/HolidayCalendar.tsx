@@ -161,17 +161,17 @@ export default function HolidayCalendar({
 
         <CardContent className="pb-3">
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
+          <div className="calendar-grid grid grid-cols-7 gap-0.5 sm:gap-1">
             {/* Week Day Headers */}
             {weekDays.map(day => (
-              <div key={day} className="p-1 text-center text-xs font-medium text-muted-foreground">
+              <div key={day} className="p-0.5 sm:p-1 text-center text-[10px] sm:text-xs font-medium text-muted-foreground">
                 {day}
               </div>
             ))}
 
             {/* Padding Days */}
             {paddingDays.map((_, index) => (
-              <div key={`padding-${index}`} className="p-1 h-16"></div>
+              <div key={`padding-${index}`} className="p-0.5 sm:p-1 h-10 sm:h-16"></div>
             ))}
 
             {/* Month Days */}
@@ -182,12 +182,12 @@ export default function HolidayCalendar({
               return (
                 <div
                   key={date.toISOString()}
-                  className={`p-1 h-16 border rounded-lg transition-colors ${
+                  className={`p-0.5 sm:p-1 h-10 sm:h-16 border rounded sm:rounded-lg transition-colors ${
                     isCurrentDay ? 'bg-primary/10 border-primary' : 'border-border hover:bg-muted/50'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs font-medium ${
+                  <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                    <span className={`text-[10px] sm:text-xs font-medium ${
                       isCurrentDay ? 'text-primary' : 'text-foreground'
                     }`}>
                       {format(date, 'd')}

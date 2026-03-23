@@ -1001,10 +1001,10 @@ export default function AdminASECustomers() {
                 </table>
               </div>
               {/* Mobile Card View - Visible on Mobile/Tablet */}
-              <div className="xl:hidden mobile-customer-cards space-y-3 p-4">
+              <div className="xl:hidden mobile-customer-cards space-y-2 p-2">
                 {/* Bulk Selection Header for Mobile */}
                 {filteredCustomers.length > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
@@ -1060,7 +1060,7 @@ export default function AdminASECustomers() {
 
                 {/* Customer Cards */}
                 {filteredCustomers.map((customer) => (
-                  <div key={customer.id} className="mobile-customer-card bg-white border border-gray-200 rounded-lg p-4 space-y-3 shadow-sm">
+                  <div key={customer.id} className="mobile-customer-card bg-white border border-gray-200 rounded-lg p-3 space-y-2 shadow-sm">
                     {/* Header Row */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
@@ -1149,7 +1149,7 @@ export default function AdminASECustomers() {
                     <div className="flex items-center justify-between">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${getCallStatusColor(customer.call_status)} cursor-pointer hover:opacity-80 transition-opacity h-9 min-h-9`}>
+                          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${getCallStatusColor(customer.call_status)} cursor-pointer hover:opacity-80 transition-opacity`}>
                             <span className="text-sm font-medium">
                               {customer.call_status === 'custom' && customer.custom_call_status 
                                 ? customer.custom_call_status
@@ -1240,7 +1240,7 @@ export default function AdminASECustomers() {
                           variant="outline" 
                           size="sm"
                           onClick={() => setSelectedCustomer(customer)}
-                          className="h-9 min-h-9 px-3 text-sm"
+                          className="h-7 min-h-7 px-2 text-xs"
                         >
                           Edit
                         </Button>
@@ -1249,7 +1249,7 @@ export default function AdminASECustomers() {
                             variant="outline" 
                             size="sm"
                             onClick={() => setConvertCustomer(customer)}
-                            className="h-9 min-h-9 px-3 text-sm text-blue-600 border-blue-600 hover:bg-blue-50"
+                            className="h-7 min-h-7 px-2 text-xs text-blue-600 border-blue-600 hover:bg-blue-50"
                           >
                             Convert
                           </Button>
@@ -1258,8 +1258,8 @@ export default function AdminASECustomers() {
                     </div>
 
                     {/* Bottom Info */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground pt-2 border-t">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                      <div className="flex items-center gap-1">
                         <CalendarIcon className="w-3 h-3" />
                         <span>
                           {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', {
@@ -1268,21 +1268,6 @@ export default function AdminASECustomers() {
                             hour: '2-digit',
                             minute: '2-digit'
                           }) : 'Never'}
-                        </span>
-                      </div>
-                      
-                      {/* Mobile Status Indicator */}
-                      <div className="flex items-center gap-1">
-                        <div className={`w-2 h-2 rounded-full ${
-                          customer.call_status === 'pending' ? 'bg-yellow-500' :
-                          customer.call_status === 'answered' ? 'bg-green-500' :
-                          customer.call_status === 'not_answered' ? 'bg-red-500' :
-                          customer.call_status === 'busy' ? 'bg-orange-500' :
-                          customer.call_status === 'not_interested' ? 'bg-gray-500' :
-                          'bg-purple-500'
-                        }`} />
-                        <span className="text-xs">
-                          {ASE_CALL_STATUS_OPTIONS.find(s => s.value === customer.call_status)?.label || customer.call_status}
                         </span>
                       </div>
                     </div>

@@ -216,9 +216,9 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
       {viewLead && <LeadDetailModal lead={viewLead} onClose={() => setViewLead(null)} />}
 
       {/* Mobile card view */}
-      <div className="block md:hidden space-y-3">
+      <div className="block md:hidden space-y-2">
         {leads.map((lead) => (
-          <div key={lead.id} className={`border rounded-xl p-3 transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5 border-primary/30' : 'bg-background'}`}>
+          <div key={lead.id} className={`border rounded-lg p-2.5 transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5 border-primary/30' : 'bg-background'}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2 min-w-0">
                 <input

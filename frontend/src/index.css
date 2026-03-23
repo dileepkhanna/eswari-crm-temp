@@ -499,8 +499,8 @@
     min-height: 40px; /* Ensure touch-friendly size */
   }
   
-  /* Better mobile grid spacing */
-  .grid {
+  /* Better mobile grid spacing - don't override calendar grids */
+  .grid:not(.calendar-grid) {
     @apply gap-2;
   }
   
@@ -518,10 +518,10 @@
     @apply break-words;
   }
   
-  /* Ensure proper touch targets */
-  button, a {
-    min-height: 44px;
-    min-width: 44px;
+  /* Ensure proper touch targets - exclude checkboxes and small UI elements */
+  button:not([role="checkbox"]):not([data-radix-checkbox-root]):not(.icon-btn):not([data-radix-collection-item]),
+  a:not(.icon-link) {
+    min-height: 36px;
   }
   
   /* Better mobile typography */
@@ -571,8 +571,8 @@
     @apply text-base;
   }
   
-  /* Ensure grid items stack properly */
-  .grid {
+  /* Ensure grid items stack properly - but NOT calendar grids */
+  .grid:not(.calendar-grid) {
     @apply grid-cols-1;
   }
   

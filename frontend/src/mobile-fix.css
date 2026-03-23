@@ -187,13 +187,19 @@ button.btn-accent {
 
 /* Keep customer cards rectangular with normal size */
 .mobile-customer-card {
-  border-radius: 0.5rem !important; /* Normal rounded corners */
-  padding: 1rem !important; /* Normal padding */
+  border-radius: 0.5rem !important;
+  padding: 0.75rem !important;
 }
 
 .glass-card {
-  border-radius: 1rem !important; /* Normal rounded corners */
-  padding: 1.5rem !important; /* Normal padding */
+  border-radius: 1rem !important;
+}
+
+@media (max-width: 768px) {
+  .glass-card {
+    padding: 0.75rem !important;
+    border-radius: 0.75rem !important;
+  }
 }
 
 /* Ensure table content is readable */
@@ -248,8 +254,8 @@ p, span:not(.rounded-full span), div:not(.rounded-full) {
   
   /* Keep cards rectangular */
   .mobile-customer-card {
-    border-radius: 0.5rem !important; /* Normal rounded corners */
-    padding: 1rem !important; /* Normal padding */
+    border-radius: 0.5rem !important;
+    padding: 0.75rem !important;
   }
   
   /* Ensure mobile text remains readable */
@@ -273,4 +279,26 @@ p, span:not(.rounded-full span), div:not(.rounded-full) {
   flex-shrink: 0 !important;
   border-radius: 3px !important;
   padding: 0 !important;
+}
+
+/* Global fix: checkboxes should never be oversized on mobile */
+@media (max-width: 1024px) {
+  [role="checkbox"],
+  button[role="checkbox"],
+  [data-radix-checkbox-root] {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Calendar grid must always be 7 columns */
+.calendar-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
 }

@@ -1085,7 +1085,7 @@ function CustomerList({
             </div>
 
             <div className="lg:hidden">
-              <div className="p-4 border-b flex items-center justify-between">
+              <div className="p-2 border-b flex items-center justify-between">
                 {!isManagerView && (
                   <div className="flex items-center gap-2">
                     <Checkbox 
@@ -1106,13 +1106,13 @@ function CustomerList({
                 {paginatedCustomers.map((customer, index) => (
                   <div 
                     key={customer.id} 
-                    className={`p-4 animate-fade-in ${
+                    className={`p-2.5 animate-fade-in ${
                       deletingCustomers.has(customer.id) 
                         ? 'animate-delete-mobile bg-red-50 opacity-50 transform scale-95' 
                         : ''
                     }`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2">
                       {!isManagerView && (
                         <Checkbox 
                           checked={selectedIds.has(customer.id)} 
@@ -1121,7 +1121,7 @@ function CustomerList({
                         />
                       )}
                       
-                      <div className="flex-1 space-y-3">
+                      <div className="flex-1 space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-base">
