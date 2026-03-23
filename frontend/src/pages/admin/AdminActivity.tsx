@@ -431,10 +431,10 @@ export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?:
         {/* Filters */}
         <div className="glass-card rounded-2xl p-4 md:p-6">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap gap-4 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-3 lg:gap-4 items-end">
               {/* Company Filter - Admin only */}
               {user?.role === 'admin' && (
-                <div className="min-w-[180px]">
+                <div className="w-full sm:min-w-[180px] sm:w-auto">
                   <label className="text-sm font-medium text-muted-foreground mb-2 block">Company</label>
                   <Select value={companyFilter} onValueChange={(v) => { setCompanyFilter(v); setSelectedUser('all'); }}>
                     <SelectTrigger>
@@ -458,7 +458,7 @@ export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?:
                 </div>
               )}
               {/* Search */}
-              <div className="flex-1 min-w-[200px]">
+              <div className="flex-1 w-full sm:min-w-[200px]">
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -472,7 +472,7 @@ export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?:
               </div>
 
               {/* User Filter */}
-              <div className="min-w-[180px]">
+              <div className="w-full sm:min-w-[180px] sm:w-auto">
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Staff/Manager</label>
                 <Select value={selectedUser} onValueChange={setSelectedUser}>
                   <SelectTrigger>
@@ -490,7 +490,7 @@ export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?:
               </div>
 
               {/* Module Filter */}
-              <div className="min-w-[150px]">
+              <div className="w-full sm:min-w-[150px] sm:w-auto">
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Module</label>
                 <Select value={selectedModule} onValueChange={setSelectedModule}>
                   <SelectTrigger>
@@ -509,7 +509,7 @@ export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?:
               </div>
 
               {/* Action Filter */}
-              <div className="min-w-[150px]">
+              <div className="w-full sm:min-w-[150px] sm:w-auto">
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Action</label>
                 <Select value={selectedAction} onValueChange={setSelectedAction}>
                   <SelectTrigger>
@@ -527,7 +527,7 @@ export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?:
               </div>
 
               {/* Date Range Filter */}
-              <div className="min-w-[200px]">
+              <div className="w-full sm:min-w-[200px] sm:w-auto">
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Date Range</label>
                 <Popover>
                   <PopoverTrigger asChild>

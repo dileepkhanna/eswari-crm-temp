@@ -259,3 +259,18 @@ p, span:not(.rounded-full span), div:not(.rounded-full) {
     line-height: 1.25rem !important;
   }
 }
+
+
+/* Fix oversized checkboxes in mobile card views */
+.mobile-customer-cards [role="checkbox"],
+.mobile-customer-cards button[role="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  flex-shrink: 0 !important;
+  border-radius: 3px !important;
+  padding: 0 !important;
+}

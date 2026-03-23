@@ -236,10 +236,10 @@ export default function AdminASELeads() {
     <div className="min-h-screen bg-background">
       <TopBar title="ASE Leads" />
 
-      <div className="p-6 space-y-6">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         <AnnouncementBanner userRole={user?.role || 'admin'} maxDisplay={2} />
 
-        <div className="glass-card p-6">
+        <div className="glass-card p-3 md:p-6">
           {/* Header */}
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Lead Management</h2>
@@ -263,7 +263,7 @@ export default function AdminASELeads() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36"
+              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-32 md:w-36"
               style={{ appearance: 'auto' }}
             >
               <option value="">All Status</option>
@@ -281,7 +281,7 @@ export default function AdminASELeads() {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36"
+              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-32 md:w-36"
               style={{ appearance: 'auto' }}
             >
               <option value="">All Priority</option>
@@ -294,7 +294,7 @@ export default function AdminASELeads() {
             <select
               value={industryFilter}
               onChange={(e) => setIndustryFilter(e.target.value)}
-              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40"
+              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36 md:w-40"
               style={{ appearance: 'auto' }}
             >
               <option value="">All Industries</option>
@@ -325,21 +325,24 @@ export default function AdminASELeads() {
           </div>
 
           {/* Row 3: Action buttons */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+            {/* Left: import/export/bulk */}
+            <div className="flex flex-wrap items-center gap-2">
               <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
 
               <Button variant="outline" size="sm" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={handleDownloadTemplate}>
                 <DownloadIcon className="w-3.5 h-3.5" />
-                Download Template
+                <span className="hidden sm:inline">Download Template</span>
+                <span className="sm:hidden">Template</span>
               </Button>
               <Button variant="outline" size="sm" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={() => importInputRef.current?.click()}>
                 <UploadIcon className="w-3.5 h-3.5" />
-                Import Excel
+                Import
               </Button>
               <Button variant="outline" size="sm" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={handleExportExcel} disabled={exporting}>
                 <DownloadIcon className="w-3.5 h-3.5" />
-                {exporting ? 'Exporting...' : `Export Data (${totalCount})`}
+                <span className="hidden sm:inline">{exporting ? 'Exporting...' : `Export (${totalCount})`}</span>
+                <span className="sm:hidden">Export</span>
               </Button>
 
               {/* Bulk delete — only visible when rows are selected */}
@@ -352,11 +355,12 @@ export default function AdminASELeads() {
                   disabled={bulkDeleting}
                 >
                   <Trash2Icon className="w-3.5 h-3.5" />
-                  {bulkDeleting ? 'Deleting...' : deleteAllMatching ? `Delete All (${totalCount})` : `Delete Selected (${selectedIds.size})`}
+                  {bulkDeleting ? 'Deleting...' : deleteAllMatching ? `Delete All (${totalCount})` : `Delete (${selectedIds.size})`}
                 </Button>
               )}
             </div>
 
+            {/* Right: view toggle + add */}
             <div className="flex items-center gap-2">
               {/* View toggle */}
               <div className="flex items-center border border-border rounded-full overflow-hidden">
@@ -365,20 +369,21 @@ export default function AdminASELeads() {
                   className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${viewMode === 'table' ? 'bg-primary text-white' : 'hover:bg-muted'}`}
                 >
                   <LayoutListIcon className="w-3.5 h-3.5" />
-                  Table
+                  <span className="hidden sm:inline">Table</span>
                 </button>
                 <button
                   onClick={() => setViewMode('kanban')}
                   className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${viewMode === 'kanban' ? 'bg-primary text-white' : 'hover:bg-muted'}`}
                 >
                   <KanbanIcon className="w-3.5 h-3.5" />
-                  Kanban
+                  <span className="hidden sm:inline">Kanban</span>
                 </button>
               </div>
 
               <Button className="btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Add Lead
+                <PlusIcon className="w-4 h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Add Lead</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </div>
           </div>
@@ -398,7 +403,7 @@ export default function AdminASELeads() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4 pt-4 border-t">
               <p className="text-sm text-muted-foreground">
                 Showing {(currentPage - 1) * 50 + 1}–{Math.min(currentPage * 50, totalCount)} of {totalCount} leads
               </p>

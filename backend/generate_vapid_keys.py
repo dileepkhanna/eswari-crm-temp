@@ -1,65 +1,62 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
-Generate VAPID keys for Web Push Notifications
-
-Run this script to generate VAPID keys and add them to your .env file
+Generate VAPID keys and automatically update .env file.
+Run: python3 generate_vapid_keys.py
 """
-
-try:
-    from pywebpush import webpush
-    print("✓ pywebpush is installed")
-except ImportError:
-    print("✗ pywebpush is not installed")
-    print("\nPlease install it using:")
-    print("  pip install pywebpush")
-    exit(1)
-
-from py_vapid import Vapid01
-from cryptography.hazmat.primitives import serialization
 import base64
+import os
+import re
+import sys
 
-print("\n" + "="*60)
-print("VAPID Key Generator for Web Push Notifications")
-print("="*60 + "\n")
+def generate_keys():
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-# Generate VAPID keys
-vapid = Vapid01()
-vapid.generate_keys()
+    key = ec.generate_private_key(ec.SECP256R1())
+    # Public key: uncompressed EC point (65 bytes → 87 char base64url)
+    pub_bytes = key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+    # Private key: raw 32-byte scalar (not PEM, not DER)
+    priv_scalar = key.private_numbers().private_value.to_bytes(32, 'big')
 
-private_key = vapid.private_key.private_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PrivateFormat.PKCS8,
-    encryption_algorithm=serialization.NoEncryption()
-).decode('utf-8')
+    pub_b64 = base64.urlsafe_b64encode(pub_bytes).rstrip(b'=').decode()
+    priv_b64 = base64.urlsafe_b64encode(priv_scalar).rstrip(b'=').decode()
+    return pub_b64, priv_b64
 
-public_key = vapid.public_key.public_bytes(
-    encoding=serialization.Encoding.X962,
-    format=serialization.PublicFormat.UncompressedPoint
-)
 
-# Convert to base64 URL-safe format
-public_key_b64 = base64.urlsafe_b64encode(public_key).decode('utf-8').rstrip('=')
+def update_env(env_path, pub_key, priv_key):
+    with open(env_path, 'r') as f:
+        content = f.read()
 
-print("VAPID Keys Generated Successfully!\n")
-print("-" * 60)
-print("\nAdd these to your backend .env file:")
-print("-" * 60)
-print(f"VAPID_PRIVATE_KEY={private_key.replace(chr(10), '\\n')}")
-print(f"VAPID_PUBLIC_KEY={public_key_b64}")
-print(f"VAPID_ADMIN_EMAIL=admin@eswaricr m.com")
+    # Replace or append VAPID_PUBLIC_KEY
+    if re.search(r'^VAPID_PUBLIC_KEY=', content, re.MULTILINE):
+        content = re.sub(r'^VAPID_PUBLIC_KEY=.*$', f'VAPID_PUBLIC_KEY={pub_key}', content, flags=re.MULTILINE)
+    else:
+        content += f'\nVAPID_PUBLIC_KEY={pub_key}'
 
-print("\n" + "-" * 60)
-print("\nAdd this to your frontend .env file:")
-print("-" * 60)
-print(f"VITE_VAPID_PUBLIC_KEY={public_key_b64}")
+    # Replace or append VAPID_PRIVATE_KEY
+    if re.search(r'^VAPID_PRIVATE_KEY=', content, re.MULTILINE):
+        content = re.sub(r'^VAPID_PRIVATE_KEY=.*$', f'VAPID_PRIVATE_KEY={priv_key}', content, flags=re.MULTILINE)
+    else:
+        content += f'\nVAPID_PRIVATE_KEY={priv_key}'
 
-print("\n" + "="*60)
-print("Setup Complete!")
-print("="*60 + "\n")
-print("Next steps:")
-print("1. Copy the keys above to your .env files")
-print("2. Run: python manage.py makemigrations notifications")
-print("3. Run: python manage.py migrate")
-print("4. Restart your Django server")
-print("5. Restart your React development server")
-print("\n")
+    with open(env_path, 'w') as f:
+        f.write(content)
+
+
+if __name__ == '__main__':
+    env_path = os.path.join(os.path.dirname(__file__), '.env')
+
+    if not os.path.exists(env_path):
+        print(f'ERROR: .env not found at {env_path}')
+        sys.exit(1)
+
+    pub, priv = generate_keys()
+
+    print(f'Generated keys:')
+    print(f'  VAPID_PUBLIC_KEY={pub}')
+    print(f'  VAPID_PRIVATE_KEY={priv}')
+
+    update_env(env_path, pub, priv)
+    print(f'\n.env updated successfully at {env_path}')
+    print('\nIMPORTANT: Restart gunicorn for changes to take effect:')
+    print('  sudo systemctl restart gunicorn')

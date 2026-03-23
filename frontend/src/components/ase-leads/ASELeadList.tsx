@@ -215,8 +215,84 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
     <>
       {viewLead && <LeadDetailModal lead={viewLead} onClose={() => setViewLead(null)} />}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table className="w-full text-sm" style={{ minWidth: '1050px' }}>
+      {/* Mobile card view */}
+      <div className="block md:hidden space-y-3">
+        {leads.map((lead) => (
+          <div key={lead.id} className={`border rounded-xl p-3 transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5 border-primary/30' : 'bg-background'}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2 min-w-0">
+                <input
+                  type="checkbox"
+                  className="rounded cursor-pointer mt-0.5 flex-shrink-0"
+                  checked={selectedIds.has(lead.id)}
+                  onChange={() => onToggleOne(lead.id)}
+                />
+                <div className="min-w-0">
+                  <div className="font-medium text-sm leading-tight truncate">{lead.company_name}</div>
+                  <div className="text-xs text-muted-foreground">{lead.contact_person}</div>
+                  {lead.phone && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                      <PhoneIcon className="w-3 h-3 flex-shrink-0" />
+                      <span>{lead.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500" onClick={() => setViewLead(lead)}>
+                  <EyeIcon className="w-3.5 h-3.5" />
+                </Button>
+                {onEditLead && (
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEditLead(lead)}>
+                    <EditIcon className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                {onDeleteLead && (
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => onDeleteLead(lead)}>
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs border font-medium ${
+                lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
+                lead.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-300' :
+                lead.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                'bg-gray-50 text-gray-600 border-gray-300'
+              }`}>
+                {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${getStatusColor(lead.status)}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusDot(lead.status)}`} />
+                    {STATUS_OPTIONS.find(s => s.value === lead.status)?.label || lead.status}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44 z-50">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(lead.id, opt.value)} className={`cursor-pointer text-xs ${lead.status === opt.value ? 'bg-primary/10 text-primary' : ''}`}>
+                      <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${getStatusDot(opt.value)}`} />
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {(lead.budget_amount || lead.estimated_project_value) && (
+                <span className="text-xs text-muted-foreground">₹{lead.budget_amount || lead.estimated_project_value}</span>
+              )}
+            </div>
+            {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-1 truncate">{lead.service_interests_display.join(', ')}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: '900px' }}>
           <thead>
             <tr className="border-b text-muted-foreground text-xs">
               <th className="text-left py-2 px-3 font-medium w-6">
@@ -228,39 +304,26 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                   onChange={onToggleAll}
                 />
               </th>
-              <th className="text-left py-2 px-3 font-medium">Name ↕</th>
+              <th className="text-left py-2 px-3 font-medium">Name</th>
               <th className="text-left py-2 px-3 font-medium">Phone</th>
-              <th className="text-left py-2 px-3 font-medium">Contact</th>
               <th className="text-left py-2 px-3 font-medium">Services</th>
               <th className="text-left py-2 px-3 font-medium">Budget</th>
               <th className="text-left py-2 px-3 font-medium">Priority</th>
               <th className="text-left py-2 px-3 font-medium">Status</th>
               <th className="text-left py-2 px-3 font-medium">Created By</th>
-              <th className="text-left py-2 px-3 font-medium">Actions</th>            </tr>
+              <th className="text-left py-2 px-3 font-medium">Actions</th>
+            </tr>
           </thead>
           <tbody>
             {leads.map((lead) => (
               <tr key={lead.id} className={`border-b transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
-                {/* Checkbox */}
                 <td className="py-3 px-3">
-                  <input
-                    type="checkbox"
-                    className="rounded cursor-pointer"
-                    checked={selectedIds.has(lead.id)}
-                    onChange={() => onToggleOne(lead.id)}
-                  />
+                  <input type="checkbox" className="rounded cursor-pointer" checked={selectedIds.has(lead.id)} onChange={() => onToggleOne(lead.id)} />
                 </td>
-
-                {/* Name */}
                 <td className="py-3 px-3">
                   <div className="font-medium text-sm leading-tight">{lead.company_name}</div>
                   <div className="text-xs text-muted-foreground">{lead.contact_person}</div>
-                  {lead.website && (
-                    <div className="text-xs text-muted-foreground">{lead.lead_source || 'Website'}</div>
-                  )}
                 </td>
-
-                {/* Phone */}
                 <td className="py-3 px-3">
                   {lead.phone ? (
                     <div className="flex items-center gap-1 text-muted-foreground">
@@ -269,17 +332,6 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     </div>
                   ) : <span className="text-muted-foreground">-</span>}
                 </td>
-
-                {/* Contact */}
-                <td className="py-3 px-3">
-                  {lead.email ? (
-                    <div className="flex items-center gap-1 text-muted-foreground" title={lead.email}>
-                      <MailIcon className="w-3 h-3 flex-shrink-0" />
-                    </div>
-                  ) : <span className="text-muted-foreground">-</span>}
-                </td>
-
-                {/* Services */}
                 <td className="py-3 px-3">
                   <div className="text-xs text-muted-foreground max-w-[120px] truncate">
                     {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0
@@ -287,19 +339,11 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                       : lead.industry || '-'}
                   </div>
                 </td>
-
-                {/* Budget */}
                 <td className="py-3 px-3 text-sm">
-                  {lead.budget_amount ? (
-                    <span>₹{lead.budget_amount}</span>
-                  ) : lead.estimated_project_value ? (
-                    <span>₹{lead.estimated_project_value}</span>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
+                  {lead.budget_amount ? <span>₹{lead.budget_amount}</span>
+                    : lead.estimated_project_value ? <span>₹{lead.estimated_project_value}</span>
+                    : <span className="text-muted-foreground">-</span>}
                 </td>
-
-                {/* Priority */}
                 <td className="py-3 px-3">
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs border font-medium ${
                     lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
@@ -310,8 +354,6 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
                   </span>
                 </td>
-
-                {/* Status dropdown */}
                 <td className="py-3 px-3">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -325,11 +367,7 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-44 z-50">
                       {STATUS_OPTIONS.map((opt) => (
-                        <DropdownMenuItem
-                          key={opt.value}
-                          onClick={() => handleStatusChange(lead.id, opt.value)}
-                          className={`cursor-pointer text-xs ${lead.status === opt.value ? 'bg-primary/10 text-primary' : ''}`}
-                        >
+                        <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(lead.id, opt.value)} className={`cursor-pointer text-xs ${lead.status === opt.value ? 'bg-primary/10 text-primary' : ''}`}>
                           <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${getStatusDot(opt.value)}`} />
                           {opt.label}
                         </DropdownMenuItem>
@@ -337,8 +375,6 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>
-
-                {/* Created By */}
                 <td className="py-3 px-3">
                   <div className="flex items-center gap-1.5">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
@@ -352,8 +388,6 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     </div>
                   </div>
                 </td>
-
-                {/* Actions */}
                 <td className="py-3 px-3">
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" title="View Details" onClick={() => setViewLead(lead)}>

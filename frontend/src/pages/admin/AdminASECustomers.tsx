@@ -498,7 +498,7 @@ export default function AdminASECustomers() {
     <div className="min-h-screen bg-background">
       <TopBar title="ASE Customers" />
       
-      <div className="p-6 space-y-6">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         {/* Announcements */}
         <AnnouncementBanner userRole={user?.role || 'admin'} maxDisplay={2} />
         
@@ -545,8 +545,8 @@ export default function AdminASECustomers() {
         </div>
 
         {/* Main Content */}
-        <div className="glass-card p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="glass-card p-3 md:p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 md:mb-6">
             <div>
               <h2 className="text-xl font-semibold">ASE Customer Management</h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -1005,11 +1005,12 @@ export default function AdminASECustomers() {
                 {/* Bulk Selection Header for Mobile */}
                 {filteredCustomers.length > 0 && (
                   <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all customers"
+                        className="h-4 w-4 flex-shrink-0"
                       />
                       <span className="text-sm font-medium">
                         {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
@@ -1062,11 +1063,12 @@ export default function AdminASECustomers() {
                   <div key={customer.id} className="mobile-customer-card bg-white border border-gray-200 rounded-lg p-4 space-y-3 shadow-sm">
                     {/* Header Row */}
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           checked={selectedIds.has(customer.id)}
                           onCheckedChange={() => toggleSelect(customer.id)}
                           aria-label={`Select customer ${customer.name || customer.phone}`}
+                          className="h-4 w-4 flex-shrink-0 mt-0.5"
                         />
                         <div>
                           <div className="flex items-center gap-2">

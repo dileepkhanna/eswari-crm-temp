@@ -581,8 +581,8 @@ export default function AdminAnnouncements() {
   return (
     <div className="min-h-screen">
       <TopBar title="Announcement Management" subtitle="Manage company announcements" />
-      <div className="p-6">
-        <div className="space-y-6">
+      <div className="p-3 md:p-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Search Bar and Filters */}
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
