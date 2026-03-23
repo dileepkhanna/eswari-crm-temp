@@ -17,11 +17,12 @@ import { CompanyBranding } from "@/components/CompanyBranding";
 import AppRouter from "@/components/AppRouter";
 import { useEffect } from "react";
 import { initTokenCleaner } from "@/lib/tokenCleaner";
+import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
+import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Initialize token cleaner on app startup
   useEffect(() => {
     initTokenCleaner();
   }, []);
@@ -40,11 +41,13 @@ const App = () => {
                       <ASECustomerProvider>
                         <ASELeadProvider>
                           <TooltipProvider>
+                            <OfflineIndicator />
                             <Toaster />
                             <Sonner />
                             <BrowserRouter>
                               <AppRouter />
                             </BrowserRouter>
+                            <PWAInstallPrompt />
                           </TooltipProvider>
                         </ASELeadProvider>
                       </ASECustomerProvider>
