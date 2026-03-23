@@ -24,25 +24,26 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
-        """Filter activity logs based on user role and manager-employee hierarchy"""
+        """Filter activity logs based on user role and company"""
         user = self.request.user
         
-        # Optimize queries with select_related for company and user
         base_queryset = ActivityLog.objects.select_related('company', 'user')
         
         if user.role == 'admin':
-            # Admins can see all activity logs
+            # Admin sees all logs, optionally filtered by company
+            company_id = self.request.query_params.get('company')
+            if company_id:
+                return base_queryset.filter(company_id=company_id)
             return base_queryset
         elif user.role == 'manager':
-            # Managers can only see activity logs from their assigned employees + their own
-            assigned_employees = user.employees.all()  # Using the related_name from User model
+            # Manager sees logs from their assigned employees + themselves, scoped to their company
+            assigned_employees = user.employees.all()
             employee_ids = [emp.id for emp in assigned_employees]
-            employee_ids.append(user.id)  # Include manager's own logs
-            
-            return base_queryset.filter(user__id__in=employee_ids)
+            employee_ids.append(user.id)
+            return base_queryset.filter(user__id__in=employee_ids, company=user.company)
         else:
-            # Employees can only see their own activity logs
-            return base_queryset.filter(user=user)
+            # Employees see only their own logs
+            return base_queryset.filter(user=user, company=user.company)
     
     def create(self, request, *args, **kwargs):
         """Override create to ensure proper user assignment and logging"""

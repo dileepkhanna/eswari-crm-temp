@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 from django.conf import settings
 from django.utils import timezone
@@ -8,18 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_vapid_private_key(key: str) -> str:
-    """
-    Normalize VAPID private key to PEM format.
-    Handles both raw base64 and already-formatted PEM keys.
-    """
+    """Return VAPID private key in the format pywebpush expects."""
     key = key.strip()
     if key.startswith('-----'):
-        # Already PEM format — just ensure real newlines
         return key.replace('\\n', '\n')
-    # Raw base64 — wrap in PEM headers
-    # Split into 64-char lines
-    lines = [key[i:i+64] for i in range(0, len(key), 64)]
-    return '-----BEGIN PRIVATE KEY-----\n' + '\n'.join(lines) + '\n-----END PRIVATE KEY-----'
+    return key
 
 
 def _send_webpush(subscription: PushSubscription, title: str, body: str, data: dict = None) -> bool:
@@ -61,22 +54,17 @@ def _send_webpush(subscription: PushSubscription, title: str, body: str, data: d
     except Exception as e:
         err_str = str(e)
         logger.error(f'Web push send error for {subscription.endpoint[:40]}...: {err_str}')
-        # 410 Gone = subscription expired/invalid, deactivate it
         if '410' in err_str or '404' in err_str:
             subscription.is_active = False
             subscription.save(update_fields=['is_active'])
         return False
 
 
-def send_push_notification(user, title, message, notification_type='other', data=None, company=None):
-    """
-    Send a web push notification to a user via Django + pywebpush (no Firebase).
-    Also creates a Notification record in the DB.
-    """
+def send_notification(user, title, message, notification_type='other', data=None, company=None):
+    """Create an in-app Notification DB record."""
     try:
         resolved_company = company or getattr(user, 'company', None)
-
-        notification_kwargs = dict(
+        kwargs = dict(
             user=user,
             notification_type=notification_type,
             title=title,
@@ -84,33 +72,36 @@ def send_push_notification(user, title, message, notification_type='other', data
             data=data or {},
         )
         if resolved_company:
-            notification_kwargs['company'] = resolved_company
+            kwargs['company'] = resolved_company
+        return Notification.objects.create(**kwargs)
+    except Exception as e:
+        logger.error(f'Error creating notification for {user}: {e}')
+        return None
 
-        notification = Notification.objects.create(**notification_kwargs)
+
+def send_push_notification(user, title, message, notification_type='other', data=None, company=None):
+    """
+    Create a DB notification AND send a Web Push to all active browser subscriptions.
+    Falls back gracefully if no subscriptions exist or pywebpush is unavailable.
+    """
+    try:
+        notification = send_notification(user, title, message, notification_type, data, company)
 
         subscriptions = PushSubscription.objects.filter(user=user, is_active=True)
         if not subscriptions.exists():
             logger.info(f'No active push subscriptions for user {user.username}')
-            return False
+            return notification is not None
 
         push_data = {
-            'notification_id': str(notification.id),
+            'notification_id': str(notification.id) if notification else '',
             'type': notification_type,
             **(data or {}),
         }
 
-        success_count = 0
         for sub in subscriptions:
-            if _send_webpush(sub, title, message, push_data):
-                success_count += 1
+            _send_webpush(sub, title, message, push_data)
 
-        if success_count > 0:
-            notification.is_sent = True
-            notification.sent_at = timezone.now()
-            notification.save(update_fields=['is_sent', 'sent_at'])
-            return True
-
-        return False
+        return True
 
     except Exception as e:
         logger.error(f'Error in send_push_notification: {e}')

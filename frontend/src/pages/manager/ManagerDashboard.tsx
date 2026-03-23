@@ -10,15 +10,21 @@ import TeamPerformanceDashboard from '@/components/ase-customers/TeamPerformance
 import { useData } from '@/contexts/DataContextDjango';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useASELead } from '@/contexts/ASELeadContext';
+import { useASECustomers } from '@/contexts/ASECustomerContext';
 import { logger } from '@/lib/logger';
-// import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
-import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity, Users } from 'lucide-react';
+import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity, Users, Briefcase, PhoneCall } from 'lucide-react';
 
 export default function ManagerDashboard() {
   const { leads, tasks, projects, announcements } = useData();
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
+  const { leads: aseLeads } = useASELead();
+  const { customers: aseCustomers } = useASECustomers();
   const [pendingLeaves, setPendingLeaves] = useState(0);
+
+  const userCompanyCode = user?.company?.code || '';
+  const isASE = userCompanyCode === 'ASE_TECH' || userCompanyCode === 'ASE';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +44,43 @@ export default function ManagerDashboard() {
   const activeTasks = tasks.filter(t => t.status !== 'completed').length;
   const employeeNames = user?.employees_names || [];
   const employeeCount = user?.employees_count || 0;
+
+  if (isASE) {
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Manager Dashboard" subtitle="Monitor your team's performance" />
+        <div className="p-6 space-y-6">
+          <AnnouncementBanner userRole="manager" maxDisplay={2} />
+          {employeeCount > 0 && (
+            <div className="glass-card rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                My Team ({employeeCount} {employeeCount === 1 ? 'Employee' : 'Employees'})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {employeeNames.map((name, index) => (
+                  <span key={index} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">{name}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="ASE Leads" value={aseLeads.length}
+              change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
+              changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={0} href="/manager/ase-leads" />
+            <StatCard title="ASE Customers" value={aseCustomers.length}
+              change={aseCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${aseCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
+              changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={50} href="/manager/ase-customers" />
+            <StatCard title="Reports" value="View" change="Performance insights" changeType="neutral"
+              icon={BarChart3} iconColor="bg-success" delay={100} href="/manager/reports" />
+            <StatCard title="Activity" value="Monitor" change="Recent actions" changeType="neutral"
+              icon={Activity} iconColor="bg-purple-500" delay={150} href="/manager/activity" />
+          </div>
+          <TeamPerformanceDashboard />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

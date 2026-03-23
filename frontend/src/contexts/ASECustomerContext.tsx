@@ -4,6 +4,7 @@ import { ASECustomerService } from '@/services/ase-customer.service';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
 import { toast } from 'sonner';
+import { logCustomerActivity } from '@/lib/activityLogger';
 
 import { logger } from '@/lib/logger';
 
@@ -176,12 +177,16 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
   const createCustomer = useCallback(async (data: Partial<ASECustomerFormData>): Promise<ASECustomer> => {
     try {
       setError(null);
-      const companyId = selectedCompany?.id || user?.company?.id;
+      const companyId = (data as any).company || selectedCompany?.id || user?.company?.id;
       if (!companyId) throw new Error('Company information is required');
       
       const newCustomer = await ASECustomerService.createCustomer({ ...data, company: companyId } as any);
       setCustomers(prev => [newCustomer, ...prev]);
       toast.success('ASE Customer created successfully');
+      if (user) logCustomerActivity(
+        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        'created', newCustomer.name || newCustomer.phone
+      );
       return newCustomer;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create customer';
@@ -198,6 +203,10 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       const updatedCustomer = await ASECustomerService.updateCustomer(id, data);
       setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c));
       toast.success('ASE Customer updated successfully');
+      if (user) logCustomerActivity(
+        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        'updated', updatedCustomer.name || updatedCustomer.phone
+      );
       return updatedCustomer;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update customer';
@@ -205,22 +214,27 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       toast.error(errorMessage);
       throw err;
     }
-  }, []);
+  }, [user]);
 
   // Delete customer
   const deleteCustomer = useCallback(async (id: string): Promise<void> => {
     try {
       setError(null);
+      const customer = customers.find(c => c.id === id);
       await ASECustomerService.deleteCustomer(id);
       setCustomers(prev => prev.filter(c => c.id !== id));
       toast.success('ASE Customer deleted successfully');
+      if (user) logCustomerActivity(
+        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        'deleted', customer?.name || customer?.phone || id
+      );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete customer';
       setError(errorMessage);
       toast.error(errorMessage);
       throw err;
     }
-  }, []);
+  }, [user, customers]);
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -285,20 +299,22 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
   const convertToLead = useCallback(async (customerId: string, leadData: any): Promise<void> => {
     try {
       setError(null);
+      const customer = customers.find(c => c.id === customerId);
       const result = await ASECustomerService.convertToLead(customerId, leadData);
       
-      // Update the customer as converted in local state
       setCustomers(prev => 
-        prev.map(customer => 
-          customer.id === customerId 
-            ? { ...customer, is_converted: true, converted_lead_id: result.lead_id }
-            : customer
+        prev.map(c => 
+          c.id === customerId 
+            ? { ...c, is_converted: true, converted_lead_id: result.lead_id }
+            : c
         )
       );
       
-      // Refresh stats
       fetchStats();
-      
+      if (user) logCustomerActivity(
+        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        'converted', customer?.name || customer?.phone || customerId
+      );
       toast.success(`Customer converted to lead successfully! Lead ID: ${result.lead_id}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to convert customer to lead';
@@ -306,7 +322,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       toast.error(errorMessage);
       throw err;
     }
-  }, [fetchStats]);
+  }, [fetchStats, user, customers]);
 
   // Import customers
   const importCustomers = useCallback(async (file: File): Promise<any> => {

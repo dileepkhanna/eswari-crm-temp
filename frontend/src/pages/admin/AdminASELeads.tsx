@@ -21,6 +21,7 @@ export default function AdminASELeads() {
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     priorityFilter, setPriorityFilter,
+    industryFilter, setIndustryFilter,
     clearFilters,
     createLead, updateLead, deleteLead,
     currentPage, setCurrentPage, totalPages, totalCount,
@@ -290,7 +291,32 @@ export default function AdminASELeads() {
               <option value="urgent">Urgent</option>
             </select>
 
-            {(searchTerm || statusFilter || priorityFilter) && (
+            <select
+              value={industryFilter}
+              onChange={(e) => setIndustryFilter(e.target.value)}
+              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40"
+              style={{ appearance: 'auto' }}
+            >
+              <option value="">All Industries</option>
+              <option value="technology">Technology</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="finance">Finance</option>
+              <option value="retail">Retail & E-commerce</option>
+              <option value="real_estate">Real Estate</option>
+              <option value="education">Education</option>
+              <option value="hospitality">Hospitality</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="professional_services">Professional Services</option>
+              <option value="non_profit">Non-Profit</option>
+              <option value="automotive">Automotive</option>
+              <option value="food_beverage">Food & Beverage</option>
+              <option value="fashion">Fashion & Beauty</option>
+              <option value="sports_fitness">Sports & Fitness</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="other">Other</option>
+            </select>
+
+            {(searchTerm || statusFilter || priorityFilter || industryFilter) && (
               <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full h-7 px-3 text-xs">
                 <FilterIcon className="w-3 h-3 mr-1" />
                 Clear

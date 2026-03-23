@@ -79,7 +79,7 @@ class ASELeadSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at', 'company']
+        read_only_fields = ['created_by', 'created_at', 'updated_at']
     
     def validate_phone(self, value):
         request = self.context.get('request')
@@ -98,28 +98,9 @@ class ASELeadSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Create ASE Lead with automatic company and created_by assignment
+        Create ASE Lead — company and created_by are set by perform_create in the ViewSet.
+        This method is a passthrough; the ViewSet's perform_create handles all assignment.
         """
-        request = self.context.get('request')
-        if not request or not request.user:
-            raise serializers.ValidationError({
-                'non_field_errors': ['Authentication required to create leads.']
-            })
-        
-        user = request.user
-        
-        # Set created_by
-        validated_data['created_by'] = user
-        
-        # Auto-assign company if not provided
-        if 'company' not in validated_data or validated_data['company'] is None:
-            if hasattr(user, 'company') and user.company:
-                validated_data['company'] = user.company
-            else:
-                raise serializers.ValidationError({
-                    'company': ['User must be associated with a company to create leads.']
-                })
-        
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
@@ -134,6 +115,7 @@ class ASELeadListSerializer(serializers.ModelSerializer):
     Lightweight serializer for listing ASE Leads
     """
     assigned_to_name = serializers.ReadOnlyField()
+    created_by_name = serializers.ReadOnlyField()
     service_interests_display = serializers.ReadOnlyField()
     company_name_display = serializers.CharField(source='company.name', read_only=True)
     
@@ -145,14 +127,34 @@ class ASELeadListSerializer(serializers.ModelSerializer):
             'contact_person',
             'email',
             'phone',
+            'website',
             'industry',
+            'company_size',
+            'annual_revenue',
+            'service_interests',
             'service_interests_display',
             'custom_services',
+            'current_marketing_spend',
             'budget_amount',
+            'has_website',
+            'has_social_media',
+            'current_seo_agency',
+            'marketing_goals',
+            'lead_source',
+            'referral_source',
             'status',
             'priority',
+            'assigned_to',
             'assigned_to_name',
+            'created_by_name',
             'company_name_display',
-            'created_at',
+            'notes',
+            'first_contact_date',
+            'last_contact_date',
             'next_follow_up',
+            'proposal_sent_date',
+            'contract_start_date',
+            'estimated_project_value',
+            'monthly_retainer',
+            'created_at',
         ]

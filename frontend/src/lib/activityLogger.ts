@@ -6,7 +6,7 @@ export interface ActivityLogData {
   userName: string;
   userRole: string;
   companyId: number;
-  module: 'leads' | 'tasks' | 'projects' | 'leaves' | 'users' | 'announcements' | 'reports';
+  module: 'leads' | 'tasks' | 'projects' | 'leaves' | 'users' | 'announcements' | 'reports' | 'customers';
   action: 'created' | 'updated' | 'deleted' | 'approved' | 'rejected' | 'converted' | 'assigned' | 'completed' | 'viewed';
   details: string;
 }
@@ -119,5 +119,17 @@ export const logUserActivity = (user: { id: string; name: string; role: string; 
     module: 'users',
     action: action as any,
     details: `${action} user: ${userDetails}`,
+  });
+};
+
+export const logCustomerActivity = (user: { id: string; name: string; role: string; company?: { id: number } }, action: string, customerDetails: string) => {
+  return logActivity({
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+    companyId: user.company?.id || 1,
+    module: 'customers',
+    action: action as any,
+    details: `${action} customer: ${customerDetails}`,
   });
 };

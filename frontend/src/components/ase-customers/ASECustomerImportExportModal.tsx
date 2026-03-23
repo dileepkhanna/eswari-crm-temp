@@ -90,18 +90,27 @@ export default function ASECustomerImportExportModal({
   const handleExport = async () => {
     try {
       setLoading(true);
-      const blob = await ASECustomerService.exportCustomers();
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `ase_customers_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
+      const response = await ASECustomerService.getCustomers({ page_size: 500 });
+      const customerList = response.results || [];
+
+      const data = customerList.map((c: any) => ({
+        ID: c.id,
+        Name: c.name || '',
+        Phone: c.phone,
+        Email: c.email || '',
+        'Call Status': c.call_status,
+        'Custom Call Status': c.custom_call_status || '',
+        Company: c.company_name_display || c.company_name || '',
+        'Assigned To': c.assigned_to_name || '',
+        Notes: c.notes || '',
+        'Is Converted': c.is_converted ? 'Yes' : 'No',
+        'Created At': new Date(c.created_at).toLocaleDateString(),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'ASE Customers');
+      XLSX.writeFile(wb, `ase_customers_export_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Customers exported successfully');
     } catch (error: any) {
       logger.error('Export error:', error);
@@ -111,27 +120,31 @@ export default function ASECustomerImportExportModal({
     }
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = () => {
     try {
-      setLoading(true);
-      const blob = await ASECustomerService.downloadTemplate();
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'ase_customers_import_template.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
+      // Generate template client-side using xlsx (already imported)
+      const templateData = [
+        { phone: '1234567890', name: 'John Doe', company_name: 'ABC Corp' },
+        { phone: '0987654321', name: 'Jane Smith', company_name: 'XYZ Ltd' },
+      ];
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Template');
+
+      // Instructions sheet
+      const instructions = [
+        { Field: 'phone', Required: 'Yes', Description: 'Phone number (required - digits only)' },
+        { Field: 'name', Required: 'No', Description: 'Customer full name (optional)' },
+        { Field: 'company_name', Required: 'No', Description: 'Company name (optional)' },
+      ];
+      const wsInstructions = XLSX.utils.json_to_sheet(instructions);
+      XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
+
+      XLSX.writeFile(wb, 'ase_customers_import_template.xlsx');
       toast.success('Template downloaded successfully');
     } catch (error: any) {
       logger.error('Template download error:', error);
       toast.error('Failed to download template');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -180,7 +193,6 @@ export default function ASECustomerImportExportModal({
                   <Button
                     variant="outline"
                     onClick={handleDownloadTemplate}
-                    disabled={loading}
                   >
                     <FileTextIcon className="w-4 h-4 mr-2" />
                     Download Template

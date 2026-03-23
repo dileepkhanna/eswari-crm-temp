@@ -13,6 +13,8 @@ export class ASECustomerService {
     search?: string;
     call_status?: string;
     company?: number | string;
+    assigned_to?: number | string;
+    is_converted?: string; // 'true' | 'false'
   }): Promise<{ results: ASECustomer[]; count: number; next: string | null; previous: string | null }> {
     try {
       const query = new URLSearchParams();
@@ -21,6 +23,8 @@ export class ASECustomerService {
       if (params?.search) query.set('search', params.search);
       if (params?.call_status && params.call_status !== 'all') query.set('call_status', params.call_status);
       if (params?.company) query.set('company', String(params.company));
+      if (params?.assigned_to) query.set('assigned_to', String(params.assigned_to));
+      if (params?.is_converted !== undefined) query.set('is_converted', params.is_converted);
 
       const url = `${this.baseUrl}/${query.toString() ? '?' + query.toString() : ''}`;
       const response = await apiClient.get(url);
@@ -185,7 +189,8 @@ export class ASECustomerService {
     company_name: string;
     industry: string;
     service_interests: string[];
-    budget_range: string;
+    budget_amount?: string;
+    budget_range?: string; // legacy alias, maps to budget_amount on backend
     marketing_goals?: string;
     website?: string;
     has_website: boolean;

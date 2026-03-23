@@ -10,7 +10,9 @@ import LeaveStatsWidget from '@/components/dashboard/LeaveStatsWidget';
 import QuickSettingsWidget from '@/components/staff/QuickSettingsWidget';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
-import { ClipboardList, CheckSquare, CalendarOff, Bell, Target, UserCheck } from 'lucide-react';
+import { useASELead } from '@/contexts/ASELeadContext';
+import { useASECustomers } from '@/contexts/ASECustomerContext';
+import { ClipboardList, CheckSquare, CalendarOff, Bell, Target, UserCheck, Briefcase, PhoneCall } from 'lucide-react';
 import { format } from 'date-fns';
 import LeadStatusChip from '@/components/leads/LeadStatusChip';
 import TaskStatusChip from '@/components/tasks/TaskStatusChip';
@@ -18,15 +20,64 @@ import TaskStatusChip from '@/components/tasks/TaskStatusChip';
 export default function StaffDashboard() {
   const { user } = useAuth();
   const { leads, tasks, announcements } = useData();
+  const { leads: aseLeads, loading: aseLeadsLoading } = useASELead();
+  const { customers: aseCustomers } = useASECustomers();
 
-  // Filter data for current user
+  const userCompanyCode = user?.company?.code || '';
+  const isASE = userCompanyCode === 'ASE_TECH' || userCompanyCode === 'ASE';
+
+  // Filter data for current user (Eswari Group)
   const myLeads = leads.filter(lead => lead.assignedTo === user?.id || lead.createdBy === user?.id);
   const myTasks = tasks.filter(task => task.assignedTo === user?.id);
   
   // Calculate stats
   const activeTasks = myTasks.filter(t => t.status !== 'completed').length;
   const reminders = myLeads.filter(l => l.status === 'new' && l.followUpDate && new Date(l.followUpDate) <= new Date()).length;
-  const pendingLeaves = 0; // TODO: Implement leave counting
+  const pendingLeaves = 0;
+
+  // ASE stats
+  const myASELeads = aseLeads;
+  const myASECustomers = aseCustomers;
+  const pendingASECustomers = myASECustomers.filter(c => c.call_status === 'pending').length;
+
+  if (isASE) {
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Staff Dashboard" subtitle={`Welcome back, ${user?.name || 'User'}!`} />
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+          <AnnouncementBanner userRole="employee" maxDisplay={2} />
+          {user?.manager_name && (
+            <div className="glass-card rounded-2xl p-4 md:p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-primary" />
+                Reporting Manager
+              </h3>
+              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                {user.manager_name}
+              </span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="My ASE Leads" value={myASELeads.length}
+              change={myASELeads.filter(l => l.status === 'new').length > 0 ? `${myASELeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
+              changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={0} href="/staff/ase-leads" />
+            <StatCard title="ASE Customers" value={myASECustomers.length}
+              change={pendingASECustomers > 0 ? `${pendingASECustomers} pending` : 'All handled'}
+              changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={50} href="/staff/ase-customers" />
+            <StatCard title="Reminders" value={pendingASECustomers}
+              change={pendingASECustomers > 0 ? 'Follow-ups pending' : 'No reminders'}
+              changeType="neutral" icon={Bell} iconColor="bg-info" delay={100} href="/staff/ase-customers" />
+            <StatCard title="Leave Status" value="All Clear"
+              change="No pending requests" changeType="neutral" icon={CalendarOff} iconColor="bg-warning" delay={150} href="/staff/leaves" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <LeaveStatsWidget />
+            <QuickSettingsWidget />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

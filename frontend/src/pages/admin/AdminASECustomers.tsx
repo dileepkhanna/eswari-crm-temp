@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import TopBar from '@/components/layout/TopBar';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
@@ -82,25 +83,20 @@ export default function AdminASECustomers() {
 
   const loadEmployees = async () => {
     try {
-      // Use the derived ASE company ID (from customers, selectedCompany, or user)
+      // Use the dedicated teammates endpoint — works for all roles (employee, manager, admin, hr)
       const companyId = aseCompanyId;
-      if (!companyId) {
-        setEmployees([]);
-        return;
-      }
-      const response = await fetch(`/api/auth/users/?company=${companyId}&page_size=100`, {
+      const url = companyId
+        ? `/api/ase/customers/teammates/?company=${companyId}`
+        : `/api/ase/customers/teammates/`;
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        // Show all company users except admin (they can all be assigned customers)
-        const employeeList = (Array.isArray(data) ? data : data.results || []).filter((u: any) => 
-          u.role !== 'admin'
-        );
-        setEmployees(employeeList);
+        setEmployees(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
       logger.error('Failed to load employees:', error);
@@ -122,7 +118,9 @@ export default function AdminASECustomers() {
   const handleCreateCustomer = async (customerData: any) => {
     try {
       logger.log('📄 ASE Customers: Creating customer with data:', customerData);
-      await createCustomer(customerData);
+      // Always pass the ASE company ID explicitly so admin doesn't accidentally
+      // create customers under the wrong company (e.g. Eswari Group)
+      await createCustomer({ ...customerData, company: aseCompanyId });
       logger.log('✅ ASE Customers: Customer created successfully');
       setIsCreateModalOpen(false);
     } catch (error: any) {
@@ -268,6 +266,94 @@ export default function AdminASECustomers() {
       setSelectedIds(new Set());
     } catch (error) {
       logger.error('Error exporting customers:', error);
+      toast.error('Failed to export customers');
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      { phone: '1234567890', name: 'John Doe', company_name: 'ABC Corp' },
+      { phone: '0987654321', name: 'Jane Smith', company_name: 'XYZ Ltd' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    const instructions = [
+      { Field: 'phone', Required: 'Yes', Description: 'Phone number (required)' },
+      { Field: 'name', Required: 'No', Description: 'Customer full name (optional)' },
+      { Field: 'company_name', Required: 'No', Description: 'Company name (optional)' },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(instructions), 'Instructions');
+    XLSX.writeFile(wb, 'ase_customers_import_template.xlsx');
+    toast.success('Template downloaded');
+  };
+
+  const handleExportAll = async () => {
+    try {
+      // Build API params matching all active server-side filters
+      const apiParams: any = {
+        page: 1,
+        page_size: 1000,
+        company: aseCompanyId || undefined,
+      };
+      if (searchTerm) apiParams.search = searchTerm;
+      if (statusFilter !== 'all') apiParams.call_status = statusFilter;
+      if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned') apiParams.assigned_to = assigneeFilter;
+      if (conversionFilter === 'converted') apiParams.is_converted = 'true';
+      else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+
+      const res = await ASECustomerService.getCustomers(apiParams);
+      let exportList = res.results;
+
+      // Apply client-side-only filters (unassigned, date, overdue)
+      const now = new Date();
+      exportList = exportList.filter(c => {
+        if (assigneeFilter === 'unassigned' && c.assigned_to) return false;
+        if (selectedDate) {
+          const filterDateStr = new Date(selectedDate).toDateString();
+          if (new Date(c.created_at).toDateString() !== filterDateStr) return false;
+        }
+        if (overdueFilter) {
+          const isOverdue = c.scheduled_date && new Date(c.scheduled_date) < now && c.call_status === 'pending';
+          if (!isOverdue) return false;
+        }
+        return true;
+      });
+
+      const data = exportList.map(c => ({
+        Name: c.name || '',
+        Phone: c.phone,
+        Email: c.email || '',
+        'Company Name': (c as any).company_name_display || c.company_name || '',
+        'Call Status': c.call_status,
+        'Assigned To': c.assigned_to_name || '',
+        'Created At': new Date(c.created_at).toLocaleDateString(),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'ASE Customers');
+
+      // Build descriptive filename from active filters
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filenameParts = ['ase_customers'];
+      if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned') {
+        const emp = employees.find(e => e.id.toString() === assigneeFilter);
+        const empName = emp ? (`${emp.first_name} ${emp.last_name}`.trim() || emp.username) : assigneeFilter;
+        filenameParts.push(empName.replace(/\s+/g, '_'));
+      } else if (assigneeFilter === 'unassigned') {
+        filenameParts.push('unassigned');
+      }
+      if (statusFilter !== 'all') filenameParts.push(statusFilter);
+      if (conversionFilter !== 'all') filenameParts.push(conversionFilter);
+      if (overdueFilter) filenameParts.push('overdue');
+      if (selectedDate) filenameParts.push(selectedDate);
+      filenameParts.push(dateStr);
+
+      XLSX.writeFile(wb, `${filenameParts.join('_')}.xlsx`);
+      toast.success(`${exportList.length} customers exported`);
+    } catch (error) {
+      logger.error('Export error:', error);
       toast.error('Failed to export customers');
     }
   };
@@ -565,7 +651,7 @@ export default function AdminASECustomers() {
                 </Button>
 
                 <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <SelectTrigger className="select-trigger-pill w-36">
+                  <SelectTrigger className="select-trigger-pill w-36" style={{ display: user?.role === 'employee' ? 'none' : undefined }}>
                     <SelectValue placeholder="All Assignees" />
                   </SelectTrigger>
                   <SelectContent>
@@ -591,6 +677,7 @@ export default function AdminASECustomers() {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {user?.role !== 'employee' && (
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -600,6 +687,7 @@ export default function AdminASECustomers() {
                       <UsersIcon className="w-4 h-4 mr-2" />
                       Assign Employee
                     </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -632,7 +720,7 @@ export default function AdminASECustomers() {
               ) : (
                 // Regular Actions - Stack on Mobile
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  <Button variant="outline" size="sm" className="h-9 min-h-9 flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-9 min-h-9 flex-1 sm:flex-none">
                     <DownloadIcon className="w-4 h-4 mr-2" />
                     <span className="hidden sm:inline">Download Template</span>
                     <span className="sm:hidden">Template</span>
@@ -642,7 +730,7 @@ export default function AdminASECustomers() {
                     <span className="hidden sm:inline">Import Excel</span>
                     <span className="sm:hidden">Import</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="h-9 min-h-9 flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" onClick={handleExportAll} className="h-9 min-h-9 flex-1 sm:flex-none">
                     <DownloadIcon className="w-4 h-4 mr-2" />
                     <span className="hidden sm:inline">Export Data</span>
                     <span className="sm:hidden">Export</span>
@@ -935,6 +1023,7 @@ export default function AdminASECustomers() {
                           onClick={() => setShowBulkAssignDialog(true)}
                           className="h-9 min-h-9 text-green-600 border-green-600"
                           title="Assign Employee"
+                          style={{ display: user?.role === 'employee' ? 'none' : undefined }}
                         >
                           <UsersIcon className="w-4 h-4" />
                         </Button>
@@ -1034,6 +1123,7 @@ export default function AdminASECustomers() {
                           <DropdownMenuItem
                             onClick={() => setReassignTarget(customer)}
                             className="cursor-pointer"
+                            style={{ display: user?.role === 'employee' ? 'none' : undefined }}
                           >
                             <UsersIcon className="w-4 h-4 mr-2" />
                             Assign to Employee

@@ -4,7 +4,6 @@
  * No Firebase SDK required.
  */
 import { logger } from '@/lib/logger';
-import { toast } from 'sonner';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 

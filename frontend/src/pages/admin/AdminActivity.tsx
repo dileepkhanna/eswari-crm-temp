@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import { logger } from '@/lib/logger';
 // import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
@@ -44,6 +45,7 @@ const moduleIcons: Record<string, React.ElementType> = {
   leaves: CalendarOff,
   users: Users,
   reports: FileText,
+  customers: Users,
 };
 
 const actionColors: Record<string, string> = {
@@ -55,8 +57,10 @@ const actionColors: Record<string, string> = {
   deleted: 'text-destructive',
 };
 
-export default function AdminActivity() {
+export default function AdminActivity({ defaultCompanyId }: { defaultCompanyId?: string } = {}) {
   const { user } = useAuth();
+  const { selectedCompany, availableCompanies } = useCompany();
+
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [staffAndManagers, setStaffAndManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,8 +72,23 @@ export default function AdminActivity() {
   const [selectedModule, setSelectedModule] = useState<string>('all');
   const [selectedAction, setSelectedAction] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  // If defaultCompanyId is provided (ASE or Eswari page), use it directly — no async init needed
+  const [companyFilter, setCompanyFilter] = useState<string>(defaultCompanyId || 'all');
+  const [filterReady, setFilterReady] = useState(!!defaultCompanyId);
+
+  // Only run context-based init when no defaultCompanyId is provided (global admin view)
+  useEffect(() => {
+    if (defaultCompanyId) return; // already initialized via prop
+    // For non-admin users, scope to their company
+    if (user?.role !== 'admin' && user?.company?.id) {
+      setCompanyFilter(String(user.company.id));
+    }
+    // Admin with no defaultCompanyId = show all
+    setFilterReady(true);
+  }, [defaultCompanyId, user?.role, user?.company?.id]);
 
   useEffect(() => {
+    if (!filterReady) return; // wait until company filter is initialized
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -87,7 +106,9 @@ export default function AdminActivity() {
         }
         
         // Fetch activity logs
-        const activityResponse = await apiClient.getActivityLogs();
+        const activityResponse = await apiClient.getActivityLogs(
+          companyFilter !== 'all' ? { company: companyFilter } : undefined
+        );
         
         const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
         
@@ -149,7 +170,7 @@ export default function AdminActivity() {
     };
 
     fetchData();
-  }, [user]); // Add user as dependency
+  }, [user, companyFilter, filterReady]); // re-fetch when company filter changes
 
   // Add refresh function
   const refreshActivities = useCallback(async () => {
@@ -168,7 +189,9 @@ export default function AdminActivity() {
       const { apiClient } = await import('@/lib/api');
       
       logger.log('Refreshing activities...');
-      const activityResponse = await apiClient.getActivityLogs();
+      const activityResponse = await apiClient.getActivityLogs(
+        companyFilter !== 'all' ? { company: companyFilter } : undefined
+      );
       const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
       
       const transformedActivities = activityData.map((activity: any) => ({
@@ -204,7 +227,7 @@ export default function AdminActivity() {
     } finally {
       setRefreshing(false);
     }
-  }, [error]);
+  }, [error, companyFilter]);
 
   // Auto-refresh every 30 seconds (disabled when no user) - DISABLED to prevent form data loss
   // useEffect(() => {
@@ -288,14 +311,16 @@ export default function AdminActivity() {
   // Group activities by module
   const leadActivities = filteredActivities.filter(a => a.module === 'leads');
   const taskActivities = filteredActivities.filter(a => a.module === 'tasks');
+  const customerActivities = filteredActivities.filter(a => a.module === 'customers');
   const leaveActivities = filteredActivities.filter(a => a.module === 'leaves');
-  const otherActivities = filteredActivities.filter(a => !['leads', 'tasks', 'leaves'].includes(a.module));
+  const otherActivities = filteredActivities.filter(a => !['leads', 'tasks', 'customers', 'leaves'].includes(a.module));
 
   logger.log('Activity counts:', {
     total: activities.length,
     filtered: filteredActivities.length,
     leads: leadActivities.length,
     tasks: taskActivities.length,
+    customers: customerActivities.length,
     leaves: leaveActivities.length,
     other: otherActivities.length
   });
@@ -306,6 +331,7 @@ export default function AdminActivity() {
     setSelectedModule('all');
     setSelectedAction('all');
     setDateRange({});
+    // Don't reset companyFilter — keep the company context
   };
 
   const renderActivityItem = (activity: ActivityLog, index: number) => {
@@ -363,10 +389,12 @@ export default function AdminActivity() {
     );
   };
 
+  const pageTitle = defaultCompanyId === '3' ? 'ASE Technologies - Activity Log' : defaultCompanyId === '2' ? 'Eswari Group - Activity Log' : '🔴 ADMIN - Activity Log';
+
   if (loading) {
     return (
       <div className="min-h-screen">
-        <TopBar title="Activity Log" subtitle="Track all system activities by staff and managers" />
+        <TopBar title={pageTitle} subtitle="Track all system activities by staff and managers" />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-2 text-muted-foreground">Loading activity data...</span>
@@ -378,7 +406,7 @@ export default function AdminActivity() {
   if (error) {
     return (
       <div className="min-h-screen">
-        <TopBar title="Activity Log" subtitle="Track all system activities by staff and managers" />
+        <TopBar title={pageTitle} subtitle="Track all system activities by staff and managers" />
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <div className="text-center max-w-md">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -397,13 +425,38 @@ export default function AdminActivity() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title="🔴 ADMIN - Activity Log" subtitle="Track all system activities by staff and managers" />
+      <TopBar title={pageTitle} subtitle="Track all system activities by staff and managers" />
       <div className="p-4 md:p-6 space-y-6">
 
         {/* Filters */}
         <div className="glass-card rounded-2xl p-4 md:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap gap-4 items-end">
+              {/* Company Filter - Admin only */}
+              {user?.role === 'admin' && (
+                <div className="min-w-[180px]">
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Company</label>
+                  <Select value={companyFilter} onValueChange={(v) => { setCompanyFilter(v); setSelectedUser('all'); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Companies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Companies</SelectItem>
+                      {availableCompanies.length > 0
+                        ? availableCompanies.map(c => (
+                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                          ))
+                        : (
+                          <>
+                            <SelectItem value="2">Eswari Group</SelectItem>
+                            <SelectItem value="3">ASE Technologies</SelectItem>
+                          </>
+                        )
+                      }
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               {/* Search */}
               <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Search</label>
@@ -446,6 +499,7 @@ export default function AdminActivity() {
                   <SelectContent>
                     <SelectItem value="all">All Modules</SelectItem>
                     <SelectItem value="leads">Leads</SelectItem>
+                    <SelectItem value="customers">Customers</SelectItem>
                     <SelectItem value="tasks">Tasks</SelectItem>
                     <SelectItem value="leaves">Leaves</SelectItem>
                     <SelectItem value="projects">Projects</SelectItem>
@@ -558,9 +612,10 @@ export default function AdminActivity() {
 
         {/* Activity Tabs */}
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 mb-6">
             <TabsTrigger value="all">All ({filteredActivities.length})</TabsTrigger>
             <TabsTrigger value="leads">Leads ({leadActivities.length})</TabsTrigger>
+            <TabsTrigger value="customers">Customers ({customerActivities.length})</TabsTrigger>
             <TabsTrigger value="tasks">Tasks ({taskActivities.length})</TabsTrigger>
             <TabsTrigger value="leaves">Leaves ({leaveActivities.length})</TabsTrigger>
             <TabsTrigger value="other">Other ({otherActivities.length})</TabsTrigger>
@@ -574,6 +629,11 @@ export default function AdminActivity() {
           <TabsContent value="leads" className="glass-card rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">Lead Activities</h3>
             {renderActivityList(leadActivities)}
+          </TabsContent>
+
+          <TabsContent value="customers" className="glass-card rounded-2xl p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Customer Activities</h3>
+            {renderActivityList(customerActivities)}
           </TabsContent>
 
           <TabsContent value="tasks" className="glass-card rounded-2xl p-6">

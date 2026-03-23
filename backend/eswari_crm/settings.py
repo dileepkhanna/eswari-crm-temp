@@ -287,14 +287,7 @@ LOGGING = {
     },
 }
 
-# Firebase Cloud Messaging (FCM) Push Notifications (legacy)
-import os as _os
-FIREBASE_SERVICE_ACCOUNT_PATH = config(
-    'FIREBASE_SERVICE_ACCOUNT_PATH',
-    default=_os.path.join(BASE_DIR, 'firebase-service-account.json')
-)
-
-# Django-native Web Push (VAPID) via pywebpush
+# Django-native Web Push (VAPID) via pywebpush — no Firebase needed
 VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
 VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='admin@eswaricrm.com')

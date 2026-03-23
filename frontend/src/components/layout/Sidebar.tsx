@@ -84,7 +84,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     { label: 'Users', icon: UsersIcon, href: '/users', roles: ['admin'] },
     { label: 'Companies', icon: BuildingIcon, href: '/companies', roles: ['admin'] },
     { label: 'Branding', icon: SettingsIcon, href: '/branding', roles: ['admin'] },
-    { label: 'Documentation', icon: FileText, href: '/documentation', roles: ['admin'] },
   ];
 
   // Common sections (appear in both ASE and Eswari)
@@ -95,13 +94,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['admin', 'manager', 'employee'] },
   ];
 
-  // ASE Technologies specific sections (Digital Marketing + Reports + Activity)
+  // ASE Technologies specific sections
   const aseSpecificItems: NavItem[] = [
     { label: 'Customers', icon: PhoneIcon, href: '/ase-customers', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leads', icon: LeadsIcon, href: '/ase-leads', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Campaigns', icon: Target, href: '/campaigns', roles: ['admin', 'manager', 'employee'] },
-    { label: 'Reports', icon: ReportsIcon, href: '/reports', roles: ['admin', 'manager'] },
-    { label: 'Activity', icon: ActivityIcon, href: '/activity', roles: ['admin', 'manager'] },
+    { label: 'Reports', icon: ReportsIcon, href: '/ase-reports', roles: ['admin', 'manager'] },
+    { label: 'Activity', icon: ActivityIcon, href: '/ase-activity', roles: ['admin', 'manager'] },
   ];
 
   // Eswari Group specific sections (CRM + Reports + Activity)

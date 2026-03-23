@@ -17,8 +17,6 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import ActivityLogger from '@/utils/activityLogger';
-
 import { logger } from '@/lib/logger';
 interface ActivityLog {
   id: string;
@@ -90,8 +88,11 @@ export default function ManagerActivity() {
           return;
         }
         
-        // Fetch activity logs
-        const activityResponse = await apiClient.getActivityLogs();
+        // Fetch activity logs — manager always scoped to their own company
+        const companyId = user?.company?.id;
+        const activityResponse = await apiClient.getActivityLogs(
+          companyId ? { company: companyId } : undefined
+        );
         
         const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
         
@@ -172,7 +173,10 @@ export default function ManagerActivity() {
       const { apiClient } = await import('@/lib/api');
       
       logger.log('Refreshing activities...');
-      const activityResponse = await apiClient.getActivityLogs();
+      const companyId = user?.company?.id;
+      const activityResponse = await apiClient.getActivityLogs(
+        companyId ? { company: companyId } : undefined
+      );
       const activityData = Array.isArray(activityResponse) ? activityResponse : (activityResponse as any).results || [];
       
       const transformedActivities = activityData.map((activity: any) => ({

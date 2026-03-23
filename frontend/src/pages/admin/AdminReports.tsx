@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import TopBar from "@/components/layout/TopBar";
 import StaffPerformanceChart from "@/components/reports/StaffPerformanceChart";
 import MonthlyLeavesChart from "@/components/reports/MonthlyLeavesChart";
@@ -13,6 +14,7 @@ import { Users, ClipboardList, CheckSquare, CalendarOff, Filter, CalendarIcon, C
 import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths, setMonth, setYear, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/DataContextDjango";
+import { useAuth } from "@/contexts/AuthContextDjango";
 
 import { logger } from '@/lib/logger';
 interface LeaveRecord {
@@ -43,7 +45,14 @@ type DateRange = {
 };
 
 export default function AdminReports() {
+  const { user } = useAuth();
   const { leads, tasks } = useData();
+  const location = useLocation();
+  // Admin is global — determine ASE context from the route path, not the user's company
+  const isASE = location.pathname.startsWith('/admin/ase') || 
+    user?.company?.code === 'ASE_TECH' || user?.company?.code === 'ASE';
+  const [aseLeadsCount, setAseLeadsCount] = useState(0);
+  const [aseCustomersCount, setAseCustomersCount] = useState(0);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +95,18 @@ export default function AdminReports() {
         
         logger.log('Transformed leaves:', transformedLeaves.length);
         setLeaves(transformedLeaves);
+
+        // Fetch ASE data if in ASE panel
+        try {
+          const [aseLeadsRes, aseCustomersRes] = await Promise.all([
+            apiClient.get('/ase-leads/?page_size=1'),
+            apiClient.get('/ase/customers/?page_size=1'),
+          ]);
+          setAseLeadsCount((aseLeadsRes as any).count || 0);
+          setAseCustomersCount((aseCustomersRes as any).count || 0);
+        } catch (e) {
+          logger.warn('Could not fetch ASE counts:', e);
+        }
 
         // Fetch users for team members
         logger.log('Fetching users...');
@@ -466,13 +487,13 @@ export default function AdminReports() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-green-500" />
-                Total Leads
+                {isASE ? "ASE Leads" : "Total Leads"}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-1">
-                <p className="text-3xl font-bold text-foreground">{filteredLeads.length}</p>
-                <p className="text-xs text-muted-foreground">{dateRange.from ? "In selected period" : "All time"}</p>
+                <p className="text-3xl font-bold text-foreground">{isASE ? aseLeadsCount : filteredLeads.length}</p>
+                <p className="text-xs text-muted-foreground">{isASE ? "Total ASE leads" : (dateRange.from ? "In selected period" : "All time")}</p>
               </div>
             </CardContent>
           </Card>
@@ -481,13 +502,13 @@ export default function AdminReports() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <CheckSquare className="w-4 h-4 text-purple-500" />
-                Total Tasks
+                {isASE ? "ASE Customers" : "Total Tasks"}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-1">
-                <p className="text-3xl font-bold text-foreground">{filteredTasks.length}</p>
-                <p className="text-xs text-muted-foreground">{filteredTasks.filter((t) => t.status === "completed").length} completed</p>
+                <p className="text-3xl font-bold text-foreground">{isASE ? aseCustomersCount : filteredTasks.length}</p>
+                <p className="text-xs text-muted-foreground">{isASE ? "Total ASE customers" : `${filteredTasks.filter((t) => t.status === "completed").length} completed`}</p>
               </div>
             </CardContent>
           </Card>
@@ -510,15 +531,40 @@ export default function AdminReports() {
 
         {/* Employee Performance Ranking */}
         <div className="w-full">
-          <EmployeePerformanceRanking 
-            users={filteredUsers} 
-            tasks={filteredTasks} 
-          />
+          {isASE ? (
+            <Card className="glass-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  ASE Team Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50 text-center">
+                    <p className="text-2xl font-bold text-primary">{aseLeadsCount}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Total ASE Leads</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 text-center">
+                    <p className="text-2xl font-bold text-green-500">{aseCustomersCount}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Total ASE Customers</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <EmployeePerformanceRanking 
+              users={filteredUsers} 
+              tasks={filteredTasks} 
+            />
+          )}
         </div>
 
         {/* Performance Overview Chart */}
         <div className="w-full">
-          <StaffPerformanceChart users={filteredUsers} leads={filteredLeads} tasks={filteredTasks} />
+          {!isASE && (
+            <StaffPerformanceChart users={filteredUsers} leads={filteredLeads} tasks={filteredTasks} />
+          )}
         </div>
 
         {/* Monthly Leaves Chart - Full Width */}

@@ -90,6 +90,8 @@ class ASECustomerListSerializer(serializers.ModelSerializer):
             'call_status',
             'custom_call_status',
             'assigned_to_name',
+            'assigned_to',
+            'company',
             'company_name_display',
             'service_interests',
             'custom_services',

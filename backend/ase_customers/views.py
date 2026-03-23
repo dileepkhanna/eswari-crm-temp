@@ -71,15 +71,20 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         qs = qs.filter(company=user.company)
 
         if user.role == 'employee':
-            return qs.filter(assigned_to=user)
+            # Show records assigned to OR created by this employee
+            return qs.filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
 
         if user.role == 'manager':
-            from django.db.models import Q
             employee_ids = list(
                 user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
             )
             employee_ids.append(user.id)
-            return qs.filter(Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)).distinct()
+            # Also show unassigned records in the company so managers can assign them
+            return qs.filter(
+                Q(assigned_to__id__in=employee_ids) |
+                Q(created_by__id__in=employee_ids) |
+                Q(assigned_to__isnull=True)
+            ).distinct()
 
         return qs
     
@@ -93,13 +98,15 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """
-        Set created_by and company when creating ASE customer
+        Set created_by and company when creating ASE customer.
+        Employees are auto-assigned to themselves.
         """
         user = self.request.user
         if user.role in ['manager', 'employee']:
             serializer.save(
                 created_by=user,
-                company=user.company
+                company=user.company,
+                assigned_to=user,  # auto-assign to creator
             )
         else:
             # Admin/HR must specify company in request data
@@ -469,6 +476,19 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         if not company:
             return Response({'error': 'User has no company assigned'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Build assignee pool: employee → self, manager → team + self, admin/hr → no auto-assign
+        from accounts.models import User as UserModel
+        if user.role == 'employee':
+            assignees = [user]
+        elif user.role == 'manager':
+            team_ids = list(
+                UserModel.objects.filter(manager=user, company=company, is_active=True).values_list('id', flat=True)
+            )
+            team_ids.append(user.id)
+            assignees = list(UserModel.objects.filter(id__in=team_ids))
+        else:
+            assignees = []
+
         to_create = []
         errors = []
 
@@ -491,6 +511,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 continue
             seen_phones.add(phone)
             try:
+                assigned_to = assignees[len(to_create) % len(assignees)] if assignees else None
                 to_create.append(ASECustomer(
                     phone=phone,
                     name=row.get('name') or None,
@@ -500,6 +521,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                     notes=row.get('notes') or None,
                     company=company,
                     created_by=user,
+                    assigned_to=assigned_to,
                 ))
             except Exception as e:
                 errors.append({'row': i + 1, 'error': str(e)})
@@ -549,11 +571,24 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             
             # Get available employees for auto-assignment
             from accounts.models import User
-            employees = User.objects.filter(
-                company=request.user.company,
-                role__in=['employee', 'telecaller'],
-                is_active=True
-            ).order_by('id')
+            user_role = request.user.role
+            if user_role == 'employee':
+                # Employee imports → assign all to themselves
+                employees_list = [request.user]
+            elif user_role == 'manager':
+                # Manager imports → round-robin across team + self
+                team_ids = list(
+                    User.objects.filter(manager=request.user, company=request.user.company, is_active=True).values_list('id', flat=True)
+                )
+                team_ids.append(request.user.id)
+                employees_list = list(User.objects.filter(id__in=team_ids))
+            else:
+                # Admin/HR → round-robin across all active non-admin users in company
+                employees_list = list(User.objects.filter(
+                    company=request.user.company,
+                    role__in=['employee', 'manager'],
+                    is_active=True
+                ).order_by('id'))
             
             created_customers = []
             errors = []
@@ -571,8 +606,8 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                     }
                     
                     # Auto-assign to employees in round-robin fashion
-                    if employees.exists():
-                        assigned_employee = employees[len(created_customers) % employees.count()]
+                    if employees_list:
+                        assigned_employee = employees_list[len(created_customers) % len(employees_list)]
                         customer_data['assigned_to'] = assigned_employee
                     
                     # Create customer
@@ -664,6 +699,59 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=False, methods=['get'])
+    def teammates(self, request):
+        """
+        Return the list of users that the current user can assign customers to.
+        - employee: their manager's team (all employees under the same manager) + themselves
+        - manager: their direct reports + themselves
+        - admin/hr: all non-admin users in the company (or ?company=<id> for admin)
+        """
+        from accounts.models import User as UserModel
+        user = request.user
+
+        if user.role == 'admin':
+            company_id = request.query_params.get('company') or getattr(user.company, 'id', None)
+            if company_id:
+                qs = UserModel.objects.filter(
+                    company_id=company_id,
+                    is_active=True,
+                ).exclude(role='admin').order_by('first_name', 'last_name')
+            else:
+                qs = UserModel.objects.none()
+        elif user.role == 'hr':
+            qs = UserModel.objects.filter(
+                company=user.company,
+                is_active=True,
+            ).exclude(role='admin').order_by('first_name', 'last_name')
+        elif user.role == 'manager':
+            team_ids = list(
+                UserModel.objects.filter(manager=user, company=user.company, is_active=True).values_list('id', flat=True)
+            )
+            team_ids.append(user.id)
+            qs = UserModel.objects.filter(id__in=team_ids).order_by('first_name', 'last_name')
+        else:
+            # employee: find teammates (same manager) + themselves
+            if user.manager:
+                team_ids = list(
+                    UserModel.objects.filter(manager=user.manager, company=user.company, is_active=True).values_list('id', flat=True)
+                )
+            else:
+                team_ids = [user.id]
+            qs = UserModel.objects.filter(id__in=team_ids).order_by('first_name', 'last_name')
+
+        data = [
+            {
+                'id': u.id,
+                'username': u.username,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+                'role': u.role,
+            }
+            for u in qs
+        ]
+        return Response(data)
+
     @action(detail=False, methods=['get'])
     def download_template(self, request):
         """
@@ -895,7 +983,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             'company_name': request.data.get('company_name', ''),
             'industry': request.data.get('industry', 'other'),
             'service_interests': request.data.get('service_interests', []),
-            'budget_range': request.data.get('budget_range', '1k_5k'),
+            'budget_amount': request.data.get('budget_amount', request.data.get('budget_range', '')),
             'marketing_goals': request.data.get('marketing_goals', ''),
             'has_website': request.data.get('has_website', False),
             'has_social_media': request.data.get('has_social_media', False),
@@ -927,10 +1015,13 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         logger.info(f"Prepared lead data: {lead_data}")
         
         # Create the lead using the serializer with proper context
-        lead_serializer = ASELeadSerializer(data=lead_data, context={'request': request})
+        lead_serializer = ASELeadSerializer(
+            data=lead_data,
+            context={'request': request, 'override_company': customer.company}
+        )
         if lead_serializer.is_valid():
             try:
-                lead = lead_serializer.save()
+                lead = lead_serializer.save(created_by=request.user)
                 
                 # Update customer as converted
                 customer.is_converted = True

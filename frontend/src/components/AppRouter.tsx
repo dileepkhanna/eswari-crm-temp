@@ -31,6 +31,7 @@ import AdminTeam from '@/pages/admin/AdminTeam';
 import AdminConversionAnalytics from '@/pages/admin/AdminConversionAnalytics';
 import AdminASECustomers from '@/pages/admin/AdminASECustomers';
 import AdminASELeads from '@/pages/admin/AdminASELeads';
+import AdminASEActivity from '@/pages/admin/AdminASEActivity';
 import AdminDocumentation from '@/pages/admin/AdminDocumentation';
 import AdminBirthdays from '@/pages/admin/AdminBirthdays';
 
@@ -59,6 +60,7 @@ import ManagerWebsites from '@/pages/manager/ManagerWebsites';
 import ManagerMediaLibrary from '@/pages/manager/ManagerMediaLibrary';
 import ManagerPostScheduler from '@/pages/manager/ManagerPostScheduler';
 import ManagerASEProjects from '@/pages/manager/ManagerASEProjects';
+import ManagerASEActivity from '@/pages/manager/ManagerASEActivity';
 
 // Staff Pages
 import StaffDashboard from '@/pages/staff/StaffDashboard';
@@ -129,6 +131,8 @@ const AppRouter = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="ase-customers" element={<AdminASECustomers />} />
         <Route path="ase-leads" element={<AdminASELeads />} />
+        <Route path="ase-reports" element={<AdminReports />} />
+        <Route path="ase-activity" element={<AdminASEActivity />} />
         <Route path="campaigns" element={<AdminCampaigns />} />
         <Route path="social-media" element={<AdminSocialMedia />} />
         <Route path="content" element={<AdminContent />} />
@@ -147,7 +151,7 @@ const AppRouter = () => {
         <Route path="companies" element={<AdminCompanies />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="branding" element={<AdminBranding />} />
-        <Route path="activity" element={<AdminActivity />} />
+        <Route path="activity" element={<AdminActivity defaultCompanyId="2" />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="documentation" element={<AdminDocumentation />} />
         <Route path="birthdays" element={<AdminBirthdays />} />
@@ -159,6 +163,8 @@ const AppRouter = () => {
         <Route index element={<ManagerDashboard />} />
         <Route path="ase-customers" element={<ManagerASECustomers />} />
         <Route path="ase-leads" element={<ManagerASELeads />} />
+        <Route path="ase-activity" element={<ManagerASEActivity />} />
+        <Route path="ase-reports" element={<ManagerReports />} />
         <Route path="websites" element={<ManagerWebsites />} />
         <Route path="media-library" element={<ManagerMediaLibrary />} />
         <Route path="post-scheduler" element={<ManagerPostScheduler />} />

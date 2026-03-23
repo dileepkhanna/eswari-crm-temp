@@ -9,7 +9,6 @@ from django.utils import timezone
 from django.db import transaction
 
 from accounts.permissions import CompanyAccessPermission
-from utils.mixins import CompanyFilterMixin
 from .models import ASELead
 from .serializers import ASELeadSerializer, ASELeadListSerializer
 
@@ -20,7 +19,7 @@ class ASELeadPagination(PageNumberPagination):
     max_page_size = 500
 
 
-class ASELeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
+class ASELeadViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing ASE Leads
     """
@@ -74,7 +73,8 @@ class ASELeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         qs = qs.filter(company=user.company)
 
         if user.role == 'employee':
-            return qs.filter(assigned_to=user)
+            # Show records assigned to OR created by this employee
+            return qs.filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
 
         if user.role == 'manager':
             employee_ids = list(
@@ -92,10 +92,21 @@ class ASELeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Set created_by when creating ASE lead
-        Company assignment is handled in the serializer
+        Set created_by and company when creating ASE lead.
+        - Admin/HR: must supply company in request data (validated_data)
+        - Manager/Employee: auto-assigned from user.company; employee also auto-assigned to self
         """
-        serializer.save(created_by=self.request.user)
+        user = self.request.user
+        if user.role in ['admin', 'hr']:
+            company = serializer.validated_data.get('company')
+            if not company:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'company': 'This field is required for admin/hr users.'})
+            serializer.save(created_by=user)
+        elif user.role == 'employee':
+            serializer.save(created_by=user, company=user.company, assigned_to=user)
+        else:
+            serializer.save(created_by=user, company=user.company)
     
     @action(detail=False, methods=['get'])
     def check_phone(self, request):
@@ -212,11 +223,26 @@ class ASELeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         if not company:
             return Response({'error': 'User has no company assigned'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # For employee: assign all to themselves
+        # For manager: round-robin across their team (including themselves)
+        from accounts.models import User as UserModel
+        if user.role == 'employee':
+            assignees = [user]
+        elif user.role == 'manager':
+            team_ids = list(
+                UserModel.objects.filter(manager=user, company=company, is_active=True).values_list('id', flat=True)
+            )
+            team_ids.append(user.id)
+            assignees = list(UserModel.objects.filter(id__in=team_ids))
+        else:
+            assignees = []
+
         to_create = []
         errors = []
 
         for i, row in enumerate(rows):
             try:
+                assigned_to = assignees[i % len(assignees)] if assignees else None
                 obj = ASELead(
                     company_name=row.get('company_name', ''),
                     contact_person=row.get('contact_person', ''),
@@ -234,6 +260,7 @@ class ASELeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
                     service_interests=row.get('service_interests', []),
                     company=company,
                     created_by=user,
+                    assigned_to=assigned_to,
                 )
                 to_create.append(obj)
             except Exception as e:
