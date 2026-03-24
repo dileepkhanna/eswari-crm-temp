@@ -2,15 +2,17 @@
  * Push Notification Service - Complete Reimplementation v2.0
  * Uses native Web Push API with pywebpush backend
  * Fixed: Removed logger dependency to prevent tree-shaking issues
+ * Cache-busting update: Force new bundle hash generation
  */
 
-// Simple console wrapper that works in production
+// Simple console wrapper that works in production builds
+// This replaces the logger import to prevent tree-shaking issues
 const log = {
-  log: (...args: any[]) => console.log(...args),
-  info: (...args: any[]) => console.info(...args),
-  warn: (...args: any[]) => console.warn(...args),
-  error: (...args: any[]) => console.error(...args),
-  debug: (...args: any[]) => console.debug(...args),
+  log: (...args: any[]) => console.log('[NotificationService]', ...args),
+  info: (...args: any[]) => console.info('[NotificationService]', ...args),
+  warn: (...args: any[]) => console.warn('[NotificationService]', ...args),
+  error: (...args: any[]) => console.error('[NotificationService]', ...args),
+  debug: (...args: any[]) => console.debug('[NotificationService]', ...args),
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
