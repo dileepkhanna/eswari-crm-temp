@@ -156,7 +156,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     try {
       const sub = await notificationService.subscribe();
       if (!sub) {
-        toast.error('Could not subscribe. Allow notifications in your browser.');
+        toast.error('Failed to enable notifications. Please try again.');
         return;
       }
       const ok = await notificationService.sendSubscriptionToBackend(sub);
@@ -164,10 +164,30 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         setIsEnabled(true);
         toast.success('Push notifications enabled');
       } else {
-        toast.error('Failed to register with server');
+        toast.error('Failed to register with server. Please try again.');
       }
-    } catch {
-      toast.error('Failed to enable notifications');
+    } catch (error: any) {
+      const errorMsg = error?.message || '';
+      
+      if (errorMsg === 'PERMISSION_DENIED') {
+        toast.error('Notifications blocked. Click the lock icon in address bar and allow notifications.');
+      } else if (errorMsg === 'PERMISSION_NOT_GRANTED') {
+        toast.error('Please allow notifications when your browser asks.');
+      } else if (errorMsg === 'UNSUPPORTED_BROWSER') {
+        toast.error('Your browser doesn\'t support push notifications. Please update your browser.');
+      } else if (errorMsg === 'SERVICE_WORKER_FAILED') {
+        toast.error('Service worker failed to load. Try refreshing the page.');
+      } else if (errorMsg === 'VAPID_KEY_MISSING') {
+        toast.error('Server configuration error. Please contact support.');
+      } else if (errorMsg === 'BACKEND_REGISTRATION_FAILED') {
+        toast.error('Failed to register with server. Please try again.');
+      } else if (errorMsg.startsWith('SUBSCRIPTION_FAILED')) {
+        toast.error('Subscription failed. Clear your browser cache and try again.');
+      } else {
+        toast.error('Could not enable notifications. Check browser settings and try again.');
+      }
+      
+      logger.error('Enable notifications error:', error);
     } finally {
       setIsLoading(false);
     }

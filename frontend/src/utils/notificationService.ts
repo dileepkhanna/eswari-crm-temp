@@ -121,17 +121,22 @@ class NotificationService {
   async subscribe(): Promise<PushSubscription | null> {
     try {
       if (!this.isSupported()) {
-        logger.error('Push notifications not supported');
-        return null;
+        logger.error('Push notifications not supported in this browser');
+        throw new Error('UNSUPPORTED_BROWSER');
       }
 
       // Request permission
       const permission = await Notification.requestPermission();
       logger.log('Notification permission:', permission);
 
+      if (permission === 'denied') {
+        logger.error('Notification permission denied by user');
+        throw new Error('PERMISSION_DENIED');
+      }
+
       if (permission !== 'granted') {
-        logger.warn('Notification permission denied');
-        return null;
+        logger.warn('Notification permission not granted');
+        throw new Error('PERMISSION_NOT_GRANTED');
       }
 
       // Initialize service worker if not already done
@@ -139,7 +144,7 @@ class NotificationService {
         const initialized = await this.initialize();
         if (!initialized || !this.swReg) {
           logger.error('Failed to initialize service worker');
-          return null;
+          throw new Error('SERVICE_WORKER_FAILED');
         }
       }
 
@@ -147,7 +152,7 @@ class NotificationService {
       const vapidPublicKey = await this.getVapidPublicKey();
       if (!vapidPublicKey) {
         logger.error('No VAPID public key available');
-        return null;
+        throw new Error('VAPID_KEY_MISSING');
       }
 
       // Unsubscribe from any existing subscription
@@ -170,14 +175,24 @@ class NotificationService {
       const sent = await this.sendSubscriptionToBackend(this.pushSub);
       if (!sent) {
         logger.error('Failed to send subscription to backend');
-        return null;
+        throw new Error('BACKEND_REGISTRATION_FAILED');
       }
 
       logger.log('Push subscription registered with backend');
       return this.pushSub;
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Push subscription error:', err);
-      return null;
+      
+      // Re-throw with specific error type
+      if (err.message && err.message.startsWith('PERMISSION')) {
+        throw err;
+      }
+      if (err.message && (err.message.includes('VAPID') || err.message.includes('SERVICE_WORKER') || err.message.includes('BACKEND'))) {
+        throw err;
+      }
+      
+      // Generic subscription error
+      throw new Error('SUBSCRIPTION_FAILED: ' + (err.message || 'Unknown error'));
     }
   }
 

@@ -131,6 +131,38 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 custom_status=updated.custom_call_status if new_status == 'custom' else None,
                 notes=None,
             )
+    
+    def perform_destroy(self, instance):
+        """
+        Custom delete logic with role-based permissions.
+        - Employees can only delete customers they created or are assigned to
+        - Managers can delete any customer in their team
+        - Admin/HR can delete any customer in their company
+        """
+        user = self.request.user
+        
+        # Admin and HR can delete any customer in their accessible companies
+        if user.role in ['admin', 'hr']:
+            instance.delete()
+            return
+        
+        # Managers can delete any customer in their company
+        if user.role == 'manager':
+            if instance.company_id == user.company_id:
+                instance.delete()
+                return
+            else:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You don't have permission to delete this customer.")
+        
+        # Employees can only delete customers they created or are assigned to
+        if user.role == 'employee':
+            if instance.assigned_to_id == user.id or instance.created_by_id == user.id:
+                instance.delete()
+                return
+            else:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You can only delete customers that are assigned to you or created by you.")
 
     @action(detail=False, methods=['get'])
     def check_phone(self, request):
@@ -447,16 +479,54 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
         """
-        Bulk delete multiple customers.
+        Bulk delete multiple customers with proper permission checks.
         Expects: {"customer_ids": [...]}
         """
-        customer_ids = request.data.get('customer_ids', [])
-        if not customer_ids:
-            return Response({'error': 'No customer IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            customer_ids = request.data.get('customer_ids', [])
+            if not customer_ids:
+                return Response({'error': 'No customer IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
 
-        qs = self.get_queryset().filter(id__in=customer_ids)
-        deleted_count, _ = qs.delete()
-        return Response({'success': True, 'deleted': deleted_count})
+            user = request.user
+            qs = self.get_queryset().filter(id__in=customer_ids)
+            
+            # Convert to list to avoid .distinct() issue with .delete()
+            customers_to_delete = list(qs)
+            
+            if not customers_to_delete:
+                return Response({'error': 'No customers found to delete'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # For employees, verify they can delete each customer
+            if user.role == 'employee':
+                denied_customers = []
+                
+                for customer in customers_to_delete:
+                    if customer.assigned_to_id != user.id and customer.created_by_id != user.id:
+                        denied_customers.append(customer.name or customer.phone)
+                
+                if denied_customers:
+                    return Response({
+                        'error': f'You can only delete customers assigned to you or created by you. Cannot delete: {", ".join(denied_customers[:3])}{"..." if len(denied_customers) > 3 else ""}'
+                    }, status=status.HTTP_403_FORBIDDEN)
+            
+            # For managers, verify company access
+            elif user.role == 'manager':
+                for customer in customers_to_delete:
+                    if customer.company_id != user.company_id:
+                        return Response({
+                            'error': 'You can only delete customers from your company'
+                        }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Delete each customer individually (avoids .distinct() issue)
+            deleted_count = 0
+            for customer in customers_to_delete:
+                customer.delete()
+                deleted_count += 1
+            
+            return Response({'success': True, 'deleted': deleted_count})
+        except Exception as e:
+            logger.error(f"Error in bulk_delete: {str(e)}", exc_info=True)
+            return Response({'error': f'Failed to delete customers: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def bulk_import(self, request):
