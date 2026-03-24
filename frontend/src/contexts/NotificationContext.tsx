@@ -119,8 +119,16 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const onSWMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PUSH_RECEIVED') {
         const { title, body } = event.data;
+        // Show toast notification in the app
         toast(title, { description: body });
-        setTimeout(loadNotifications, 500);
+        // Also show system notification if page is visible (foreground)
+        if (document.visibilityState === 'visible' && Notification.permission === 'granted') {
+          // The service worker already showed the notification, just refresh the list
+          setTimeout(loadNotifications, 500);
+        } else {
+          // Background - service worker handles it
+          setTimeout(loadNotifications, 500);
+        }
         notificationService._notifyForeground();
       }
     };
