@@ -1,6 +1,7 @@
 /**
  * Push Notification Service - Complete Reimplementation v2.0
  * Uses native Web Push API with pywebpush backend
+ * Fixed: Removed logger dependency to prevent tree-shaking issues
  */
 
 // Simple console wrapper that works in production
