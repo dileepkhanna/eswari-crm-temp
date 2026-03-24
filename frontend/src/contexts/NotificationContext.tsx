@@ -187,7 +187,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         toast.error('Could not enable notifications. Check browser settings and try again.');
       }
       
-      logger.error('Enable notifications error:', error);
+      console.error('[NotificationContext] Enable notifications error:', error);
     } finally {
       setIsLoading(false);
     }
