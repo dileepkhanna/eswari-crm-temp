@@ -1,7 +1,14 @@
 import { apiClient } from '@/lib/api';
 import { ASECustomer, ASECustomerFormData, ASECustomerStats, ASECustomerActivity, CallLog, CustomerNote } from '@/types/ase-customer';
 
-import { logger } from '@/lib/logger';
+// Simple console wrapper to avoid tree-shaking issues
+const logger = {
+  log: (...args: any[]) => console.log('[ASECustomerService]', ...args),
+  info: (...args: any[]) => console.info('[ASECustomerService]', ...args),
+  warn: (...args: any[]) => console.warn('[ASECustomerService]', ...args),
+  error: (...args: any[]) => console.error('[ASECustomerService]', ...args),
+  debug: (...args: any[]) => console.debug('[ASECustomerService]', ...args),
+};
 
 export class ASECustomerService {
   private static baseUrl = '/ase/customers';

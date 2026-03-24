@@ -1,6 +1,13 @@
 import { apiClient } from '@/lib/api';
 
-import { logger } from '@/lib/logger';
+// Simple console wrapper to avoid tree-shaking issues
+const logger = {
+  log: (...args: any[]) => console.log('[BirthdayService]', ...args),
+  info: (...args: any[]) => console.info('[BirthdayService]', ...args),
+  warn: (...args: any[]) => console.warn('[BirthdayService]', ...args),
+  error: (...args: any[]) => console.error('[BirthdayService]', ...args),
+  debug: (...args: any[]) => console.debug('[BirthdayService]', ...args),
+};
 export interface Birthday {
   id: number;
   employee: number;

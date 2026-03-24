@@ -1,5 +1,12 @@
 // Activity Logger Utility for Manager Panel
-import { logger } from '@/lib/logger';
+// Simple console wrapper to avoid tree-shaking issues
+const logger = {
+  log: (...args: any[]) => console.log('[ActivityLogger]', ...args),
+  info: (...args: any[]) => console.info('[ActivityLogger]', ...args),
+  warn: (...args: any[]) => console.warn('[ActivityLogger]', ...args),
+  error: (...args: any[]) => console.error('[ActivityLogger]', ...args),
+  debug: (...args: any[]) => console.debug('[ActivityLogger]', ...args),
+};
 
 export interface ActivityLogData {
   module: 'leads' | 'customers' | 'tasks' | 'projects' | 'leaves' | 'announcements' | 'users' | 'reports';
