@@ -2,7 +2,15 @@
  * Push Notification Service - Complete Reimplementation v2.0
  * Uses native Web Push API with pywebpush backend
  */
-import { logger } from '@/lib/logger';
+
+// Simple console wrapper that works in production
+const log = {
+  log: (...args: any[]) => console.log(...args),
+  info: (...args: any[]) => console.info(...args),
+  warn: (...args: any[]) => console.warn(...args),
+  error: (...args: any[]) => console.error(...args),
+  debug: (...args: any[]) => console.debug(...args),
+};
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -55,7 +63,7 @@ class NotificationService {
     if (this.initialized) return true;
     
     if (!this.isSupported()) {
-      logger.warn('Push notifications not supported in this browser');
+      log.warn('Push notifications not supported in this browser');
       return false;
     }
 
@@ -64,7 +72,7 @@ class NotificationService {
       const registrations = await navigator.serviceWorker.getRegistrations();
       for (const registration of registrations) {
         await registration.unregister();
-        logger.log('Unregistered old service worker');
+        log.log('Unregistered old service worker');
       }
 
       // Register new service worker
@@ -73,7 +81,7 @@ class NotificationService {
         updateViaCache: 'none' // Always check for updates
       });
 
-      logger.log('Service worker registered successfully');
+      log.log('Service worker registered successfully');
 
       // Wait for service worker to be ready
       await navigator.serviceWorker.ready;
@@ -82,7 +90,7 @@ class NotificationService {
       // Listen for messages from service worker
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'PUSH_NOTIFICATION_RECEIVED') {
-          logger.log('Push notification received in foreground:', event.data);
+          log.log('Push notification received in foreground:', event.data);
           this._notifyForeground();
         }
       });
@@ -91,13 +99,13 @@ class NotificationService {
       this.pushSub = await this.swReg.pushManager.getSubscription();
       
       if (this.pushSub) {
-        logger.log('Found existing push subscription');
+        log.log('Found existing push subscription');
       }
 
       this.initialized = true;
       return true;
     } catch (err) {
-      logger.error('Service worker initialization error:', err);
+      log.error('Service worker initialization error:', err);
       return false;
     }
   }
@@ -106,7 +114,7 @@ class NotificationService {
   private async getVapidPublicKey(): Promise<string> {
     const envKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
     if (envKey) {
-      logger.log('Using VAPID key from environment');
+      log.log('Using VAPID key from environment');
       return envKey;
     }
 
@@ -116,7 +124,7 @@ class NotificationService {
       const data = await res.json();
       return data.vapid_public_key;
     } catch (error) {
-      logger.error('Error fetching VAPID key:', error);
+      log.error('Error fetching VAPID key:', error);
       throw error;
     }
   }
@@ -125,21 +133,21 @@ class NotificationService {
   async subscribe(): Promise<PushSubscription | null> {
     try {
       if (!this.isSupported()) {
-        logger.error('Push notifications not supported in this browser');
+        log.error('Push notifications not supported in this browser');
         throw new Error('UNSUPPORTED_BROWSER');
       }
 
       // Request permission
       const permission = await Notification.requestPermission();
-      logger.log('Notification permission:', permission);
+      log.log('Notification permission:', permission);
 
       if (permission === 'denied') {
-        logger.error('Notification permission denied by user');
+        log.error('Notification permission denied by user');
         throw new Error('PERMISSION_DENIED');
       }
 
       if (permission !== 'granted') {
-        logger.warn('Notification permission not granted');
+        log.warn('Notification permission not granted');
         throw new Error('PERMISSION_NOT_GRANTED');
       }
 
@@ -147,7 +155,7 @@ class NotificationService {
       if (!this.swReg) {
         const initialized = await this.initialize();
         if (!initialized || !this.swReg) {
-          logger.error('Failed to initialize service worker');
+          log.error('Failed to initialize service worker');
           throw new Error('SERVICE_WORKER_FAILED');
         }
       }
@@ -155,38 +163,38 @@ class NotificationService {
       // Get VAPID public key
       const vapidPublicKey = await this.getVapidPublicKey();
       if (!vapidPublicKey) {
-        logger.error('No VAPID public key available');
+        log.error('No VAPID public key available');
         throw new Error('VAPID_KEY_MISSING');
       }
 
       // Unsubscribe from any existing subscription
       const existing = await this.swReg.pushManager.getSubscription();
       if (existing) {
-        logger.log('Unsubscribing from existing subscription');
+        log.log('Unsubscribing from existing subscription');
         await existing.unsubscribe();
       }
 
       // Create new subscription
-      logger.log('Creating new push subscription...');
+      log.log('Creating new push subscription...');
       const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       this.pushSub = await this.swReg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey as BufferSource
       });
 
-      logger.log('Push subscription created:', this.pushSub.endpoint.substring(0, 50) + '...');
+      log.log('Push subscription created:', this.pushSub.endpoint.substring(0, 50) + '...');
 
       // Send subscription to backend
       const sent = await this.sendSubscriptionToBackend(this.pushSub);
       if (!sent) {
-        logger.error('Failed to send subscription to backend');
+        log.error('Failed to send subscription to backend');
         throw new Error('BACKEND_REGISTRATION_FAILED');
       }
 
-      logger.log('Push subscription registered with backend');
+      log.log('Push subscription registered with backend');
       return this.pushSub;
     } catch (err: any) {
-      logger.error('Push subscription error:', err);
+      log.error('Push subscription error:', err);
       
       // Re-throw with specific error type
       if (err.message && err.message.startsWith('PERMISSION')) {
@@ -204,7 +212,7 @@ class NotificationService {
   /** Send subscription to backend */
   async sendSubscriptionToBackend(sub: PushSubscription): Promise<boolean> {
     if (!localStorage.getItem('access_token')) {
-      logger.warn('No auth token, cannot send subscription');
+      log.warn('No auth token, cannot send subscription');
       return false;
     }
 
@@ -227,13 +235,13 @@ class NotificationService {
 
       if (!res.ok) {
         const error = await res.text();
-        logger.error('Backend subscription error:', error);
+        log.error('Backend subscription error:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      logger.error('Error sending subscription to backend:', error);
+      log.error('Error sending subscription to backend:', error);
       return false;
     }
   }
@@ -242,7 +250,7 @@ class NotificationService {
   async removeSubscriptionFromBackend(): Promise<boolean> {
     try {
       if (!this.pushSub) {
-        logger.log('No subscription to remove');
+        log.log('No subscription to remove');
         return true;
       }
 
@@ -251,7 +259,7 @@ class NotificationService {
       // Unsubscribe from browser
       await this.pushSub.unsubscribe();
       this.pushSub = null;
-      logger.log('Unsubscribed from browser push');
+      log.log('Unsubscribed from browser push');
 
       // Remove from backend
       if (localStorage.getItem('access_token')) {
@@ -265,14 +273,14 @@ class NotificationService {
         });
 
         if (!res.ok) {
-          logger.error('Failed to remove subscription from backend');
+          log.error('Failed to remove subscription from backend');
           return false;
         }
       }
 
       return true;
     } catch (error) {
-      logger.error('Error removing subscription:', error);
+      log.error('Error removing subscription:', error);
       return false;
     }
   }
@@ -289,7 +297,7 @@ class NotificationService {
       const data = await res.json();
       return Array.isArray(data) ? data : (data.results ?? []);
     } catch (error) {
-      logger.error('Error fetching notifications:', error);
+      log.error('Error fetching notifications:', error);
       return [];
     }
   }
@@ -302,7 +310,7 @@ class NotificationService {
         headers: getAuthHeader()
       });
     } catch (error) {
-      logger.error('Error marking notification as read:', error);
+      log.error('Error marking notification as read:', error);
     }
   }
 
@@ -314,7 +322,7 @@ class NotificationService {
         headers: getAuthHeader()
       });
     } catch (error) {
-      logger.error('Error marking all as read:', error);
+      log.error('Error marking all as read:', error);
     }
   }
 
@@ -326,7 +334,7 @@ class NotificationService {
         headers: getAuthHeader()
       });
     } catch (error) {
-      logger.error('Error clearing notifications:', error);
+      log.error('Error clearing notifications:', error);
     }
   }
 
@@ -339,7 +347,7 @@ class NotificationService {
       });
       return res.ok;
     } catch (error) {
-      logger.error('Error sending test notification:', error);
+      log.error('Error sending test notification:', error);
       return false;
     }
   }
@@ -367,7 +375,7 @@ class NotificationService {
       try {
         cb();
       } catch (error) {
-        logger.error('Error in foreground callback:', error);
+        log.error('Error in foreground callback:', error);
       }
     });
   }
