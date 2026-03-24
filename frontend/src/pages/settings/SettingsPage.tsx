@@ -351,27 +351,27 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-background">
       <TopBar title="Settings" subtitle="Manage your account preferences" />
       
-      <main className="p-6">
+      <main className="p-3 md:p-6">
         <Tabs defaultValue={availableTabs[0]} className="space-y-6">
-          <TabsList className={`grid w-full max-w-2xl ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full h-auto ${isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
             {isAdmin && (
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">Profile</span>
+              <TabsTrigger value="profile" className="flex items-center justify-center gap-1 text-xs sm:text-sm py-2 px-1">
+                <User className="w-4 h-4 shrink-0" />
+                <span>Profile</span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              <span className="hidden sm:inline">Notifications</span>
+            <TabsTrigger value="notifications" className="flex items-center justify-center gap-1 text-xs sm:text-sm py-2 px-1">
+              <Bell className="w-4 h-4 shrink-0" />
+              <span>Notifications</span>
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="flex items-center gap-2">
-              <Palette className="w-4 h-4" />
-              <span className="hidden sm:inline">Appearance</span>
+            <TabsTrigger value="appearance" className="flex items-center justify-center gap-1 text-xs sm:text-sm py-2 px-1">
+              <Palette className="w-4 h-4 shrink-0" />
+              <span>Appearance</span>
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="security" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Security</span>
+              <TabsTrigger value="security" className="flex items-center justify-center gap-1 text-xs sm:text-sm py-2 px-1">
+                <Shield className="w-4 h-4 shrink-0" />
+                <span>Security</span>
               </TabsTrigger>
             )}
           </TabsList>

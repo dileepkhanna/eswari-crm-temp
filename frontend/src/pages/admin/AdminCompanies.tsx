@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { apiClient } from '@/lib/api';
 import { CompanyManagementForm } from '@/components/forms';
+import TopBar from '@/components/layout/TopBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -207,118 +208,126 @@ export default function AdminCompanies() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Building2 className="h-8 w-8" />
-            Company Management
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage companies and their settings
-          </p>
-        </div>
-        <Button onClick={openCreateForm}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Company
-        </Button>
-      </div>
-
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Companies</CardTitle>
-          <CardDescription>
-            View and manage all companies in the system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or code..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={statusFilter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter('all')}
-              >
-                All
-              </Button>
-              <Button
-                variant={statusFilter === 'active' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter('active')}
-                className={statusFilter === 'active' ? '' : 'text-green-600 border-green-600 hover:bg-green-50'}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Active
-              </Button>
-              <Button
-                variant={statusFilter === 'inactive' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter('inactive')}
-                className={statusFilter === 'inactive' ? '' : 'text-gray-600 border-gray-600 hover:bg-gray-50'}
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Inactive
-              </Button>
-            </div>
+    <div className="min-h-screen">
+      <TopBar title="Company Management" subtitle="Manage companies and their settings" />
+      <div className="p-3 md:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+              <Building2 className="h-6 w-6" />
+              Company Management
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Manage companies and their settings
+            </p>
           </div>
+          <Button onClick={openCreateForm} className="self-start sm:self-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Company
+          </Button>
+        </div>
 
-          {/* Companies Table */}
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading companies...
+        {/* Search and Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Companies</CardTitle>
+            <CardDescription>
+              View and manage all companies in the system
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3 mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('all')}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={statusFilter === 'active' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('active')}
+                  className={statusFilter === 'active' ? '' : 'text-green-600 border-green-600 hover:bg-green-50'}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Active
+                </Button>
+                <Button
+                  variant={statusFilter === 'inactive' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('inactive')}
+                  className={statusFilter === 'inactive' ? '' : 'text-gray-600 border-gray-600 hover:bg-gray-50'}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Inactive
+                </Button>
+              </div>
             </div>
-          ) : filteredCompanies.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {searchQuery ? 'No companies found matching your search' : 'No companies yet'}
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Logo</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCompanies.map((company) => (
-                    <TableRow key={company.id}>
-                      <TableCell>
-                        {company.logo_url ? (
-                          <img
-                            src={company.logo_url}
-                            alt={`${company.name} logo`}
-                            className="h-10 w-10 object-contain rounded"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
+
+            {/* Companies Table */}
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading companies...
+              </div>
+            ) : filteredCompanies.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? 'No companies found matching your search' : 'No companies yet'}
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Logo</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="hidden sm:table-cell">Code</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden md:table-cell">Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCompanies.map((company) => (
+                      <TableRow key={company.id}>
+                        <TableCell>
+                          {company.logo_url ? (
+                            <img
+                              src={company.logo_url}
+                              alt={`${company.name} logo`}
+                              className="h-10 w-10 object-contain rounded"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                              <Building2 className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div>
+                            <p>{company.name}</p>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded sm:hidden">
+                              {company.code}
+                            </code>
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">{company.name}</TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {company.code}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <code className="text-xs bg-muted px-2 py-1 rounded">
+                            {company.code}
+                          </code>
+                        </TableCell>
+                        <TableCell>
                           <Badge
                             variant={company.is_active ? 'default' : 'secondary'}
                             className={isProtected(company) ? 'cursor-default' : 'cursor-pointer hover:opacity-80 transition-opacity'}
@@ -337,53 +346,53 @@ export default function AdminCompanies() {
                               </>
                             )}
                           </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(company.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {!isProtected(company) && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleToggleActive(company)}
-                                title={`${company.is_active ? 'Deactivate' : 'Activate'} company`}
-                                className={company.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}
-                              >
-                                <Power className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditForm(company)}
-                                title="Edit company"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                          {new Date(company.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {!isProtected(company) && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleToggleActive(company)}
+                                  title={`${company.is_active ? 'Deactivate' : 'Activate'} company`}
+                                  className={company.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}
+                                >
+                                  <Power className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditForm(company)}
+                                  title="Edit company"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Company Form Modal */}
-      <CompanyManagementForm
-        open={isFormOpen}
-        onClose={closeForm}
-        onSubmit={editingCompany ? handleUpdateCompany : handleCreateCompany}
-        company={editingCompany}
-        isSubmitting={isSubmitting}
-      />
+        {/* Company Form Modal */}
+        <CompanyManagementForm
+          open={isFormOpen}
+          onClose={closeForm}
+          onSubmit={editingCompany ? handleUpdateCompany : handleCreateCompany}
+          company={editingCompany}
+          isSubmitting={isSubmitting}
+        />
+      </div>
     </div>
   );
 }

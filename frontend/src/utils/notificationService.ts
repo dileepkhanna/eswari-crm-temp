@@ -68,6 +68,9 @@ class NotificationService {
 
   /** Fetch VAPID public key from Django backend */
   private async getVapidPublicKey(): Promise<string> {
+    // Prefer env var — avoids a round-trip and ensures key matches backend
+    const envKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+    if (envKey) return envKey;
     const res = await fetch(`${API_BASE}/notifications/vapid-public-key/`);
     if (!res.ok) throw new Error('Failed to fetch VAPID public key');
     const data = await res.json();
@@ -97,9 +100,28 @@ class NotificationService {
         return null;
       }
 
-      // Unsubscribe any stale subscription first
+      // Reuse existing subscription if still valid
       const existing = await this.swReg.pushManager.getSubscription();
-      if (existing) await existing.unsubscribe();
+      if (existing) {
+        // Verify the existing subscription uses the current VAPID key
+        // by checking the applicationServerKey matches
+        const existingKeyBytes = existing.options?.applicationServerKey;
+        const currentKeyBytes = urlBase64ToUint8Array(vapidPublicKey);
+        let keyMatches = false;
+        if (existingKeyBytes) {
+          const existingArr = new Uint8Array(existingKeyBytes as ArrayBuffer);
+          keyMatches = existingArr.length === currentKeyBytes.length &&
+            existingArr.every((b, i) => b === currentKeyBytes[i]);
+        }
+        if (keyMatches) {
+          this.pushSub = existing;
+          logger.log('Reusing existing Web Push subscription');
+          return this.pushSub;
+        }
+        // Key mismatch — unsubscribe stale subscription
+        logger.warn('VAPID key mismatch — removing stale subscription');
+        await existing.unsubscribe();
+      }
 
       this.pushSub = await this.swReg.pushManager.subscribe({
         userVisibleOnly: true,

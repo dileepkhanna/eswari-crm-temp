@@ -460,9 +460,9 @@ const AdminBranding = () => {
     <div className="flex flex-col h-full">
       <TopBar title="Branding Settings" subtitle="Customize your application appearance" />
       
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-3 md:p-6">
         <Tabs defaultValue="global" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full sm:max-w-md grid-cols-2">
             <TabsTrigger value="global" className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
               Global Branding
@@ -497,12 +497,12 @@ const AdminBranding = () => {
                 
                 <div className="space-y-2">
                   <Label>Logo</Label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row items-start gap-4">
                     {formData.logo_url ? (
                       <img 
                         src={formData.logo_url} 
                         alt="Logo" 
-                        className="h-16 w-16 object-contain rounded-lg border" 
+                        className="h-16 w-16 object-contain rounded-lg border shrink-0" 
                         onError={(e) => {
                           logger.error('❌ Logo failed to load:', formData.logo_url);
                           logger.error('Error event:', e);
@@ -512,7 +512,7 @@ const AdminBranding = () => {
                         }}
                       />
                     ) : (
-                      <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
+                      <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center shrink-0">
                         <Building2 className="h-8 w-8 text-muted-foreground" />
                       </div>
                     )}
@@ -538,7 +538,7 @@ const AdminBranding = () => {
                       </Button>
                       <p className="text-xs text-muted-foreground mt-1">Recommended: 200x200px, max 2MB</p>
                       {formData.logo_url && (
-                        <p className="text-xs text-blue-600 mt-1">Current: {formData.logo_url}</p>
+                        <p className="text-xs text-blue-600 mt-1 break-all">Current: {formData.logo_url}</p>
                       )}
                     </div>
                   </div>
@@ -547,11 +547,11 @@ const AdminBranding = () => {
                 {/* Favicon Upload */}
                 <div className="space-y-2">
                   <Label>Favicon (Browser Tab Icon)</Label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row items-start gap-4">
                     {formData.favicon_url ? (
-                      <img src={formData.favicon_url} alt="Favicon" className="h-12 w-12 object-contain rounded-lg border" />
+                      <img src={formData.favicon_url} alt="Favicon" className="h-12 w-12 object-contain rounded-lg border shrink-0" />
                     ) : (
-                      <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center">
+                      <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center shrink-0">
                         <Globe className="h-6 w-6 text-muted-foreground" />
                       </div>
                     )}
@@ -592,12 +592,12 @@ const AdminBranding = () => {
             <CardDescription>Customize your application colors (HSL format)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="primary_color">Primary Color</Label>
                 <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div className="color-picker-container">
+                  <div className="flex gap-2 items-center">
+                    <div className="color-picker-container shrink-0">
                       <input
                         type="color"
                         value={hslToHex(formData.primary_color)}
@@ -611,12 +611,8 @@ const AdminBranding = () => {
                         onBlur={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onInput={(e) => e.stopPropagation()}
-                        className="w-16 h-12 rounded-md border border-input cursor-pointer"
-                        style={{ 
-                          padding: '2px',
-                          position: 'relative',
-                          zIndex: 9999
-                        }}
+                        className="w-12 h-10 rounded-md border border-input cursor-pointer"
+                        style={{ padding: '2px', position: 'relative', zIndex: 9999 }}
                         title="Click to select primary color"
                         tabIndex={0}
                       />
@@ -626,7 +622,7 @@ const AdminBranding = () => {
                       value={formData.primary_color}
                       onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
                       placeholder="215 80% 35%"
-                      className="flex-1"
+                      className="flex-1 min-w-0"
                     />
                   </div>
                   {/* Preset Colors */}
@@ -658,8 +654,8 @@ const AdminBranding = () => {
               <div className="space-y-2">
                 <Label htmlFor="accent_color">Accent Color</Label>
                 <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div className="color-picker-container">
+                  <div className="flex gap-2 items-center">
+                    <div className="color-picker-container shrink-0">
                       <input
                         type="color"
                         value={hslToHex(formData.accent_color)}
@@ -673,12 +669,8 @@ const AdminBranding = () => {
                         onBlur={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onInput={(e) => e.stopPropagation()}
-                        className="w-16 h-12 rounded-md border border-input cursor-pointer"
-                        style={{ 
-                          padding: '2px',
-                          position: 'relative',
-                          zIndex: 9999
-                        }}
+                        className="w-12 h-10 rounded-md border border-input cursor-pointer"
+                        style={{ padding: '2px', position: 'relative', zIndex: 9999 }}
                         title="Click to select accent color"
                         tabIndex={0}
                       />
@@ -688,7 +680,7 @@ const AdminBranding = () => {
                       value={formData.accent_color}
                       onChange={(e) => setFormData(prev => ({ ...prev, accent_color: e.target.value }))}
                       placeholder="38 95% 55%"
-                      className="flex-1"
+                      className="flex-1 min-w-0"
                     />
                   </div>
                   {/* Preset Colors */}
@@ -720,8 +712,8 @@ const AdminBranding = () => {
               <div className="space-y-2">
                 <Label htmlFor="sidebar_color">Sidebar Color</Label>
                 <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div className="color-picker-container">
+                  <div className="flex gap-2 items-center">
+                    <div className="color-picker-container shrink-0">
                       <input
                         type="color"
                         value={hslToHex(formData.sidebar_color)}
@@ -735,12 +727,8 @@ const AdminBranding = () => {
                         onBlur={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onInput={(e) => e.stopPropagation()}
-                        className="w-16 h-12 rounded-md border border-input cursor-pointer"
-                        style={{ 
-                          padding: '2px',
-                          position: 'relative',
-                          zIndex: 9999
-                        }}
+                        className="w-12 h-10 rounded-md border border-input cursor-pointer"
+                        style={{ padding: '2px', position: 'relative', zIndex: 9999 }}
                         title="Click to select sidebar color"
                         tabIndex={0}
                       />
@@ -750,7 +738,7 @@ const AdminBranding = () => {
                       value={formData.sidebar_color}
                       onChange={(e) => setFormData(prev => ({ ...prev, sidebar_color: e.target.value }))}
                       placeholder="220 30% 12%"
-                      className="flex-1"
+                      className="flex-1 min-w-0"
                     />
                   </div>
                   {/* Preset Colors */}
@@ -807,7 +795,7 @@ const AdminBranding = () => {
         </Card>
 
         {/* Save Button */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
           <Button 
             variant="outline" 
             onClick={() => {

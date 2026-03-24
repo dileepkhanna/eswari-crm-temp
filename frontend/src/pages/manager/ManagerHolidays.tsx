@@ -136,13 +136,13 @@ export default function ManagerHolidays() {
         subtitle="Manage company holidays and events"
       />
       
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="p-3 md:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold">Holiday Management</h2>
-            <p className="text-muted-foreground">Create and manage company holidays</p>
+            <h2 className="text-xl md:text-2xl font-bold">Holiday Management</h2>
+            <p className="text-muted-foreground text-sm">Create and manage company holidays</p>
           </div>
-          <Button onClick={() => setIsFormOpen(true)} className="btn-accent">
+          <Button onClick={() => setIsFormOpen(true)} className="btn-accent self-start sm:self-auto">
             <Plus className="w-4 h-4 mr-2" />
             Add Holiday
           </Button>

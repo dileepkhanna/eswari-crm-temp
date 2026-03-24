@@ -498,9 +498,9 @@ export default function UserList() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-4 flex-1 w-full sm:w-auto flex-wrap items-center">
-          <div className="relative flex-1 sm:max-w-xs">
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-3">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search users..."
@@ -509,9 +509,15 @@ export default function UserList() {
               className="pl-10 input-field"
             />
           </div>
-          
+          <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add User</span>
+          </Button>
+        </div>
+
+        <div className="flex gap-2 items-center">
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="flex-1 sm:w-36 sm:flex-none">
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent>
@@ -524,8 +530,8 @@ export default function UserList() {
           </Select>
 
           <Select value={companyFilter} onValueChange={setCompanyFilter}>
-            <SelectTrigger className="w-44">
-              <Building2 className="w-4 h-4 mr-2" />
+            <SelectTrigger className="flex-1 sm:w-44 sm:flex-none">
+              <Building2 className="w-4 h-4 mr-1 shrink-0" />
               <SelectValue placeholder="All Companies" />
             </SelectTrigger>
             <SelectContent>
@@ -542,22 +548,95 @@ export default function UserList() {
             <Button 
               variant="destructive" 
               size="sm"
+              className="shrink-0"
               onClick={() => setShowBulkDeleteDialog(true)}
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete ({selectedIds.size})
+              <Trash2 className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Delete ({selectedIds.size})</span>
+              <span className="sm:hidden">{selectedIds.size}</span>
             </Button>
           )}
         </div>
-
-        <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add User
-        </Button>
       </div>
 
-      {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      {/* Mobile card list */}
+      <div className="sm:hidden space-y-2">
+        {filteredUsers.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No users found</p>
+          </div>
+        ) : filteredUsers.map((user) => (
+          <div
+            key={user.id}
+            className={`glass-card rounded-xl p-3 flex items-center gap-3 ${
+              deletingUsers.has(user.id) ? 'opacity-50' : ''
+            }`}
+          >
+            <Checkbox
+              checked={selectedIds.has(user.id)}
+              onCheckedChange={() => toggleSelect(user.id)}
+              aria-label={`Select ${user.name}`}
+            />
+            <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-white font-semibold shrink-0 text-sm">
+              {user.name.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email || user.user_id}</p>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                <Badge variant="outline" className={cn("capitalize text-[10px] px-1.5 py-0", getRoleBadgeColor(user.role || ''))}>
+                  {user.role}
+                </Badge>
+                {user.company && (
+                  <span className="text-[10px] text-muted-foreground">{user.company.name}</span>
+                )}
+              </div>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                  <Edit className="w-4 h-4 mr-2" />Edit User
+                </DropdownMenuItem>
+                {user.role === 'employee' && (
+                  <DropdownMenuItem onClick={() => setPromotingUser(user)}>
+                    <TrendingUp className="w-4 h-4 mr-2" />Promote to Manager
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => handleToggleStatus(user)}>
+                  <UserX className="w-4 h-4 mr-2" />
+                  {user.status === 'active' ? 'Disable Account' : 'Enable Account'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={async () => {
+                    if (confirm(`Delete ${user.name}? This cannot be undone.`)) {
+                      try {
+                        await apiClient.simpleDeleteUser(parseInt(user.id));
+                        await fetchUsers(false);
+                        toast.success(`User "${user.name}" deleted`);
+                      } catch (error: any) {
+                        toast.error('Failed to delete user: ' + error.message);
+                      }
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />Delete User
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="glass-card rounded-2xl overflow-hidden hidden sm:block">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -570,12 +649,12 @@ export default function UserList() {
               </TableHead>
               <TableHead className="font-semibold">User</TableHead>
               <TableHead className="font-semibold">User ID</TableHead>
-              <TableHead className="font-semibold hidden sm:table-cell">Contact</TableHead>
+              <TableHead className="font-semibold hidden md:table-cell">Contact</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
               <TableHead className="font-semibold hidden xl:table-cell">Company</TableHead>
               <TableHead className="font-semibold hidden lg:table-cell">Manager</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold hidden md:table-cell">Joined</TableHead>
+              <TableHead className="font-semibold hidden lg:table-cell">Joined</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
           </TableHeader>
@@ -613,7 +692,7 @@ export default function UserList() {
                     {user.user_id}
                   </code>
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">
+                <TableCell className="hidden md:table-cell">
                   <p className="text-sm text-muted-foreground">{user.phone || '-'}</p>
                 </TableCell>
                 <TableCell>
@@ -638,9 +717,7 @@ export default function UserList() {
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   {user.role === 'employee' && user.manager_name ? (
-                    <p className="text-sm text-muted-foreground">
-                      {user.manager_name}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{user.manager_name}</p>
                   ) : (
                     <p className="text-sm text-muted-foreground">-</p>
                   )}
@@ -657,7 +734,7 @@ export default function UserList() {
                     {user.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">
+                <TableCell className="hidden lg:table-cell">
                   <p className="text-sm text-muted-foreground">
                     {format(new Date(user.created_at), 'MMM dd, yyyy')}
                   </p>
@@ -670,25 +747,15 @@ export default function UserList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={() => setEditingUser(user)}
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit User
+                      <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                        <Edit className="w-4 h-4 mr-2" />Edit User
                       </DropdownMenuItem>
-                      
                       {user.role === 'employee' && (
-                        <DropdownMenuItem 
-                          onClick={() => setPromotingUser(user)}
-                        >
-                          <TrendingUp className="w-4 h-4 mr-2" />
-                          Promote to Manager
+                        <DropdownMenuItem onClick={() => setPromotingUser(user)}>
+                          <TrendingUp className="w-4 h-4 mr-2" />Promote to Manager
                         </DropdownMenuItem>
                       )}
-                      
-                      <DropdownMenuItem 
-                        onClick={() => handleToggleStatus(user)}
-                      >
+                      <DropdownMenuItem onClick={() => handleToggleStatus(user)}>
                         <UserX className="w-4 h-4 mr-2" />
                         {user.status === 'active' ? 'Disable Account' : 'Enable Account'}
                       </DropdownMenuItem>
@@ -710,8 +777,7 @@ export default function UserList() {
                           }
                         }}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete User
+                        <Trash2 className="w-4 h-4 mr-2" />Delete User
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -726,6 +792,7 @@ export default function UserList() {
             <p className="text-muted-foreground">No users found</p>
           </div>
         )}
+        </div>
       </div>
 
       <UserFormModal

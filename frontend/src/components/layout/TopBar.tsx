@@ -92,7 +92,7 @@ export default function TopBar({ title, subtitle, showBackButton = true, childre
 
         {/* Action buttons (e.g., New Announcement) */}
         {children && (
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {children}
           </div>
         )}

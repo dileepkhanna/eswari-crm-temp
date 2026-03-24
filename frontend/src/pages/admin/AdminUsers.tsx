@@ -5,7 +5,7 @@ export default function AdminUsers() {
   return (
     <div className="min-h-screen">
       <TopBar title="User Management" subtitle="Manage staff and manager accounts" />
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         <UserList />
       </div>
     </div>

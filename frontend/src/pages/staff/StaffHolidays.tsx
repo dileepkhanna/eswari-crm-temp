@@ -54,10 +54,10 @@ export default function StaffHolidays() {
         subtitle="View company holidays and events"
       />
       
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold">Company Holidays</h2>
-          <p className="text-muted-foreground">View company holidays and events</p>
+          <h2 className="text-xl md:text-2xl font-bold">Company Holidays</h2>
+          <p className="text-muted-foreground text-sm">View company holidays and events</p>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

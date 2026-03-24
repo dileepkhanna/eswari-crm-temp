@@ -303,7 +303,7 @@ export default function HRHolidays() {
   return (
     <div className="min-h-screen">
       <TopBar title="Holiday Management" subtitle="Manage company holidays" />
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         <div className="space-y-6">
           {/* Search Bar */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -477,18 +477,17 @@ export default function HRHolidays() {
 
           {/* Calendar View */}
           {viewMode === 'calendar' && (
-            <div className="glass-card rounded-2xl p-6">
+            <div className="glass-card rounded-2xl p-3 md:p-6">
               {/* Calendar Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-foreground">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h2 className="text-lg md:text-2xl font-bold text-foreground">
                   {format(currentMonth, 'MMMM yyyy')}
                 </h2>
-                <div className="flex gap-2">
+                <div className="flex gap-1 md:gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                    className="flex items-center gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
@@ -496,6 +495,7 @@ export default function HRHolidays() {
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentMonth(new Date())}
+                    className="hidden sm:inline-flex"
                   >
                     Today
                   </Button>
@@ -503,7 +503,6 @@ export default function HRHolidays() {
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                    className="flex items-center gap-1"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -511,14 +510,15 @@ export default function HRHolidays() {
               </div>
 
               {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-0.5 md:gap-2">
                 {/* Week day headers */}
                 {weekDays.map(day => (
                   <div 
                     key={day} 
-                    className="text-center text-sm font-semibold text-muted-foreground py-2"
+                    className="text-center text-[10px] md:text-sm font-semibold text-muted-foreground py-1 md:py-2"
                   >
-                    {day}
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{day.charAt(0)}</span>
                   </div>
                 ))}
 
@@ -532,7 +532,7 @@ export default function HRHolidays() {
                     <div
                       key={index}
                       className={cn(
-                        'min-h-[100px] p-2 rounded-lg border transition-colors',
+                        'min-h-[48px] md:min-h-[100px] p-0.5 md:p-2 rounded md:rounded-lg border transition-colors',
                         isCurrentMonth 
                           ? 'bg-background border-border' 
                           : 'bg-muted/30 border-transparent',
@@ -541,7 +541,7 @@ export default function HRHolidays() {
                       )}
                     >
                       <div className={cn(
-                        'text-sm font-medium mb-1',
+                        'text-[10px] md:text-sm font-medium mb-0.5 md:mb-1',
                         isCurrentMonth ? 'text-foreground' : 'text-muted-foreground',
                         isToday && 'text-primary font-bold'
                       )}>
@@ -549,12 +549,12 @@ export default function HRHolidays() {
                       </div>
 
                       {/* Holidays for this day */}
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {dayHolidays.map(holiday => (
                           <div
                             key={holiday.id}
                             className={cn(
-                              'text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity',
+                              'text-[9px] md:text-xs p-0.5 md:p-1 rounded cursor-pointer hover:opacity-80 transition-opacity',
                               holiday.is_optional
                                 ? 'bg-blue-100 text-blue-700'
                                 : 'bg-purple-100 text-purple-700'
@@ -562,14 +562,10 @@ export default function HRHolidays() {
                             onClick={() => handleEditClick(holiday)}
                             title={`${holiday.name}\n${holiday.description || ''}`}
                           >
-                            <div className="font-medium truncate">
-                              {holiday.name}
+                            <div className="font-medium truncate">{holiday.name}</div>
+                            <div className="hidden md:block text-[10px] opacity-75 truncate">
+                              {holiday.description}
                             </div>
-                            {holiday.description && (
-                              <div className="text-[10px] opacity-75 truncate">
-                                {holiday.description}
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>

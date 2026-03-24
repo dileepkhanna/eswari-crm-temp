@@ -186,95 +186,98 @@ export default function AdminBirthdays() {
   return (
     <div className="min-h-screen">
       <TopBar title="Birthday Calendar" subtitle="Manage employee birthdays and announcements">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button 
             onClick={handleCreateAnnouncements}
             disabled={creatingAnnouncements}
             variant="outline"
-            className="btn-secondary"
+            className="btn-secondary text-xs sm:text-sm"
           >
             {creatingAnnouncements ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creating...
+                <Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" />
+                <span className="hidden sm:inline">Creating...</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : (
               <>
-                <Gift className="w-4 h-4 mr-2" />
-                Create Today's Announcements
+                <Gift className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Create Today's Announcements</span>
+                <span className="sm:hidden">Announce</span>
               </>
             )}
           </Button>
-          <Button onClick={handleCreateClick} className="btn-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Birthday
+          <Button onClick={handleCreateClick} className="btn-primary text-xs sm:text-sm">
+            <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Add Birthday</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </TopBar>
       
-      <div className="p-6">
-        <div className="space-y-6">
+      <div className="p-3 sm:p-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="glass-card rounded-2xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Gift className="w-5 h-5 text-green-600" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="glass-card rounded-2xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg shrink-0">
+                  <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Today's Birthdays</p>
-                  <p className="text-2xl font-bold">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">Today's Birthdays</p>
+                  <p className="text-xl sm:text-2xl font-bold">
                     {birthdays.filter(b => b.is_birthday_today).length}
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="glass-card rounded-2xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Calendar className="w-5 h-5 text-yellow-600" />
+            <div className="glass-card rounded-2xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-yellow-100 rounded-lg shrink-0">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">This Week</p>
-                  <p className="text-2xl font-bold">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">This Week</p>
+                  <p className="text-xl sm:text-2xl font-bold">
                     {birthdays.filter(b => b.days_until_birthday <= 7).length}
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="glass-card rounded-2xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Calendar className="w-5 h-5 text-blue-600" />
+            <div className="glass-card rounded-2xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg shrink-0">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">This Month</p>
-                  <p className="text-2xl font-bold">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">This Month</p>
+                  <p className="text-xl sm:text-2xl font-bold">
                     {birthdays.filter(b => b.days_until_birthday <= 30).length}
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="glass-card rounded-2xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Users className="w-5 h-5 text-purple-600" />
+            <div className="glass-card rounded-2xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg shrink-0">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Birthdays</p>
-                  <p className="text-2xl font-bold">{birthdays.length}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">Total Birthdays</p>
+                  <p className="text-xl sm:text-2xl font-bold">{birthdays.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Search and Filters */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="relative flex-1 sm:max-w-xs">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search employees..."
@@ -283,13 +286,12 @@ export default function AdminBirthdays() {
                   className="pl-10 input-field"
                 />
               </div>
-              
               <div className="text-sm text-muted-foreground">
                 {filteredBirthdays.length} of {birthdays.length} birthdays
               </div>
             </div>
             
-            <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Filter by role" />
@@ -320,8 +322,69 @@ export default function AdminBirthdays() {
             </div>
           </div>
 
-          {/* Birthday Table */}
-          <div className="glass-card rounded-2xl overflow-hidden">
+          {/* Mobile Card View */}
+          <div className="block md:hidden space-y-3">
+            {filteredBirthdays.length === 0 ? (
+              <div className="glass-card rounded-2xl text-center py-12">
+                <p className="text-muted-foreground">
+                  {searchQuery || roleFilter !== 'all' || companyFilter !== 'all'
+                    ? 'No birthdays found matching your filters'
+                    : 'No birthdays added yet'}
+                </p>
+              </div>
+            ) : (
+              filteredBirthdays.map((birthday, index) => (
+                <div
+                  key={birthday.id}
+                  className="glass-card rounded-2xl p-4 animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground truncate">{birthday.employee_name}</p>
+                      <p className="text-xs text-muted-foreground">{birthday.employee_role} • {birthday.employee_company}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditClick(birthday)} className="h-8 w-8 p-0" title="Edit">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(birthday)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Birth Date</p>
+                      <p>{format(new Date(birthday.birth_date), 'MMM dd, yyyy')}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Age</p>
+                      <p>{birthday.show_age && birthday.age ? `${birthday.age} years` : 'Hidden'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Next Birthday</p>
+                      <p>{format(new Date(birthday.next_birthday), 'MMM dd, yyyy')}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Days Until</p>
+                      <Badge variant="outline" className={cn(getBirthdayBadgeColor(birthday.days_until_birthday))}>
+                        {birthday.is_birthday_today ? 'Today!' : `${birthday.days_until_birthday} days`}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <Badge variant="outline" className={birthday.announce_birthday ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-700 border-gray-300'}>
+                      {birthday.announce_birthday ? 'Announce: Yes' : 'Announce: No'}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block glass-card rounded-2xl overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -343,69 +406,35 @@ export default function AdminBirthdays() {
                   >
                     <TableCell>
                       <div>
-                        <p className="font-medium text-foreground">
-                          {birthday.employee_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {birthday.employee_role} • {birthday.employee_company}
-                        </p>
+                        <p className="font-medium text-foreground">{birthday.employee_name}</p>
+                        <p className="text-xs text-muted-foreground">{birthday.employee_role} • {birthday.employee_company}</p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm">
-                        {format(new Date(birthday.birth_date), 'MMM dd, yyyy')}
-                      </p>
+                      <p className="text-sm">{format(new Date(birthday.birth_date), 'MMM dd, yyyy')}</p>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm">
-                        {birthday.show_age && birthday.age ? `${birthday.age} years` : 'Hidden'}
-                      </p>
+                      <p className="text-sm">{birthday.show_age && birthday.age ? `${birthday.age} years` : 'Hidden'}</p>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm">
-                        {format(new Date(birthday.next_birthday), 'MMM dd, yyyy')}
-                      </p>
+                      <p className="text-sm">{format(new Date(birthday.next_birthday), 'MMM dd, yyyy')}</p>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn(getBirthdayBadgeColor(birthday.days_until_birthday))}
-                      >
-                        {birthday.is_birthday_today 
-                          ? 'Today!' 
-                          : `${birthday.days_until_birthday} days`
-                        }
+                      <Badge variant="outline" className={cn(getBirthdayBadgeColor(birthday.days_until_birthday))}>
+                        {birthday.is_birthday_today ? 'Today!' : `${birthday.days_until_birthday} days`}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={birthday.announce_birthday 
-                          ? 'bg-green-100 text-green-700 border-green-300'
-                          : 'bg-gray-100 text-gray-700 border-gray-300'
-                        }
-                      >
+                      <Badge variant="outline" className={birthday.announce_birthday ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-700 border-gray-300'}>
                         {birthday.announce_birthday ? 'Yes' : 'No'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditClick(birthday)}
-                          className="h-8 w-8 p-0"
-                          title="Edit birthday"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleEditClick(birthday)} className="h-8 w-8 p-0" title="Edit birthday">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteClick(birthday)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Delete birthday"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(birthday)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete birthday">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

@@ -146,8 +146,8 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
             ? 'bg-warning/10 border-warning/30'
             : 'bg-primary/10 border-primary/30'
         )}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start gap-3">
               <div className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                 highestPriority === 'high' 
@@ -166,8 +166,8 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                 )}
               </div>
 
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h4 className={cn(
                     "font-semibold text-sm",
                     highestPriority === 'high' 
@@ -185,21 +185,20 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                   </Badge>
                 </div>
                 
-                {/* Show preview of the most recent/important announcement */}
-                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
                   {unreadAnnouncements[0]?.title}
                   {unreadAnnouncements.length > 1 && ` and ${unreadAnnouncements.length - 1} more...`}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 shrink-0 self-start sm:self-auto ml-11 sm:ml-0">
               {/* View All Button */}
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
-                className="text-xs"
+                className="text-xs h-7 px-2"
               >
                 <Link to={getAnnouncementPageUrl()}>
                   View All
@@ -212,9 +211,9 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowAll(!showAll)}
-                className="text-xs"
+                className="text-xs h-7 px-2"
               >
-                {showAll ? 'Show Less' : 'Show More'}
+                {showAll ? 'Less' : 'More'}
               </Button>
 
               {/* Dismiss All */}
@@ -222,7 +221,7 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                 onClick={() => {
                   unreadAnnouncements.forEach(announcement => dismiss(announcement.id));
                 }}
-                className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
+                className="p-1.5 rounded hover:bg-foreground/10 transition-colors shrink-0"
                 title="Mark all as read"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -239,7 +238,7 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                   className="flex items-start gap-3 p-3 rounded-lg bg-background/50"
                 >
                   <div className={cn(
-                    "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
+                    "w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5",
                     announcement.priority === 'high' 
                       ? 'bg-destructive/20' 
                       : announcement.priority === 'medium'
@@ -257,16 +256,25 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h5 className={cn(
-                      "font-medium text-sm",
-                      announcement.priority === 'high' 
-                        ? 'text-destructive' 
-                        : announcement.priority === 'medium'
-                        ? 'text-warning'
-                        : 'text-primary'
-                    )}>
-                      {announcement.title}
-                    </h5>
+                    <div className="flex items-start justify-between gap-2">
+                      <h5 className={cn(
+                        "font-medium text-sm",
+                        announcement.priority === 'high' 
+                          ? 'text-destructive' 
+                          : announcement.priority === 'medium'
+                          ? 'text-warning'
+                          : 'text-primary'
+                      )}>
+                        {announcement.title}
+                      </h5>
+                      <button
+                        onClick={() => dismiss(announcement.id)}
+                        className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
+                        title="Mark as read"
+                      >
+                        <X className="w-3 h-3 text-muted-foreground" />
+                      </button>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                       {announcement.message}
                     </p>
@@ -301,14 +309,6 @@ export default function AnnouncementBanner({ userRole, maxDisplay = 3 }: Announc
                       </div>
                     )}
                   </div>
-
-                  <button
-                    onClick={() => dismiss(announcement.id)}
-                    className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
-                    title="Mark as read"
-                  >
-                    <X className="w-3 h-3 text-muted-foreground" />
-                  </button>
                 </div>
               ))}
             </div>

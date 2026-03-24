@@ -97,7 +97,18 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       setIsSupported(supported);
       if (supported) {
         await notificationService.initialize();
-        setIsEnabled(notificationService.isEnabled());
+        const alreadyEnabled = notificationService.isEnabled();
+        setIsEnabled(alreadyEnabled);
+
+        // Auto-register subscription with backend if browser already has permission
+        // This ensures admin/HR who granted permission get push notifications
+        if (Notification.permission === 'granted') {
+          const existingSub = await notificationService.subscribe();
+          if (existingSub) {
+            await notificationService.sendSubscriptionToBackend(existingSub);
+            setIsEnabled(true);
+          }
+        }
       }
       loadNotifications();
       pollRef.current = setInterval(loadNotifications, 30_000);

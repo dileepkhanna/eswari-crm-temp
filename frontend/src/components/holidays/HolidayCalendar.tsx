@@ -119,16 +119,16 @@ export default function HolidayCalendar({
       {/* Calendar Header */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Calendar className="w-4 h-4 text-primary" />
               Holiday Calendar
             </CardTitle>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Year Selector */}
               <Select value={selectedYear.toString()} onValueChange={(value) => onYearChange(parseInt(value))}>
-                <SelectTrigger className="w-20 h-8 text-sm">
+                <SelectTrigger className="w-20 h-8 text-sm shrink-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -144,14 +144,14 @@ export default function HolidayCalendar({
               </Select>
 
               {/* Month Navigation */}
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handlePreviousMonth}>
+              <div className="flex items-center gap-1 flex-1">
+                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={handlePreviousMonth}>
                   <ChevronLeft className="w-3 h-3" />
                 </Button>
-                <span className="min-w-[100px] text-center font-medium text-sm">
+                <span className="flex-1 text-center font-medium text-sm truncate">
                   {monthNames[selectedMonth]}
                 </span>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
+                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={handleNextMonth}>
                   <ChevronRight className="w-3 h-3" />
                 </Button>
               </div>
@@ -161,17 +161,18 @@ export default function HolidayCalendar({
 
         <CardContent className="pb-3">
           {/* Calendar Grid */}
-          <div className="calendar-grid grid grid-cols-7 gap-0.5 sm:gap-1">
+          <div className="calendar-grid grid grid-cols-7 gap-0.5">
             {/* Week Day Headers */}
             {weekDays.map(day => (
-              <div key={day} className="p-0.5 sm:p-1 text-center text-[10px] sm:text-xs font-medium text-muted-foreground">
-                {day}
+              <div key={day} className="p-0.5 text-center text-[10px] sm:text-xs font-medium text-muted-foreground">
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{day.charAt(0)}</span>
               </div>
             ))}
 
             {/* Padding Days */}
             {paddingDays.map((_, index) => (
-              <div key={`padding-${index}`} className="p-0.5 sm:p-1 h-10 sm:h-16"></div>
+              <div key={`padding-${index}`} className="h-12 sm:h-16"></div>
             ))}
 
             {/* Month Days */}
@@ -182,12 +183,12 @@ export default function HolidayCalendar({
               return (
                 <div
                   key={date.toISOString()}
-                  className={`p-0.5 sm:p-1 h-10 sm:h-16 border rounded sm:rounded-lg transition-colors ${
+                  className={`p-0.5 sm:p-1 min-h-[48px] sm:h-16 border rounded transition-colors ${
                     isCurrentDay ? 'bg-primary/10 border-primary' : 'border-border hover:bg-muted/50'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-0.5 sm:mb-1">
-                    <span className={`text-[10px] sm:text-xs font-medium ${
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className={`text-[10px] sm:text-xs font-medium leading-none ${
                       isCurrentDay ? 'text-primary' : 'text-foreground'
                     }`}>
                       {format(date, 'd')}
@@ -201,10 +202,10 @@ export default function HolidayCalendar({
                         {canEdit ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <div className={`text-[10px] px-1 py-0.5 rounded cursor-pointer flex items-center gap-1 ${getHolidayTypeColor(holiday.holiday_type)}`}>
-                                <span className="truncate flex-1">{holiday.name}</span>
-                                {holiday.is_recurring && <Repeat className="w-2 h-2 flex-shrink-0" />}
-                                <MoreHorizontal className="w-2 h-2 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                              <div className={`text-[9px] sm:text-[10px] px-0.5 sm:px-1 py-0.5 rounded cursor-pointer flex items-center gap-0.5 ${getHolidayTypeColor(holiday.holiday_type)}`}>
+                                <span className="truncate flex-1 leading-tight">{holiday.name}</span>
+                                {holiday.is_recurring && <Repeat className="w-2 h-2 flex-shrink-0 hidden sm:block" />}
+                                <MoreHorizontal className="w-2 h-2 opacity-0 group-hover:opacity-100 flex-shrink-0 hidden sm:block" />
                               </div>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -222,17 +223,17 @@ export default function HolidayCalendar({
                             </DropdownMenuContent>
                           </DropdownMenu>
                         ) : (
-                          <div className={`text-[10px] px-1 py-0.5 rounded flex items-center gap-1 ${getHolidayTypeColor(holiday.holiday_type)}`}>
-                            <span className="truncate flex-1">{holiday.name}</span>
-                            {holiday.is_recurring && <Repeat className="w-2 h-2 flex-shrink-0" />}
+                          <div className={`text-[9px] sm:text-[10px] px-0.5 sm:px-1 py-0.5 rounded flex items-center gap-0.5 ${getHolidayTypeColor(holiday.holiday_type)}`}>
+                            <span className="truncate flex-1 leading-tight">{holiday.name}</span>
+                            {holiday.is_recurring && <Repeat className="w-2 h-2 flex-shrink-0 hidden sm:block" />}
                           </div>
                         )}
                       </div>
                     ))}
                     
                     {dayHolidays.length > 1 && (
-                      <div className="text-[9px] text-muted-foreground px-1">
-                        +{dayHolidays.length - 1} more
+                      <div className="text-[9px] text-muted-foreground px-0.5">
+                        +{dayHolidays.length - 1}
                       </div>
                     )}
                   </div>

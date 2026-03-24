@@ -48,14 +48,15 @@ def unsubscribe(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def send_test_notification(request):
-    """Create a test in-app notification for the current user."""
-    send_notification(
+    """Create a test in-app notification AND send a Web Push to the current user."""
+    from .utils import send_push_notification
+    send_push_notification(
         user=request.user,
         title='Test Notification',
-        message='In-app notifications are working correctly!',
+        message='Push notifications are working correctly!',
         notification_type='other',
     )
-    return Response({'message': 'Test notification created'})
+    return Response({'message': 'Test notification sent'})
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
