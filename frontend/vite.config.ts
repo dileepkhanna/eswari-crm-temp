@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
+      strategies: "injectManifest",
+      srcDir: "public",
+      filename: "sw.js",
       includeAssets: ["favicon.ico", "favicon.png", "robots.txt", "icons/*.png", "screenshots/*.png"],
       manifest: {
         id: "/",
@@ -86,34 +89,6 @@ export default defineConfig(({ mode }) => ({
         ],
         categories: ["business", "productivity"],
         prefer_related_applications: false,
-      },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,svg,png,woff2}"],
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/media/],
-        runtimeCaching: [
-          {
-            // Cache API responses for 5 minutes
-            urlPattern: /^https?:\/\/.*\/api\//,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              expiration: { maxEntries: 100, maxAgeSeconds: 300 },
-              networkTimeoutSeconds: 10,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Cache media files for 7 days
-            urlPattern: /^https?:\/\/.*\/media\//,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "media-cache",
-              expiration: { maxEntries: 50, maxAgeSeconds: 604800 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
       devOptions: {
         enabled: false,
