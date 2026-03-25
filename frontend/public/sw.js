@@ -3,10 +3,6 @@
 
 const CACHE_NAME = 'eswari-crm-v2';
 
-// Workbox manifest injection point (required for vite-plugin-pwa injectManifest strategy)
-// This will be replaced with the actual precache manifest during build
-const manifest = self.__WB_MANIFEST || [];
-
 // Install event
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker v2.0');
