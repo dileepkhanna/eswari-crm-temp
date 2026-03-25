@@ -19,20 +19,55 @@ def vapid_public_key(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def subscribe(request):
-    """Register a browser Web Push subscription."""
-    endpoint = request.data.get('endpoint')
-    keys = request.data.get('keys', {})
-    p256dh = keys.get('p256dh', '')
-    auth = keys.get('auth', '')
+    """Register a browser Web Push subscription with validation."""
+    try:
+        endpoint = request.data.get('endpoint')
+        keys = request.data.get('keys', {})
+        p256dh = keys.get('p256dh', '')
+        auth = keys.get('auth', '')
 
-    if not endpoint or not p256dh or not auth:
-        return Response({'error': 'endpoint, keys.p256dh and keys.auth are required'}, status=400)
+        # Validate required fields
+        if not endpoint or not p256dh or not auth:
+            return Response({
+                'error': 'endpoint, keys.p256dh and keys.auth are required'
+            }, status=400)
 
-    PushSubscription.objects.update_or_create(
-        endpoint=endpoint,
-        defaults={'user': request.user, 'p256dh': p256dh, 'auth': auth, 'is_active': True},
-    )
-    return Response({'message': 'Subscribed successfully'})
+        # Validate endpoint format
+        if not endpoint.startswith('https://'):
+            return Response({
+                'error': 'Invalid endpoint URL - must be HTTPS'
+            }, status=400)
+
+        # Validate key lengths
+        if len(p256dh) < 20 or len(auth) < 20:
+            return Response({
+                'error': 'Invalid encryption keys'
+            }, status=400)
+
+        # Create or update subscription
+        subscription, created = PushSubscription.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                'user': request.user,
+                'p256dh': p256dh,
+                'auth': auth,
+                'is_active': True
+            },
+        )
+
+        action = 'created' if created else 'updated'
+        return Response({
+            'message': f'Subscription {action} successfully',
+            'subscription_id': subscription.id
+        })
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Subscription error for user {request.user.username}: {str(e)}')
+        return Response({
+            'error': 'Failed to register subscription. Please try again.'
+        }, status=500)
 
 
 @api_view(['POST'])

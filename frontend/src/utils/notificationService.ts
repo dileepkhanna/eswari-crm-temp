@@ -71,23 +71,37 @@ class NotificationService {
     }
 
     try {
-      // Unregister all existing service workers first
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const registration of registrations) {
-        await registration.unregister();
-        log.log('Unregistered old service worker');
+      // Check if service worker is already registered
+      const existingReg = await navigator.serviceWorker.getRegistration('/');
+      
+      if (existingReg) {
+        log.log('Using existing service worker registration');
+        this.swReg = existingReg;
+        
+        // Update service worker if needed
+        try {
+          await existingReg.update();
+          log.log('Service worker updated');
+        } catch (updateErr) {
+          log.warn('Service worker update failed:', updateErr);
+          // Continue with existing registration
+        }
+      } else {
+        // Register new service worker
+        this.swReg = await navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none' // Always check for updates
+        });
+        log.log('Service worker registered successfully');
       }
 
-      // Register new service worker
-      this.swReg = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-        updateViaCache: 'none' // Always check for updates
-      });
-
-      log.log('Service worker registered successfully');
-
-      // Wait for service worker to be ready
-      await navigator.serviceWorker.ready;
+      // Wait for service worker to be ready with timeout
+      const readyPromise = navigator.serviceWorker.ready;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
+      );
+      
+      await Promise.race([readyPromise, timeoutPromise]);
       this.swReg = await navigator.serviceWorker.ready;
 
       // Listen for messages from service worker
@@ -103,6 +117,16 @@ class NotificationService {
       
       if (this.pushSub) {
         log.log('Found existing push subscription');
+        // Verify subscription is still valid
+        try {
+          const testSend = await this.sendSubscriptionToBackend(this.pushSub);
+          if (!testSend) {
+            log.warn('Existing subscription invalid, will need to resubscribe');
+            this.pushSub = null;
+          }
+        } catch (err) {
+          log.warn('Could not verify existing subscription:', err);
+        }
       }
 
       this.initialized = true;
@@ -132,8 +156,11 @@ class NotificationService {
     }
   }
 
-  /** Subscribe to push notifications */
-  async subscribe(): Promise<PushSubscription | null> {
+  /** Subscribe to push notifications with retry logic */
+  async subscribe(retryCount = 0): Promise<PushSubscription | null> {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000; // 2 seconds
+    
     try {
       if (!this.isSupported()) {
         log.error('Push notifications not supported in this browser');
@@ -163,10 +190,24 @@ class NotificationService {
         }
       }
 
-      // Get VAPID public key
-      const vapidPublicKey = await this.getVapidPublicKey();
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
+      this.swReg = await navigator.serviceWorker.ready;
+
+      // Get VAPID public key with retry
+      let vapidPublicKey: string | null = null;
+      for (let i = 0; i < 3; i++) {
+        try {
+          vapidPublicKey = await this.getVapidPublicKey();
+          if (vapidPublicKey) break;
+        } catch (err) {
+          log.warn(`VAPID key fetch attempt ${i + 1} failed`);
+          if (i < 2) await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
       if (!vapidPublicKey) {
-        log.error('No VAPID public key available');
+        log.error('No VAPID public key available after retries');
         throw new Error('VAPID_KEY_MISSING');
       }
 
@@ -174,23 +215,52 @@ class NotificationService {
       const existing = await this.swReg.pushManager.getSubscription();
       if (existing) {
         log.log('Unsubscribing from existing subscription');
-        await existing.unsubscribe();
+        try {
+          await existing.unsubscribe();
+        } catch (err) {
+          log.warn('Failed to unsubscribe existing subscription:', err);
+          // Continue anyway
+        }
       }
 
-      // Create new subscription
+      // Create new subscription with retry logic
       log.log('Creating new push subscription...');
       const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-      this.pushSub = await this.swReg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as BufferSource
-      });
+      
+      try {
+        this.pushSub = await this.swReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey as BufferSource
+        });
+      } catch (subError: any) {
+        log.error('Subscription creation failed:', subError);
+        
+        // Retry if it's a network or temporary error
+        if (retryCount < MAX_RETRIES && 
+            (subError.message?.includes('network') || 
+             subError.message?.includes('timeout') ||
+             subError.name === 'AbortError')) {
+          log.log(`Retrying subscription (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          return this.subscribe(retryCount + 1);
+        }
+        
+        throw subError;
+      }
 
       log.log('Push subscription created:', this.pushSub.endpoint.substring(0, 50) + '...');
 
-      // Send subscription to backend
-      const sent = await this.sendSubscriptionToBackend(this.pushSub);
+      // Send subscription to backend with retry
+      let sent = false;
+      for (let i = 0; i < 3; i++) {
+        sent = await this.sendSubscriptionToBackend(this.pushSub);
+        if (sent) break;
+        log.warn(`Backend registration attempt ${i + 1} failed`);
+        if (i < 2) await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       if (!sent) {
-        log.error('Failed to send subscription to backend');
+        log.error('Failed to send subscription to backend after retries');
         throw new Error('BACKEND_REGISTRATION_FAILED');
       }
 
@@ -212,7 +282,7 @@ class NotificationService {
     }
   }
 
-  /** Send subscription to backend */
+  /** Send subscription to backend with timeout */
   async sendSubscriptionToBackend(sub: PushSubscription): Promise<boolean> {
     if (!localStorage.getItem('access_token')) {
       log.warn('No auth token, cannot send subscription');
@@ -221,6 +291,11 @@ class NotificationService {
 
     try {
       const subJson = sub.toJSON();
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const res = await fetch(`${API_BASE}/notifications/subscribe/`, {
         method: 'POST',
         headers: {
@@ -233,8 +308,11 @@ class NotificationService {
             p256dh: subJson.keys?.p256dh,
             auth: subJson.keys?.auth
           }
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const error = await res.text();
@@ -243,8 +321,12 @@ class NotificationService {
       }
 
       return true;
-    } catch (error) {
-      log.error('Error sending subscription to backend:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        log.error('Backend subscription timeout');
+      } else {
+        log.error('Error sending subscription to backend:', error);
+      }
       return false;
     }
   }
