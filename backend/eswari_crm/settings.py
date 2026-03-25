@@ -287,7 +287,7 @@ LOGGING = {
     },
 }
 
-# Django-native Web Push (VAPID) via pywebpush — no Firebase needed
+# Web Push Notifications using VAPID keys (standard Web Push API)
 VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
 VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='admin@eswaricrm.com')
