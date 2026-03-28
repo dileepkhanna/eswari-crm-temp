@@ -197,27 +197,97 @@ table td:nth-child(2), table th:nth-child(2) {
   .glass-sidebar {
     height: 100dvh;
     height: var(--app-height, 100vh);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    /* Do NOT set overflow-y here — the flex column handles it */
+    display: flex !important;
+    flex-direction: column !important;
   }
 
-  /* Taller bottom section on mobile so it's easy to tap */
+  /* Nav area scrolls, bottom section stays pinned */
+  .glass-sidebar nav {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 0 !important;
+  }
+
+  /* Bottom section never scrolls away */
   .glass-sidebar .shrink-0 {
-    padding: 1rem !important;
+    flex-shrink: 0 !important;
+    padding: 0.75rem !important;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom)) !important;
   }
 
-  /* Bigger touch targets for the icon buttons in the bottom row */
-  .glass-sidebar .shrink-0 button,
-  .glass-sidebar .shrink-0 a {
-    min-height: 52px;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+  /* Ensure bottom action icons (settings, logout) are visible on mobile */
+  .glass-sidebar .shrink-0 svg {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 0 !important;
   }
 
-  /* User info card — more breathing room */
-  .glass-sidebar .shrink-0 > div:first-child {
-    padding: 0.875rem !important;
-    margin-bottom: 0.75rem !important;
+  /* Compact nav links on mobile */
+  .glass-sidebar .nav-link {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 0.625rem !important;
+    color: hsl(var(--sidebar-foreground) / 0.7) !important;
+  }
+
+  /* Ensure sidebar icons are always visible on mobile */
+  .glass-sidebar .nav-link svg,
+  .glass-sidebar .nav-link > svg {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure ALL sidebar SVG icons have no padding and correct color */
+  .glass-sidebar svg:not([data-radix-checkbox-root] svg):not([role="checkbox"] svg) {
+    padding: 0 !important;
+  }
+
+  /* Fix logo image padding in sidebar header */
+  .glass-sidebar img {
+    padding: 0 !important;
+  }
+
+  /* Ensure sidebar header logo is properly sized on mobile */
+  .glass-sidebar .p-3 img,
+  .glass-sidebar .p-4 img {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    flex-shrink: 0 !important;
+    object-fit: contain !important;
+    padding: 0 !important;
+  }
+
+  /* Fix lucide icons (currentColor) in sidebar — ensure they use the sidebar foreground color */
+  .glass-sidebar .nav-link svg path,
+  .glass-sidebar .nav-link svg circle,
+  .glass-sidebar .nav-link svg rect,
+  .glass-sidebar .nav-link svg line,
+  .glass-sidebar .nav-link svg polyline,
+  .glass-sidebar .nav-link svg polygon {
+    color: inherit;
+  }
+
+  /* Tighter group separators */
+  .glass-sidebar nav .my-3 {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
   }
 }
 

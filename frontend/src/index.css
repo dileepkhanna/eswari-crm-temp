@@ -339,8 +339,8 @@
 .glass-sidebar,
 .gradient-primary,
 .gradient-accent {
-  /* Allow dynamic overrides */
-  transition: all 0.3s ease;
+  /* Allow dynamic overrides — only transition visual properties, NOT color/opacity */
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Customer deletion animations */

@@ -203,12 +203,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     <aside 
       className={cn(
         "glass-sidebar flex flex-col transition-all duration-300 ease-in-out",
-        "h-full",   /* fill the fixed/relative container height */
-        collapsed ? "w-20" : "w-64"
+        "h-full",
+        collapsed ? "w-20" : "w-72 lg:w-64"
       )}
     >
       {/* Logo */}
-      <div className="p-4 md:p-6 border-b border-sidebar-border">
+      <div className="p-3 md:p-4 border-b border-sidebar-border">
         <Link to={basePath} className="flex items-center gap-3" onClick={handleNavClick}>
           {/* For employees/managers: Show company logo, for admin/hr: show global logo */}
           {user.role !== 'admin' && user.role !== 'hr' ? (
@@ -218,6 +218,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={`${selectedCompany.logo_url}?t=${Date.now()}`} 
                 alt={selectedCompany.name} 
                 className="w-10 h-10 object-contain rounded-xl shrink-0" 
+                style={{ padding: 0 }}
                 key={selectedCompany.logo_url}
               />
             ) : user.company?.logo_url ? (
@@ -225,6 +226,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={`${user.company.logo_url}?t=${Date.now()}`} 
                 alt={user.company.name} 
                 className="w-10 h-10 object-contain rounded-xl shrink-0" 
+                style={{ padding: 0 }}
                 key={user.company.logo_url}
               />
             ) : (
@@ -239,6 +241,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={`${settings.logo_url}?t=${Date.now()}`} 
                 alt={settings.app_name} 
                 className="w-10 h-10 object-contain rounded-xl shrink-0" 
+                style={{ padding: 0 }}
                 key={settings.logo_url}
               />
             ) : (
@@ -274,7 +277,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto">
+      <nav className="flex-1 p-2 md:p-3 space-y-0.5 overflow-y-auto">
         {menuGroups.map((group, groupIndex) => {
           const filteredItems = group.items.filter(item => 
             item.roles.includes(user.role as 'admin' | 'manager' | 'employee' | 'hr')
@@ -297,9 +300,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
                   >
                     {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 shrink-0" />
+                      <ChevronDown className="w-4 h-4 shrink-0" style={{ color: '#d4d4d8' }} />
                     ) : (
-                      <ChevronRight className="w-4 h-4 shrink-0" />
+                      <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#d4d4d8' }} />
                     )}
                     <span className="uppercase tracking-wider">{group.label}</span>
                   </button>
@@ -324,8 +327,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       group.collapsible && !collapsed && "ml-2"
                     )}
                   >
-                    <item.icon className="w-5 h-5 shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
+                    <item.icon className="w-5 h-5 shrink-0" color="#d4d4d8" />
+                    {!collapsed && <span className="text-sidebar-foreground/80">{item.label}</span>}
                     {showOverdueBadge && (
                       <span className={cn(
                         "ml-auto flex items-center justify-center rounded-full bg-red-500 text-white font-bold leading-none",
@@ -361,14 +364,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         </div>
 
         {/* Action icons row — collapse · settings · logout */}
-        <div className="flex items-center justify-around">
+        <div className="flex items-center justify-around mt-1">
           {/* Collapse toggle — desktop only */}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex nav-link flex-1 justify-center"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRightIcon className="w-5 h-5" /> : <ChevronLeftIcon className="w-5 h-5" />}
+            {collapsed ? <ChevronRightIcon className="w-5 h-5" color="#d4d4d8" /> : <ChevronLeftIcon className="w-5 h-5" color="#d4d4d8" />}
           </button>
 
           {/* Settings */}
@@ -381,16 +384,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             )}
             aria-label="Settings"
           >
-            <SettingsIcon className="w-5 h-5" />
+            <SettingsIcon className="w-6 h-6" color="#d4d4d8" />
           </Link>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="nav-link flex-1 justify-center hover:text-destructive"
+            className="nav-link flex-1 justify-center"
             aria-label="Logout"
           >
-            <LogoutIcon className="w-5 h-5" />
+            <LogoutIcon className="w-6 h-6" color="#d4d4d8" />
           </button>
         </div>
       </div>
