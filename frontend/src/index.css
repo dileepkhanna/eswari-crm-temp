@@ -441,39 +441,88 @@
   }
 }
 .compact-view .stat-card {
-  @apply p-4;
+  @apply p-3;
 }
 
 .compact-view .nav-link {
-  @apply py-2;
+  @apply py-1.5 px-3;
 }
 
 .compact-view .glass-card {
-  @apply p-4;
+  @apply p-3;
 }
 
 .compact-view .table-row-hover td {
-  @apply py-2;
+  @apply py-1.5;
 }
 
 .compact-view h1 {
-  @apply text-2xl;
-}
-
-.compact-view h2 {
   @apply text-xl;
 }
 
-.compact-view h3 {
+.compact-view h2 {
   @apply text-lg;
 }
 
+.compact-view h3 {
+  @apply text-base;
+}
+
 .compact-view .space-y-6 > * + * {
-  margin-top: 1rem !important;
+  margin-top: 0.75rem !important;
 }
 
 .compact-view .space-y-4 > * + * {
-  margin-top: 0.75rem !important;
+  margin-top: 0.5rem !important;
+}
+
+/* Compact: tighter page padding */
+.compact-view .p-4,
+.compact-view .p-6,
+.compact-view .md\:p-6 {
+  padding: 0.75rem !important;
+}
+
+/* Compact: smaller card headers */
+.compact-view [class*="CardHeader"] {
+  padding: 0.75rem 1rem !important;
+}
+
+.compact-view [class*="CardContent"] {
+  padding: 0.75rem 1rem !important;
+}
+
+/* Compact: tighter table cells */
+.compact-view table td,
+.compact-view table th {
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.8125rem !important;
+}
+
+/* Compact: smaller topbar */
+.compact-view header {
+  height: 3rem !important;
+}
+
+/* Compact: tighter sidebar nav items */
+.compact-view .glass-sidebar nav {
+  padding: 0.5rem !important;
+}
+
+/* Compact: smaller stat card numbers */
+.compact-view .stat-card .text-3xl,
+.compact-view .stat-card .text-2xl {
+  font-size: 1.25rem !important;
+  line-height: 1.75rem !important;
+}
+
+/* Compact: tighter gaps in grids */
+.compact-view .gap-4 {
+  gap: 0.5rem !important;
+}
+
+.compact-view .gap-6 {
+  gap: 0.75rem !important;
 }
 
 /* Mobile Responsive Improvements */
@@ -486,23 +535,9 @@
     @apply p-4;
   }
   
-  .space-y-6 > * + * {
-    margin-top: 1rem !important;
-  }
-  
-  .space-y-4 > * + * {
-    margin-top: 0.75rem !important;
-  }
-  
   /* Ensure buttons don't overflow */
   .btn-accent, .btn-primary, .btn-secondary {
     @apply text-sm px-3 py-2;
-    min-height: 40px; /* Ensure touch-friendly size */
-  }
-  
-  /* Better mobile grid spacing - don't override calendar grids */
-  .grid:not(.calendar-grid) {
-    @apply gap-2;
   }
   
   /* Mobile card improvements */
@@ -518,18 +553,6 @@
   h1, h2, h3 {
     @apply break-words;
   }
-  
-  /* Ensure proper touch targets - exclude checkboxes and small UI elements */
-  button:not([role="checkbox"]):not([data-radix-checkbox-root]):not(.icon-btn):not([data-radix-collection-item]),
-  a:not(.icon-link) {
-    min-height: 36px;
-  }
-  
-  /* Better mobile typography */
-  body {
-    font-size: 14px;
-    line-height: 1.5;
-  }
 }
 
 /* Tablet responsive improvements */
@@ -541,45 +564,16 @@
   .glass-card {
     @apply p-5;
   }
-  
-  /* Tablet-optimized button sizing */
-  .btn-accent, .btn-primary, .btn-secondary {
-    @apply text-base px-4 py-2.5;
-  }
 }
 
 /* Small mobile devices (320px - 480px) */
 @media (max-width: 480px) {
-  /* Extra compact spacing for very small screens */
   .glass-card {
     @apply p-2;
   }
   
   .stat-card {
     @apply p-3;
-  }
-  
-  /* Smaller text on very small screens */
-  h1 {
-    @apply text-xl;
-  }
-  
-  h2 {
-    @apply text-lg;
-  }
-  
-  h3 {
-    @apply text-base;
-  }
-  
-  /* Ensure grid items stack properly - but NOT calendar grids */
-  .grid:not(.calendar-grid) {
-    @apply grid-cols-1;
-  }
-  
-  /* Compact buttons for small screens */
-  .btn-accent, .btn-primary, .btn-secondary {
-    @apply text-xs px-2 py-2;
   }
 }
 /* Prevent form fields from being disabled */

@@ -54,9 +54,9 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
 
   return (
     <MobileNavProvider value={{ mobileMenuOpen, setMobileMenuOpen }}>
-      {/* 100dvh = dynamic viewport height (Safari toolbar aware); fallback to 100vh */}
-      <div className="flex bg-background overflow-hidden" style={{ height: '100dvh', minHeight: '-webkit-fill-available' } as React.CSSProperties}>
-        {/* Mobile Menu Overlay — closes when tapping outside sidebar */}
+      {/* dashboard-shell: flex row, fills #root, clips overflow so only main scrolls */}
+      <div className="dashboard-shell">
+        {/* Mobile overlay — tap to close sidebar */}
         {mobileMenuOpen && (
           <div
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
@@ -65,21 +65,19 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
           />
         )}
 
-        {/* Sidebar — drawer on mobile, static on lg+ */}
+        {/* Sidebar — off-screen drawer on mobile, static column on lg+ */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto transition-transform duration-300 ease-in-out shrink-0",
+            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto",
+            "transition-transform duration-300 ease-in-out shrink-0",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           )}
         >
           <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
         </div>
 
-        {/* Main content — scrollable, isolated from sidebar */}
-        <main
-          className="flex-1 overflow-y-auto w-full min-w-0"
-          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' } as React.CSSProperties}
-        >
+        {/* dashboard-main: the sole scroll container for all page content */}
+        <main className="dashboard-main">
           <div className="animate-fade-in">
             <Outlet />
           </div>

@@ -1,90 +1,8 @@
 /* =============================================================
-   MOBILE-FIX.CSS — Component-specific overrides
-   General responsive rules live in responsive.css
+   MOBILE-FIX.CSS — Component-specific overrides only
+   Select styling → pill-select-styling.css
+   Layout/scroll   → responsive.css
    ============================================================= */
-
-/* ── SELECT / COMBOBOX PILL STYLING ─────────────────────────── */
-
-html body [data-radix-select-trigger],
-html body button[data-radix-select-trigger],
-[data-radix-select-trigger],
-button[data-radix-select-trigger],
-.select-trigger-pill {
-  border-radius: 50px !important;
-  border: 1px solid #d1d5db !important;
-  font-weight: 500 !important;
-  color: #374151 !important;
-  height: 36px !important;
-  min-height: 36px !important;
-  max-height: 36px !important;
-  padding: 0 12px !important;
-  font-size: 0.875rem !important;
-  line-height: 1.25rem !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  transition: all 0.2s ease-in-out !important;
-}
-
-html body [data-radix-select-trigger]:hover,
-[data-radix-select-trigger]:hover,
-.select-trigger-pill:hover {
-  background-color: #f9fafb !important;
-  border-color: #9ca3af !important;
-}
-
-html body [data-radix-select-trigger]:focus,
-html body [data-radix-select-trigger]:focus-visible,
-[data-radix-select-trigger]:focus,
-[data-radix-select-trigger]:focus-visible,
-.select-trigger-pill:focus {
-  outline: none !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
-  border-color: #3b82f6 !important;
-}
-
-[data-radix-select-trigger] [data-radix-select-value],
-.select-trigger-pill [data-radix-select-value] {
-  font-weight: 500 !important;
-  color: #374151 !important;
-  font-size: 0.875rem !important;
-}
-
-[data-radix-select-trigger] [data-radix-select-icon],
-.select-trigger-pill [data-radix-select-icon] {
-  color: #6b7280 !important;
-  width: 1rem !important;
-  height: 1rem !important;
-}
-
-[data-radix-select-trigger][data-placeholder],
-.select-trigger-pill[data-placeholder] {
-  color: #9ca3af !important;
-}
-
-/* Status dropdowns in table rows — pill + color preserved */
-[data-radix-select-trigger].rounded-full {
-  border-radius: 50px !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  max-height: 28px !important;
-  padding: 0 10px !important;
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-}
-
-/* Native select */
-select {
-  appearance: auto !important;
-  -webkit-appearance: auto !important;
-  cursor: pointer !important;
-  height: 36px !important;
-  min-height: 36px !important;
-  border-radius: 50px !important;
-  border: 1px solid #d1d5db !important;
-  padding: 0 12px !important;
-  font-size: 0.875rem !important;
-}
 
 /* ── GLASS CARD ──────────────────────────────────────────────── */
 
@@ -92,7 +10,7 @@ select {
   border-radius: 1rem !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .glass-card {
     padding: 0.75rem !important;
     border-radius: 0.75rem !important;
@@ -106,11 +24,8 @@ select {
   padding: 0.75rem !important;
 }
 
-/* Fix oversized checkboxes in mobile card views */
 .mobile-customer-cards [role="checkbox"],
-.mobile-customer-cards button[role="checkbox"],
-.mobile-customer-card [role="checkbox"],
-.mobile-customer-card button[role="checkbox"] {
+.mobile-customer-card [role="checkbox"] {
   width: 16px !important;
   height: 16px !important;
   min-width: 16px !important;
@@ -127,14 +42,4 @@ select {
 .calendar-grid {
   display: grid !important;
   grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
-}
-
-/* ── RESPONSIVE VISIBILITY (ASE Customers) ───────────────────── */
-
-@media (max-width: 1279px) {
-  .mobile-customer-cards {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
 }

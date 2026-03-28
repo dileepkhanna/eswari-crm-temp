@@ -1,13 +1,12 @@
-﻿/* Select box override - pill styling support */
+﻿/* Select box override - pill styling for .select-trigger-pill class only */
 
-/* PILL STYLING FOR SELECT BOXES */
 [data-radix-select-trigger].select-trigger-pill,
 .select-trigger-pill[data-radix-select-trigger],
 button[data-radix-select-trigger].select-trigger-pill {
   border-radius: 9999px !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  max-height: 28px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
   padding: 0 12px !important;
   border: 1px solid #d1d5db !important;
   background-color: white !important;
@@ -21,43 +20,16 @@ button[data-radix-select-trigger].select-trigger-pill {
   transition: all 0.2s ease-in-out !important;
 }
 
-/* Force recalculation for Manager and Staff panels */
-.manager-panel *, .staff-panel * {
-  transform: translateZ(0);
-}
-
-/* Responsive visibility fix for ASE Customers mobile view */
+/* ASE Customers mobile card visibility */
 @media (max-width: 1279px) {
-  .xl\:hidden {
-    display: block !important;
-  }
-  
-  .hidden.xl\:block {
-    display: none !important;
-  }
-  
   .mobile-customer-cards {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
   }
-  
-  .glass-card.rounded-2xl.overflow-hidden {
-    overflow: visible !important;
-  }
 }
 
-@media (min-width: 1280px) {
-  .hidden.xl\:block {
-    display: block !important;
-  }
-  
-  .xl\:hidden {
-    display: none !important;
-  }
-}
-
-/* Mobile card styling */
+/* Mobile customer card base styles */
 .mobile-customer-card {
   background: white;
   border: 1px solid #e5e7eb;
@@ -69,7 +41,7 @@ button[data-radix-select-trigger].select-trigger-pill {
   visibility: visible !important;
 }
 
-/* Fix oversized checkboxes in mobile card views */
+/* Checkboxes in mobile cards */
 .mobile-customer-card [role="checkbox"],
 .mobile-customer-card button[role="checkbox"],
 .mobile-customer-cards [role="checkbox"],

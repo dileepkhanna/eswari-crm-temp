@@ -12,30 +12,28 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first
     const savedTheme = localStorage.getItem('theme') as Theme;
     if (savedTheme) return savedTheme;
-    
-    // Check system preference
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     return 'light';
   });
 
   useEffect(() => {
     const root = document.documentElement;
-    
-    // Remove previous theme classes
     root.classList.remove('light', 'dark');
-    
-    // Add current theme class
     root.classList.add(theme);
-    
-    // Save to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Restore compact view on every page load
+  useEffect(() => {
+    const isCompact = localStorage.getItem('compactView') === 'true';
+    if (isCompact) {
+      document.documentElement.classList.add('compact-view');
+    } else {
+      document.documentElement.classList.remove('compact-view');
+    }
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
