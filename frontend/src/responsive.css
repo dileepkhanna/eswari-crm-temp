@@ -1,0 +1,466 @@
+/* =============================================================
+   ESWARI CRM — COMPREHENSIVE RESPONSIVE STYLESHEET
+   Covers: Mobile (320px+), Tablet (640px+), Desktop (1024px+)
+   Browsers: Chrome, Safari (iOS/macOS), Firefox, Edge
+   ============================================================= */
+
+/* ── 1. VIEWPORT & ROOT ─────────────────────────────────────── */
+
+html {
+  /* Prevent font size inflation on iOS */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Smooth scrolling everywhere */
+  scroll-behavior: smooth;
+}
+
+html, body {
+  /* Prevent rubber-band bounce causing layout jumps */
+  overscroll-behavior: none;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  /* Prevent horizontal scroll on any screen */
+  max-width: 100vw;
+}
+
+#root {
+  /* dvh = dynamic viewport height (accounts for Safari toolbar) */
+  height: 100dvh;
+  height: var(--app-height, 100vh); /* JS-measured fallback for older Safari */
+  overflow: hidden;
+  width: 100%;
+}
+
+/* ── 2. BOX MODEL ───────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  /* Prevent scroll-anchoring jumps in Chrome */
+  overflow-anchor: none;
+}
+
+/* ── 3. TOUCH & TAP BEHAVIOUR ───────────────────────────────── */
+
+/* Remove tap flash on iOS Safari */
+a, button, [role="button"], [tabindex], label, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent double-tap zoom on buttons/links */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Minimum touch target size (44×44px per WCAG) */
+button, a, [role="button"], [role="tab"], [role="menuitem"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Exception: icon-only small buttons keep their size but get padding for hit area */
+button.h-8, button.h-7, button[class*="size-icon"] {
+  min-height: unset;
+  min-width: unset;
+  padding: 6px;
+}
+
+/* ── 4. SCROLL CONTAINERS ───────────────────────────────────── */
+
+/* Smooth momentum scrolling on iOS */
+.overflow-y-auto,
+.overflow-x-auto,
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"],
+main,
+nav,
+aside {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Horizontal scroll containers (tables) */
+.overflow-x-auto {
+  overscroll-behavior-x: contain;
+  /* Show scrollbar on touch devices so users know it's scrollable */
+  scrollbar-width: thin;
+}
+
+/* ── 5. STICKY POSITIONING (Safari fix) ─────────────────────── */
+
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+}
+
+/* ── 6. SAFE AREA INSETS (iPhone notch / home bar) ──────────── */
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  /* Sidebar bottom padding for home indicator */
+  .glass-sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Main content bottom padding */
+  main {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* TopBar left padding for notch on landscape */
+  header.sticky {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* ── 7. RADIX UI PORTAL Z-INDEX (Safari stacking fix) ───────── */
+
+[data-radix-popper-content-wrapper],
+[data-radix-select-content],
+[data-radix-popover-content],
+[data-radix-dialog-content],
+[data-radix-dropdown-menu-content],
+[data-radix-tooltip-content] {
+  z-index: 9999 !important;
+}
+
+/* ── 8. DIALOG / MODAL RESPONSIVE ───────────────────────────── */
+
+/* On small screens, dialogs should be near-fullscreen */
+@media (max-width: 639px) {
+  [role="dialog"],
+  [data-radix-dialog-content] {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: 92dvh !important;
+    max-height: 92vh !important;
+    margin: 0 0.5rem !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    transform: none !important;
+  }
+
+  /* Scroll area inside modals */
+  [data-radix-dialog-content] [data-radix-scroll-area-viewport] {
+    max-height: 70dvh !important;
+    max-height: 70vh !important;
+  }
+}
+
+/* Tablet: constrained but not full-screen */
+@media (min-width: 640px) and (max-width: 1023px) {
+  [role="dialog"],
+  [data-radix-dialog-content] {
+    max-width: min(90vw, 600px) !important;
+    max-height: 90dvh !important;
+    max-height: 90vh !important;
+  }
+}
+
+/* ── 9. TABLE RESPONSIVE ─────────────────────────────────────── */
+
+/* Tables scroll horizontally on small screens */
+.glass-card .overflow-x-auto,
+.rounded-2xl .overflow-x-auto {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent table cells from being too narrow */
+table {
+  min-width: 100%;
+}
+
+table td, table th {
+  white-space: nowrap;
+}
+
+/* Allow wrapping in name/description cells */
+table td:nth-child(2),
+table th:nth-child(2) {
+  white-space: normal;
+  min-width: 120px;
+}
+
+/* ── 10. FORM INPUTS ─────────────────────────────────────────── */
+
+/* Prevent iOS zoom on focus (font-size must be >= 16px) */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+/* But keep visual size consistent with design */
+@media (min-width: 640px) {
+  input, select, textarea {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Input height — comfortable on touch */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+input[type="search"],
+textarea {
+  min-height: 44px;
+}
+
+/* ── 11. SIDEBAR RESPONSIVE ──────────────────────────────────── */
+
+/* On mobile: sidebar is a drawer (handled by DashboardLayout) */
+@media (max-width: 1023px) {
+  .glass-sidebar {
+    /* Ensure sidebar fills full height including safe area */
+    height: 100dvh;
+    height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ── 12. TOPBAR ──────────────────────────────────────────────── */
+
+header.sticky {
+  /* Prevent content from going under topbar */
+  z-index: 30;
+  /* Hardware-accelerate for smooth scroll */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Prevent overscroll from moving the header */
+  overscroll-behavior: none;
+}
+
+/* ── 13. STAT CARDS GRID ─────────────────────────────────────── */
+
+@media (max-width: 479px) {
+  /* 2 columns on very small phones */
+  .grid.grid-cols-2.sm\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+}
+
+/* ── 14. CHARTS ──────────────────────────────────────────────── */
+
+@media (max-width: 639px) {
+  /* Charts should not overflow on mobile */
+  .recharts-wrapper,
+  .recharts-surface {
+    max-width: 100% !important;
+    overflow: hidden;
+  }
+}
+
+/* ── 15. FILTER ROWS ─────────────────────────────────────────── */
+
+@media (max-width: 639px) {
+  /* Stack filter rows vertically on mobile */
+  .flex.gap-3:has(input[placeholder*="Search"]) {
+    flex-direction: column;
+  }
+}
+
+/* ── 16. BUTTONS ─────────────────────────────────────────────── */
+
+@media (max-width: 479px) {
+  /* Full-width buttons in action rows on very small screens */
+  .flex.gap-2 > .btn-accent,
+  .flex.gap-2 > .btn-primary {
+    flex: 1;
+  }
+}
+
+/* ── 17. TYPOGRAPHY SCALE ────────────────────────────────────── */
+
+@media (max-width: 479px) {
+  h1 { font-size: 1.25rem !important; }
+  h2 { font-size: 1.125rem !important; }
+  h3 { font-size: 1rem !important; }
+}
+
+/* ── 18. CARD PADDING ────────────────────────────────────────── */
+
+@media (max-width: 479px) {
+  .glass-card {
+    padding: 0.75rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* Page padding */
+  .p-4.md\:p-6,
+  .p-3.md\:p-6 {
+    padding: 0.75rem !important;
+  }
+}
+
+/* ── 19. LOGIN PAGE ──────────────────────────────────────────── */
+
+@media (max-width: 639px) {
+  /* Login form should have comfortable padding */
+  .min-h-screen.flex > div:last-child {
+    padding: 1.5rem 1rem;
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+}
+
+/* ── 20. KANBAN BOARD ────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  /* Kanban columns scroll horizontally */
+  .kanban-board,
+  [class*="kanban"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    gap: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .kanban-column,
+  [class*="kanban-col"] {
+    min-width: 280px;
+    flex-shrink: 0;
+  }
+}
+
+/* ── 21. POPOVER / DROPDOWN POSITIONING ─────────────────────── */
+
+@media (max-width: 639px) {
+  /* Prevent popovers from going off-screen */
+  [data-radix-popover-content],
+  [data-radix-dropdown-menu-content] {
+    max-width: calc(100vw - 2rem) !important;
+  }
+}
+
+/* ── 22. NOTIFICATION BELL POPOVER ──────────────────────────── */
+
+@media (max-width: 479px) {
+  /* Notification panel full width on tiny screens */
+  [data-radix-popover-content].w-80 {
+    width: calc(100vw - 1rem) !important;
+  }
+}
+
+/* ── 23. SETTINGS PAGE ───────────────────────────────────────── */
+
+@media (max-width: 639px) {
+  /* Settings cards stack properly */
+  .min-h-screen > div[class*="p-"] {
+    padding: 0.75rem !important;
+  }
+
+  /* Switch/toggle hit area */
+  [role="switch"] {
+    min-width: 44px;
+    min-height: 28px;
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+}
+
+/* ── 24. CALENDAR ────────────────────────────────────────────── */
+
+/* Calendar grid must always be 7 columns */
+.calendar-grid,
+.rdp-month table,
+[class*="calendar"] table {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 479px) {
+  /* Calendar day cells smaller on mobile */
+  .rdp-day, [class*="calendar-day"] {
+    width: 2rem !important;
+    height: 2rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ── 25. CHECKBOX SIZE ───────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  [role="checkbox"],
+  button[role="checkbox"],
+  [data-radix-checkbox-root] {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* ── 26. SCROLLBAR STYLING ───────────────────────────────────── */
+
+/* Thin scrollbars on desktop */
+@media (min-width: 1024px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* Hide scrollbars on mobile (they appear on scroll) */
+@media (max-width: 1023px) {
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* ── 27. FIREFOX SPECIFIC ────────────────────────────────────── */
+
+@-moz-document url-prefix() {
+  /* Firefox: smooth scrolling in containers */
+  .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
+
+/* ── 28. PRINT ───────────────────────────────────────────────── */
+
+@media print {
+  .glass-sidebar,
+  header.sticky,
+  .btn-primary,
+  .btn-accent,
+  button {
+    display: none !important;
+  }
+
+  main {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

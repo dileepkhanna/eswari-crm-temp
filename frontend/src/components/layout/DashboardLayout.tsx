@@ -54,26 +54,32 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
 
   return (
     <MobileNavProvider value={{ mobileMenuOpen, setMobileMenuOpen }}>
-      <div className="flex h-screen bg-background overflow-hidden">
-        {/* Mobile Menu Overlay */}
+      {/* 100dvh = dynamic viewport height (Safari toolbar aware); fallback to 100vh */}
+      <div className="flex bg-background overflow-hidden" style={{ height: '100dvh', minHeight: '-webkit-fill-available' } as React.CSSProperties}>
+        {/* Mobile Menu Overlay — closes when tapping outside sidebar */}
         {mobileMenuOpen && (
           <div
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
           />
         )}
 
-        {/* Sidebar - Hidden on mobile, shown on lg+ */}
+        {/* Sidebar — drawer on mobile, static on lg+ */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto transition-transform duration-300 ease-in-out",
+            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto transition-transform duration-300 ease-in-out shrink-0",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           )}
         >
           <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
         </div>
 
-        <main className="flex-1 overflow-y-auto w-full">
+        {/* Main content — scrollable, isolated from sidebar */}
+        <main
+          className="flex-1 overflow-y-auto w-full min-w-0"
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' } as React.CSSProperties}
+        >
           <div className="animate-fade-in">
             <Outlet />
           </div>

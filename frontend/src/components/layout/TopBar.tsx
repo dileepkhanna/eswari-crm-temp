@@ -43,7 +43,7 @@ export default function TopBar({ title, subtitle, showBackButton = true, childre
   };
 
   return (
-    <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-40">
+    <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0" style={{ overscrollBehavior: 'none' } as React.CSSProperties}>
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
         {/* Mobile Hamburger - Always show on mobile */}
         {mobileNav && (
