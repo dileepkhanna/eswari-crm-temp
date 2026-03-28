@@ -327,7 +327,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       group.collapsible && !collapsed && "ml-2"
                     )}
                   >
-                    <item.icon className="w-5 h-5 shrink-0" color="#d4d4d8" />
+                    <item.icon className="w-5 h-5 shrink-0" style={{ padding: 0 }} color="#d4d4d8" />
                     {!collapsed && <span className="text-sidebar-foreground/80">{item.label}</span>}
                     {showOverdueBadge && (
                       <span className={cn(
@@ -364,14 +364,17 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         </div>
 
         {/* Action icons row — collapse · settings · logout */}
-        <div className="flex items-center justify-around mt-1">
+        <div className={cn(
+          "flex items-center mt-1",
+          collapsed ? "flex-col gap-1" : "justify-around"
+        )}>
           {/* Collapse toggle — desktop only */}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex nav-link flex-1 justify-center"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRightIcon className="w-5 h-5" color="#d4d4d8" /> : <ChevronLeftIcon className="w-5 h-5" color="#d4d4d8" />}
+            {collapsed ? <ChevronRightIcon className="w-5 h-5" style={{ padding: 0 }} color="#d4d4d8" /> : <ChevronLeftIcon className="w-5 h-5" style={{ padding: 0 }} color="#d4d4d8" />}
           </button>
 
           {/* Settings */}
@@ -379,21 +382,22 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             to={`${basePath}/settings`}
             onClick={handleNavClick}
             className={cn(
-              "nav-link flex-1 justify-center",
+              "nav-link justify-center",
+              collapsed ? "w-full" : "flex-1",
               location.pathname === `${basePath}/settings` && "nav-link-active"
             )}
             aria-label="Settings"
           >
-            <SettingsIcon className="w-6 h-6" color="#d4d4d8" />
+            <SettingsIcon className="w-6 h-6" style={{ padding: 0 }} color="#d4d4d8" />
           </Link>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="nav-link flex-1 justify-center"
+            className={cn("nav-link justify-center", collapsed ? "w-full" : "flex-1")}
             aria-label="Logout"
           >
-            <LogoutIcon className="w-6 h-6" color="#d4d4d8" />
+            <LogoutIcon className="w-6 h-6" style={{ padding: 0 }} color="#d4d4d8" />
           </button>
         </div>
       </div>

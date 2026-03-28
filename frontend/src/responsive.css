@@ -218,7 +218,8 @@ table td:nth-child(2), table th:nth-child(2) {
   }
 
   /* Ensure bottom action icons (settings, logout) are visible on mobile */
-  .glass-sidebar .shrink-0 svg {
+  .glass-sidebar .shrink-0 svg,
+  .glass-sidebar .nav-link svg {
     width: 20px !important;
     height: 20px !important;
     min-width: 20px !important;
@@ -227,6 +228,7 @@ table td:nth-child(2), table th:nth-child(2) {
     visibility: visible !important;
     opacity: 1 !important;
     padding: 0 !important;
+    flex-shrink: 0 !important;
   }
 
   /* Compact nav links on mobile */
@@ -238,7 +240,6 @@ table td:nth-child(2), table th:nth-child(2) {
   }
 
   /* Ensure sidebar icons are always visible on mobile */
-  .glass-sidebar .nav-link svg,
   .glass-sidebar .nav-link > svg {
     width: 20px !important;
     height: 20px !important;
