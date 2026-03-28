@@ -68,7 +68,7 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
         {/* Sidebar — off-screen drawer on mobile, static column on lg+ */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto",
+            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto lg:h-full",
             "transition-transform duration-300 ease-in-out shrink-0",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           )}

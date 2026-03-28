@@ -124,6 +124,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     { label: 'Reports', icon: BarChart, href: '/reports', roles: ['hr'] },
   ];
 
+  // Settings nav item — shown for all roles
+  const settingsNavItem: NavItem = {
+    label: 'Settings',
+    icon: SettingsIcon,
+    href: '/settings',
+    roles: ['admin', 'manager', 'employee', 'hr'],
+  };
+
   if (!user) return null;
 
   // Map Django roles to frontend routes
@@ -140,12 +148,10 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   let menuGroups: MenuGroup[];
   
   if (user.role === 'hr') {
-    // HR always sees HR-specific menu (no groups, flat list)
     menuGroups = [
-      { label: '', items: hrNavItems, collapsible: false }
+      { label: '', items: [...hrNavItems, settingsNavItem], collapsible: false }
     ];
   } else if (user.role === 'admin') {
-    // Admin sees Dashboard at top, then grouped menu with all features
     const dashboardItem: NavItem = { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['admin'] };
     
     menuGroups = [
@@ -154,9 +160,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       { label: 'ASE Technologies', items: aseSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'Eswari Group', items: eswariSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'System Management', items: adminOnlyItems, collapsible: true, defaultOpen: true },
+      { label: '', items: [settingsNavItem], collapsible: false },
     ];
   } else {
-    // Manager and Employee see: Dashboard + Common items + Company-specific items
     const dashboardItem: NavItem = { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['manager', 'employee'] };
     
     let companySpecific: NavItem[];
@@ -173,9 +179,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       companyLabel = 'Eswari Group';
     }
     
-    // No groups for non-admin users, just flat list
     menuGroups = [
-      { label: '', items: [dashboardItem, ...commonNavItems, ...companySpecific], collapsible: false }
+      { label: '', items: [dashboardItem, ...commonNavItems, ...companySpecific, settingsNavItem], collapsible: false }
     ];
   }
 
@@ -197,7 +202,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside 
       className={cn(
-        "glass-sidebar h-screen flex flex-col transition-all duration-300 ease-in-out",
+        "glass-sidebar flex flex-col transition-all duration-300 ease-in-out",
+        "h-full",   /* fill the fixed/relative container height */
         collapsed ? "w-20" : "w-64"
       )}
     >
@@ -336,8 +342,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         })}
       </nav>
 
-      {/* User Section */}
-      <div className="p-3 md:p-4 border-t border-sidebar-border">
+      {/* User Section — shrink-0 ensures it's never clipped on mobile */}
+      <div className="shrink-0 p-3 border-t border-sidebar-border">
+        {/* User info row */}
         <div className={cn(
           "flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent mb-3",
           collapsed && "justify-center"
@@ -353,24 +360,38 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           )}
         </div>
 
-        <div className="flex gap-2">
+        {/* Action icons row — collapse · settings · logout */}
+        <div className="flex items-center justify-around">
+          {/* Collapse toggle — desktop only */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex flex-1 nav-link justify-center"
+            className="hidden lg:flex nav-link flex-1 justify-center"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronRightIcon className="w-5 h-5" /> : <ChevronLeftIcon className="w-5 h-5" />}
           </button>
-          
-          {!collapsed && (
-            <>
-              <Link to={`${basePath}/settings`} className="nav-link flex-1 justify-center" onClick={handleNavClick}>
-                <SettingsIcon className="w-5 h-5" />
-              </Link>
-              <button onClick={handleLogout} className="nav-link flex-1 justify-center hover:text-destructive">
-                <LogoutIcon className="w-5 h-5" />
-              </button>
-            </>
-          )}
+
+          {/* Settings */}
+          <Link
+            to={`${basePath}/settings`}
+            onClick={handleNavClick}
+            className={cn(
+              "nav-link flex-1 justify-center",
+              location.pathname === `${basePath}/settings` && "nav-link-active"
+            )}
+            aria-label="Settings"
+          >
+            <SettingsIcon className="w-5 h-5" />
+          </Link>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="nav-link flex-1 justify-center hover:text-destructive"
+            aria-label="Logout"
+          >
+            <LogoutIcon className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </aside>

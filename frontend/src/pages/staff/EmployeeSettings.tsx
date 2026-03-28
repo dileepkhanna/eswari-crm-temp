@@ -25,13 +25,14 @@ import {
   Eye,
   EyeOff,
   Shield,
-  Palette
+  Palette,
+  LogOut
 } from 'lucide-react';
 
 import { logger } from '@/lib/logger';
 export default function EmployeeSettings() {
   const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   
   // Profile settings
   const [profileData, setProfileData] = useState({
@@ -382,6 +383,27 @@ export default function EmployeeSettings() {
             >
               <Shield className="w-4 h-4 mr-2" />
               Change Password
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Logout */}
+        <Card className="border-destructive/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-destructive text-base">
+              <LogOut className="w-5 h-5" />
+              Sign Out
+            </CardTitle>
+            <CardDescription>Sign out of your account on this device</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={async () => { await logout(); }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
             </Button>
           </CardContent>
         </Card>

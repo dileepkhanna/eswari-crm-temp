@@ -200,6 +200,25 @@ table td:nth-child(2), table th:nth-child(2) {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Taller bottom section on mobile so it's easy to tap */
+  .glass-sidebar .shrink-0 {
+    padding: 1rem !important;
+  }
+
+  /* Bigger touch targets for the icon buttons in the bottom row */
+  .glass-sidebar .shrink-0 button,
+  .glass-sidebar .shrink-0 a {
+    min-height: 52px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* User info card — more breathing room */
+  .glass-sidebar .shrink-0 > div:first-child {
+    padding: 0.875rem !important;
+    margin-bottom: 0.75rem !important;
+  }
 }
 
 /* ── 13. POPOVERS — don't go off-screen ─────────────────────── */

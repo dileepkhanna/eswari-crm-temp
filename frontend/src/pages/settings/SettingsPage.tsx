@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { useTheme } from '@/contexts/ThemeContext';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-import { User, Bell, Shield, Palette, Save, Camera, Loader2, Trash2 } from 'lucide-react';
+import { User, Bell, Shield, Palette, Save, Camera, Loader2, Trash2, LogOut } from 'lucide-react';
 import { NotificationSettings } from '@/components/NotificationSettings';
 
 import { logger } from '@/lib/logger';
@@ -719,6 +719,29 @@ export default function SettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Logout */}
+      <div className="p-3 md:p-6 pt-0">
+        <Card className="border-destructive/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-destructive text-base">
+              <LogOut className="w-5 h-5" />
+              Sign Out
+            </CardTitle>
+            <CardDescription>Sign out of your account on this device</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={async () => { await logout(); }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
