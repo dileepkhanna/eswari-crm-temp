@@ -65,6 +65,14 @@ button.h-8, button.h-7, button[class*="size-icon"] {
   padding: 6px;
 }
 
+/* Checkboxes must NEVER inherit the 44px min-height — they have a fixed small size */
+[role="checkbox"],
+button[role="checkbox"],
+[data-radix-checkbox-root] {
+  min-height: unset !important;
+  min-width: unset !important;
+}
+
 /* ── 4. SCROLL CONTAINERS ───────────────────────────────────── */
 
 /* Smooth momentum scrolling on iOS */
@@ -387,19 +395,26 @@ header.sticky {
 
 /* ── 25. CHECKBOX SIZE ───────────────────────────────────────── */
 
-@media (max-width: 1023px) {
-  [role="checkbox"],
-  button[role="checkbox"],
-  [data-radix-checkbox-root] {
-    width: 18px !important;
-    height: 18px !important;
-    min-width: 18px !important;
-    min-height: 18px !important;
-    max-width: 18px !important;
-    max-height: 18px !important;
-    padding: 0 !important;
-    flex-shrink: 0 !important;
-  }
+/* Global: checkboxes are always 16×16px, never inflated */
+[role="checkbox"],
+button[role="checkbox"],
+[data-radix-checkbox-root] {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  border-radius: 3px !important;
+}
+
+/* The check icon inside */
+[data-radix-checkbox-root] svg,
+[role="checkbox"] svg {
+  width: 12px !important;
+  height: 12px !important;
 }
 
 /* ── 26. SCROLLBAR STYLING ───────────────────────────────────── */
