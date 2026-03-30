@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { ASELead, ASELeadFormData } from '@/types/ase-customer';
 import { aseLeadService, ASELeadStats } from '@/services/ase-lead.service';
 import { useAuth } from '@/contexts/AuthContextDjango';
@@ -148,11 +148,10 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
         payload.company = companyId;
       }
       const newLead = await aseLeadService.createLead(payload);
-      await fetchLeads();
       toast.success('Lead created successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: 3,
+        companyId: Number(selectedCompany?.id || user?.company?.id || 0),
         module: 'leads', action: 'created',
         details: `created lead: ${newLead.contact_person || newLead.phone}`,
       });
@@ -164,6 +163,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       return null;
     } finally {
       setLoading(false);
+      // Refresh list after mutation (outside loading guard to avoid double-loading)
+      fetchLeads();
     }
   };
   
@@ -171,11 +172,10 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     try {
       setLoading(true);
       const updatedLead = await aseLeadService.updateLead(id, leadData);
-      await fetchLeads();
       toast.success('Lead updated successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: 3,
+        companyId: Number(selectedCompany?.id || user?.company?.id || 0),
         module: 'leads', action: 'updated',
         details: `updated lead: ${updatedLead.contact_person || updatedLead.phone}`,
       });
@@ -187,6 +187,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       return null;
     } finally {
       setLoading(false);
+      fetchLeads();
     }
   };
   
@@ -195,11 +196,10 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       setLoading(true);
       const lead = leads.find(l => l.id === id);
       await aseLeadService.deleteLead(id);
-      await fetchLeads();
       toast.success('Lead deleted successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: 3,
+        companyId: Number(selectedCompany?.id || user?.company?.id || 0),
         module: 'leads', action: 'deleted',
         details: `deleted lead: ${lead?.contact_person || lead?.phone || id}`,
       });
@@ -211,6 +211,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       return false;
     } finally {
       setLoading(false);
+      fetchLeads();
     }
   };
   

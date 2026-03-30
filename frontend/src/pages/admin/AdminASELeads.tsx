@@ -226,22 +226,16 @@ export default function AdminASELeads() {
   };
 
   const handleCreateLead = async (leadData: ASELeadFormData) => {
-    try {
-      await createLead(leadData);
-      setIsCreateModalOpen(false);
-    } catch (error: any) {
-      logger.error('Failed to create lead:', error);
-    }
+    const result = await createLead(leadData);
+    if (!result) throw new Error('Failed to create lead');
+    setIsCreateModalOpen(false);
   };
 
   const handleUpdateLead = async (leadData: ASELeadFormData) => {
     if (!selectedLead) return;
-    try {
-      await updateLead(selectedLead.id, leadData);
-      setSelectedLead(null);
-    } catch (error: any) {
-      logger.error('Failed to update lead:', error);
-    }
+    const result = await updateLead(selectedLead.id, leadData);
+    if (!result) throw new Error('Failed to update lead');
+    setSelectedLead(null);
   };
 
   return (

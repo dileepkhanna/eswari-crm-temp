@@ -177,16 +177,19 @@ input, select, textarea {
   overscroll-behavior-x: contain;
 }
 
-table {
+/* Scope table rules to data tables only, not calendar/picker tables */
+table:not([role="grid"]) {
   min-width: 100%;
 }
 
-table td, table th {
+table:not([role="grid"]) td,
+table:not([role="grid"]) th {
   white-space: nowrap;
 }
 
 /* Name column can wrap */
-table td:nth-child(2), table th:nth-child(2) {
+table:not([role="grid"]) td:nth-child(2),
+table:not([role="grid"]) th:nth-child(2) {
   white-space: normal;
   min-width: 120px;
 }

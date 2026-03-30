@@ -10,6 +10,8 @@ const COLUMNS = [
   { status: 'qualified', label: 'Qualified', color: 'bg-green-500', light: 'bg-green-50 border-green-200' },
   { status: 'proposal_sent', label: 'Proposal', color: 'bg-purple-500', light: 'bg-purple-50 border-purple-200' },
   { status: 'negotiating', label: 'Negotiating', color: 'bg-orange-500', light: 'bg-orange-50 border-orange-200' },
+  { status: 'nurturing', label: 'Nurturing', color: 'bg-indigo-500', light: 'bg-indigo-50 border-indigo-200' },
+  { status: 'on_hold', label: 'On Hold', color: 'bg-gray-500', light: 'bg-gray-50 border-gray-200' },
   { status: 'won', label: 'Won', color: 'bg-emerald-500', light: 'bg-emerald-50 border-emerald-200' },
   { status: 'lost', label: 'Lost', color: 'bg-red-500', light: 'bg-red-50 border-red-200' },
 ];

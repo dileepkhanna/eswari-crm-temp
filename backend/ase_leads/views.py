@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Sum
 from django.utils import timezone
@@ -270,7 +271,11 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         imported = 0
         if to_create:
             with transaction.atomic():
-                created = ASELead.objects.bulk_create(to_create, batch_size=500)
+                created = ASELead.objects.bulk_create(
+                    to_create,
+                    batch_size=500,
+                    ignore_conflicts=True,  # skip duplicate phone+company rows
+                )
                 imported = len(created)
 
         return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)

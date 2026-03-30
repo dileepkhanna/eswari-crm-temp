@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Leave } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
-// import { supabase } from '@/integrations/supabase/client'; // Removed - using Django backend
 import {
   Dialog,
   DialogContent,
@@ -42,18 +41,15 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Document is required for 2nd leave onwards in the current month
   const isDocumentRequired = previousLeaveCount >= 1;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast.error('File size must be less than 10MB');
         return;
       }
-      // Validate file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(file.type)) {
         toast.error('Only PDF, JPG, and PNG files are allowed');
@@ -65,24 +61,19 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
 
   const removeFile = () => {
     setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!startDate || !endDate || !reason.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
-
     if (isDocumentRequired && !selectedFile) {
       toast.error('Document is required for your 2nd leave onwards in the current month');
       return;
     }
-
     setUploading(true);
     try {
       onSave({
@@ -94,17 +85,15 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
         endDate,
         reason: reason.trim(),
         status: 'pending',
-        document: selectedFile, // Send the actual file
+        document: selectedFile,
       });
-
-      // Reset form
       setLeaveType('casual');
       setStartDate(undefined);
       setEndDate(undefined);
       setReason('');
       setSelectedFile(null);
       onClose();
-    } catch (error) {
+    } catch {
       toast.error('Failed to submit leave request');
     } finally {
       setUploading(false);
@@ -113,7 +102,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[min(92vw,40rem)] sm:max-w-none p-5 sm:p-7">
+      <DialogContent className="w-[min(92vw,40rem)] sm:max-w-none p-5 sm:p-7 max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Apply for Leave</DialogTitle>
         </DialogHeader>
@@ -134,29 +123,25 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
+                    className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, "MMM dd, yyyy") : "Select date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[200]" align="start" side="bottom" sideOffset={4}>
                   <Calendar
                     mode="single"
                     selected={startDate}
                     onSelect={setStartDate}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -168,23 +153,19 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
+                    className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, "MMM dd, yyyy") : "Select date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[200]" align="start" side="bottom" sideOffset={4}>
                   <Calendar
                     mode="single"
                     selected={endDate}
                     onSelect={setEndDate}
                     disabled={(date) => startDate ? date < startDate : false}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -202,7 +183,6 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             />
           </div>
 
-          {/* Document Upload */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               Supporting Document
@@ -215,7 +195,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
                 <span className="text-muted-foreground text-xs">(Optional)</span>
               )}
             </Label>
-            
+
             {isDocumentRequired && (
               <p className="text-xs text-muted-foreground">
                 Document is required from your 2nd leave request onwards in the current month. Leave count resets monthly.
@@ -227,17 +207,9 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
                 <FileText className="w-8 h-8 text-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
+                  <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={removeFile}
-                  className="shrink-0"
-                >
+                <Button type="button" variant="ghost" size="icon" onClick={removeFile} className="shrink-0">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -247,15 +219,11 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
                 className="border-2 border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 transition-colors"
               >
                 <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Click to upload document
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PDF, JPG, PNG (max 10MB)
-                </p>
+                <p className="text-sm text-muted-foreground">Click to upload document</p>
+                <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG (max 10MB)</p>
               </div>
             )}
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -269,8 +237,8 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             <Button type="button" variant="outline" onClick={onClose} disabled={uploading}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={!startDate || !endDate || !reason.trim() || (isDocumentRequired && !selectedFile) || uploading}
             >
               {uploading ? 'Submitting...' : 'Submit Request'}

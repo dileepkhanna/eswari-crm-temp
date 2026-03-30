@@ -45,8 +45,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Search, Plus, Calendar, Check, X, FileText, ExternalLink, Loader2, Info, Trash2 } from 'lucide-react';
-import { format, differenceInDays, isWithinInterval, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
+import { Search, Plus, Calendar, Check, X, FileText, ExternalLink, Loader2, Info, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, differenceInDays, isWithinInterval, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
 
 interface LeaveRecord {
@@ -89,6 +89,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteLeaveId, setDeleteLeaveId] = useState<string | null>(null);
+  const [viewMonth, setViewMonth] = useState<Date>(() => startOfMonth(new Date()));
 
   // Fetch leaves from Django backend
   const fetchLeaves = async (showLoader = true) => {
@@ -208,14 +209,21 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
     });
   }, [leaves, searchQuery, statusFilter, nameFilter, user, calendarDate]);
 
-  const allSelected = filteredLeaves.length > 0 && filteredLeaves.every(l => selectedIds.has(l.id));
-  const someSelected = selectedIds.size > 0;
+  const monthStart = startOfMonth(viewMonth);
+  const monthEnd = endOfMonth(viewMonth);
+  const monthFilteredLeaves = filteredLeaves.filter(leave => {
+    const start = new Date(leave.start_date);
+    const end = new Date(leave.end_date);
+    return start <= monthEnd && end >= monthStart;
+  });
+
+  const allSelected = monthFilteredLeaves.length > 0 && monthFilteredLeaves.every(l => selectedIds.has(l.id));  const someSelected = selectedIds.size > 0;
 
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredLeaves.map(l => l.id)));
+      setSelectedIds(new Set(monthFilteredLeaves.map(l => l.id)));
     }
   };
 
@@ -258,6 +266,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         userId: user.id,
         userName: user.name,
         userRole: user.role,
+        companyId: user.company?.id || 1,
         module: 'leaves',
         action: 'deleted',
         details: `deleted a leave request`,
@@ -283,8 +292,9 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         userId: user?.id || '',
         userName: user?.name || '',
         userRole: user?.role || 'employee',
+        companyId: user?.company?.id || 1,
         module: 'leaves',
-        action: 'bulk_deleted',
+        action: 'deleted',
         details: `deleted ${selectedIds.size} leave requests`,
       });
 
@@ -347,6 +357,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         userId: user.id,
         userName: user.name,
         userRole: user.role,
+        companyId: user.company?.id || 1,
         module: 'leaves',
         action: 'approved',
         details: `approved leave request for ${leaveName}`,
@@ -392,6 +403,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         userId: user.id,
         userName: user.name,
         userRole: user.role,
+        companyId: user.company?.id || 1,
         module: 'leaves',
         action: 'rejected',
         details: `rejected leave request for ${leaveName}`,
@@ -456,6 +468,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         userId: user.id,
         userName: user.name,
         userRole: user.role,
+        companyId: user.company?.id || 1,
         module: 'leaves',
         action: 'created',
         details: `created leave request (${leavePayload.leave_type})`,
@@ -689,13 +702,27 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         </div>
       )}
 
+      {/* Month Navigator */}
+      <div className="flex items-center justify-between glass-card rounded-xl px-4 py-3">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewMonth(m => subMonths(m, 1))}>
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <div className="text-center">
+          <p className="font-semibold text-foreground">{format(viewMonth, 'MMMM yyyy')}</p>
+          <p className="text-xs text-muted-foreground">{monthFilteredLeaves.length} leave request{monthFilteredLeaves.length !== 1 ? 's' : ''}</p>
+        </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewMonth(m => addMonths(m, 1))}>
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+
       {/* Mobile Card View */}
       <div className="flex flex-col gap-4 md:hidden">
-        {filteredLeaves.length === 0 ? (
+        {monthFilteredLeaves.length === 0 ? (
           <div className="glass-card rounded-2xl text-center py-12">
-            <p className="text-muted-foreground">No leave requests found</p>
+            <p className="text-muted-foreground">No leave requests for {format(viewMonth, 'MMMM yyyy')}</p>
           </div>
-        ) : filteredLeaves.map((leave, index) => (
+        ) : monthFilteredLeaves.map((leave, index) => (
           <div key={leave.id} className="glass-card rounded-2xl p-4 space-y-3 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
             {/* Header */}
             <div className="flex items-start justify-between gap-2">
@@ -782,7 +809,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredLeaves.map((leave, index) => (
+            {monthFilteredLeaves.map((leave, index) => (
               <TableRow key={leave.id} className="table-row-hover animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                 {canDelete && (
                   <TableCell>
@@ -877,9 +904,9 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
             ))}
           </TableBody>
         </Table>
-        {filteredLeaves.length === 0 && (
+        {monthFilteredLeaves.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No leave requests found</p>
+            <p className="text-muted-foreground">No leave requests for {format(viewMonth, 'MMMM yyyy')}</p>
           </div>
         )}
       </div>

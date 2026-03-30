@@ -70,6 +70,7 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
           className={cn(
             "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto lg:h-full",
             "transition-transform duration-300 ease-in-out shrink-0",
+            "w-72 lg:w-auto",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           )}
         >

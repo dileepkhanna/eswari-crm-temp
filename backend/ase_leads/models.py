@@ -33,6 +33,7 @@ class ASELead(models.Model):
         ('analytics', 'Analytics & Reporting'),
         ('influencer', 'Influencer Marketing'),
         ('video_marketing', 'Video Marketing'),
+        ('custom', 'Custom/Other Services'),
     ]
     
     # Industry choices
