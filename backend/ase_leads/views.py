@@ -67,25 +67,45 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = ASELead.objects.select_related('company', 'assigned_to', 'created_by').all()
 
-        if user.role == 'admin':
+        # Superuser sees everything with optional company filter
+        if user.is_superuser:
+            company_id = self.request.query_params.get('company')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
             return qs
+
+        if user.role == 'admin':
+            company_id = self.request.query_params.get('company')
+            if company_id:
+                return qs.filter(company_id=company_id)
+            return qs.filter(company=user.company)
+
         if user.role == 'hr':
             return qs.filter(company=user.company)
+
+        # For employee and manager — always scope to their company first
+        if not user.company:
+            return qs.none()
 
         qs = qs.filter(company=user.company)
 
         if user.role == 'employee':
-            # Show records assigned to OR created by this employee
+            # Employee sees ONLY leads assigned to them OR created by them
             return qs.filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
 
         if user.role == 'manager':
+            # Manager sees leads of their team (employees under them + themselves)
             employee_ids = list(
-                user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
+                user.__class__.objects.filter(
+                    manager=user, company=user.company
+                ).values_list('id', flat=True)
             )
             employee_ids.append(user.id)
-            return qs.filter(Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)).distinct()
+            return qs.filter(
+                Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
+            ).distinct()
 
-        return qs
+        return qs.none()  # unknown role — return nothing
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -93,39 +113,87 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         return ASELeadSerializer
 
     def perform_create(self, serializer):
-        """
-        Set created_by and company when creating ASE lead.
-        - Admin/HR: must supply company in request data (validated_data)
-        - Manager/Employee: auto-assigned from user.company; employee also auto-assigned to self
-        """
         user = self.request.user
         if user.role in ['admin', 'hr']:
             company = serializer.validated_data.get('company')
             if not company:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'company': 'This field is required for admin/hr users.'})
-            serializer.save(created_by=user)
+            # Default assigned_to to the creating user if not provided
+            if not serializer.validated_data.get('assigned_to'):
+                serializer.save(created_by=user, assigned_to=user)
+            else:
+                serializer.save(created_by=user)
         elif user.role == 'employee':
+            # Employee leads are ALWAYS assigned to themselves — no override allowed
             serializer.save(created_by=user, company=user.company, assigned_to=user)
+        elif user.role == 'manager':
+            # Default assigned_to to manager themselves if not explicitly provided
+            if not serializer.validated_data.get('assigned_to'):
+                serializer.save(created_by=user, company=user.company, assigned_to=user)
+            else:
+                serializer.save(created_by=user, company=user.company)
         else:
             serializer.save(created_by=user, company=user.company)
     
     @action(detail=False, methods=['get'])
+    def creators(self, request):
+        """
+        Return all unique creators (created_by users) for the current queryset.
+        No pagination — returns full list for filter dropdowns.
+        """
+        from accounts.models import User as UserModel
+
+        user = request.user
+        qs = ASELead.objects.all()
+
+        if user.is_superuser:
+            company_id = request.query_params.get('company')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
+        elif user.role in ['admin', 'hr']:
+            company_id = request.query_params.get('company')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
+            elif user.company:
+                qs = qs.filter(company=user.company)
+            else:
+                qs = qs.none()
+        else:
+            qs = self.get_queryset()
+
+        creator_ids = qs.values_list('created_by', flat=True).distinct()
+        users = UserModel.objects.filter(id__in=creator_ids).values('id', 'first_name', 'last_name', 'username')
+        data = [
+            {
+                'id': u['id'],
+                'name': f"{u['first_name']} {u['last_name']}".strip() or u['username']
+            }
+            for u in users
+        ]
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
     def check_phone(self, request):
         """
         Check if a phone number already exists in the company.
-        Query params: ?phone=<number>&exclude_id=<id> (exclude_id for edit mode)
+        Query params: ?phone=<number>&exclude_id=<id>&company=<id>
         Returns: {"exists": true/false}
         """
         phone = request.query_params.get('phone', '').strip()
         exclude_id = request.query_params.get('exclude_id')
+        company_id = request.query_params.get('company')
         if not phone:
             return Response({'exists': False})
         user = request.user
-        company = getattr(user, 'company', None)
-        if not company:
-            return Response({'exists': False})
-        qs = ASELead.objects.filter(phone=phone, company=company)
+        # Use explicit company param if provided (admin switching companies), else user's company
+        if company_id:
+            qs = ASELead.objects.filter(phone=phone, company_id=company_id)
+        else:
+            company = getattr(user, 'company', None)
+            if not company:
+                return Response({'exists': False})
+            qs = ASELead.objects.filter(phone=phone, company=company)
         if exclude_id:
             qs = qs.exclude(pk=exclude_id)
         return Response({'exists': qs.exists()})
@@ -281,6 +349,128 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
+    def export_by_ids(self, request):
+        """
+        Export specific leads by ID list as Excel/CSV.
+        Expects: {"ids": [1, 2, 3, ...], "format": "xlsx"} (format optional, defaults to xlsx)
+        Returns: Excel file download
+        """
+        import io
+        import openpyxl
+        from django.http import HttpResponse
+
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        queryset = self.get_queryset().filter(id__in=ids)
+        if not queryset.exists():
+            return Response({'error': 'No leads found for given IDs'}, status=status.HTTP_404_NOT_FOUND)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'ASE Leads'
+
+        headers = [
+            'ID', 'Company Name', 'Contact Person', 'Email', 'Phone', 'Website',
+            'Industry', 'Company Size', 'Annual Revenue',
+            'Services', 'Budget', 'Current Marketing Spend',
+            'Has Website', 'Has Social Media', 'Current SEO Agency',
+            'Marketing Goals', 'Lead Source', 'Referral Source',
+            'Status', 'Priority',
+            'Assigned To', 'Created By',
+            'First Contact', 'Last Contact', 'Next Follow-up',
+            'Est. Project Value', 'Monthly Retainer',
+            'Notes', 'Created At',
+        ]
+        ws.append(headers)
+
+        for lead in queryset:
+            ws.append([
+                lead.id,
+                lead.company_name,
+                lead.contact_person,
+                lead.email or '',
+                lead.phone,
+                lead.website or '',
+                lead.industry,
+                lead.company_size or '',
+                lead.annual_revenue or '',
+                ', '.join(lead.service_interests_display),
+                lead.budget_amount or '',
+                lead.current_marketing_spend or '',
+                'Yes' if lead.has_website else 'No',
+                'Yes' if lead.has_social_media else 'No',
+                lead.current_seo_agency or '',
+                lead.marketing_goals or '',
+                lead.lead_source or '',
+                lead.referral_source or '',
+                lead.status,
+                lead.priority,
+                lead.assigned_to_name or '',
+                lead.created_by_name or '',
+                str(lead.first_contact_date.date()) if lead.first_contact_date else '',
+                str(lead.last_contact_date.date()) if lead.last_contact_date else '',
+                str(lead.next_follow_up.date()) if lead.next_follow_up else '',
+                str(lead.estimated_project_value) if lead.estimated_project_value else '',
+                str(lead.monthly_retainer) if lead.monthly_retainer else '',
+                lead.notes or '',
+                str(lead.created_at.date()),
+            ])
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="ase-leads-export-{len(ids)}.xlsx"'
+        return response
+
+    @action(detail=False, methods=['post'])
+    def bulk_delete_by_ids(self, request):
+        """
+        Delete specific leads by ID list.
+        Expects: {"ids": [1, 2, 3, ...]}
+        Returns: {"deleted_count": N}
+        """
+        user = request.user
+        if user.role not in ['admin', 'manager'] and not user.is_superuser:
+            raise PermissionDenied("Only admins and managers can bulk delete.")
+
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'deleted_count': 0})
+
+        # Scope strictly to the company — never allow cross-company deletes
+        qs = ASELead.objects.filter(id__in=ids)
+        if user.is_superuser:
+            company_id = request.data.get('company') or request.query_params.get('company')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
+        elif user.role in ['admin', 'hr']:
+            company_id = request.data.get('company') or request.query_params.get('company')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
+            elif user.company:
+                qs = qs.filter(company=user.company)
+            else:
+                return Response({'deleted_count': 0})
+        else:
+            # manager / employee — always scope to their own company
+            if not user.company:
+                return Response({'deleted_count': 0})
+            qs = qs.filter(company=user.company)
+
+        count = qs.count()
+        with transaction.atomic():
+            qs.delete()
+
+        return Response({'deleted_count': count}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'])
     def bulk_delete_by_filter(self, request):
         """
         Delete all ASE leads matching the given filters.
@@ -296,7 +486,6 @@ class ASELeadViewSet(viewsets.ModelViewSet):
 
         search = request.data.get('search', '').strip()
         if search:
-            from django.db.models import Q
             queryset = queryset.filter(
                 Q(company_name__icontains=search) |
                 Q(contact_person__icontains=search) |

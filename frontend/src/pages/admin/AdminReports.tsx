@@ -15,6 +15,7 @@ import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths, set
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/DataContextDjango";
 import { useAuth } from "@/contexts/AuthContextDjango";
+import { useCompany } from "@/contexts/CompanyContext";
 
 import { logger } from '@/lib/logger';
 interface LeaveRecord {
@@ -47,10 +48,9 @@ type DateRange = {
 export default function AdminReports() {
   const { user } = useAuth();
   const { leads, tasks } = useData();
+  const { selectedCompany } = useCompany();
   const location = useLocation();
-  // Admin is global — determine ASE context from the route path, not the user's company
-  const isASE = location.pathname.startsWith('/admin/ase') || 
-    user?.company?.code === 'ASE_TECH' || user?.company?.code === 'ASE';
+  const isASE = location.pathname.startsWith('/admin/ase');
   const [aseLeadsCount, setAseLeadsCount] = useState(0);
   const [aseCustomersCount, setAseCustomersCount] = useState(0);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
@@ -96,21 +96,15 @@ export default function AdminReports() {
         logger.log('Transformed leaves:', transformedLeaves.length);
         setLeaves(transformedLeaves);
 
-        // Fetch ASE data if in ASE panel
-        try {
-          const [aseLeadsRes, aseCustomersRes] = await Promise.all([
-            apiClient.get('/ase-leads/?page_size=1'),
-            apiClient.get('/ase/customers/?page_size=1'),
-          ]);
-          setAseLeadsCount((aseLeadsRes as any).count || 0);
-          setAseCustomersCount((aseCustomersRes as any).count || 0);
-        } catch (e) {
-          logger.warn('Could not fetch ASE counts:', e);
-        }
-
-        // Fetch users for team members
+        // Fetch users scoped to the selected company
         logger.log('Fetching users...');
-        const usersResponse = await apiClient.getUsers();
+        const companyId = selectedCompany?.id || (user?.company as any)?.id;
+        if (!companyId) {
+          logger.warn('No company context — skipping user fetch');
+          setTeamMembers([]);
+          return;
+        }
+        const usersResponse = await apiClient.getUsers({ company: companyId });
         logger.log('Users response:', usersResponse);
         
         // Handle paginated response from Django
@@ -153,7 +147,43 @@ export default function AdminReports() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedCompany]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset user filter when company changes
+  useEffect(() => {
+    setSelectedUserId('all');
+  }, [selectedCompany]);
+
+  // Re-fetch ASE counts when filters change
+  useEffect(() => {
+    if (!isASE) return;
+    const fetchAseCounts = async () => {
+      try {
+        const { apiClient } = await import('@/lib/api');
+        let leadsUrl = '/ase-leads/?page_size=1';
+        let customersUrl = '/ase/customers/?page_size=1';
+        if (selectedUserId !== 'all') {
+          leadsUrl += `&created_by=${selectedUserId}`;
+          customersUrl += `&assigned_to=${selectedUserId}`;
+        }
+        if (dateRange.from && dateRange.to) {
+          const from = dateRange.from.toISOString().split('T')[0];
+          const to = dateRange.to.toISOString().split('T')[0];
+          leadsUrl += `&created_after=${from}&created_before=${to}`;
+          customersUrl += `&created_after=${from}&created_before=${to}`;
+        }
+        const [aseLeadsRes, aseCustomersRes] = await Promise.all([
+          apiClient.get(leadsUrl),
+          apiClient.get(customersUrl),
+        ]);
+        setAseLeadsCount((aseLeadsRes as any).count || 0);
+        setAseCustomersCount((aseCustomersRes as any).count || 0);
+      } catch (e) {
+        logger.warn('Could not fetch ASE counts:', e);
+      }
+    };
+    fetchAseCounts();
+  }, [isASE, selectedUserId, dateRange]);
 
   const allTeamMembers = teamMembers;
   const filteredUsers = selectedUserId === "all" ? allTeamMembers : allTeamMembers.filter((u) => u.id === selectedUserId);

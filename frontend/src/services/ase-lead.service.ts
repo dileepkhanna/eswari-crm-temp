@@ -35,6 +35,7 @@ export class ASELeadService {
     industry?: string;
     assigned_to?: string;
     created_by?: string;
+    company?: string | number;
     page?: number;
     page_size?: number;
   }): Promise<{
@@ -73,8 +74,9 @@ export class ASELeadService {
     return await apiClient.delete(`${this.baseUrl}/${id}/`);
   }
 
-  async getStats(): Promise<ASELeadStats> {
-    return await apiClient.get(`${this.baseUrl}/stats/`);
+  async getStats(company?: string): Promise<ASELeadStats> {
+    const url = company ? `${this.baseUrl}/stats/?company=${company}` : `${this.baseUrl}/stats/`;
+    return await apiClient.get(url);
   }
 
   async getFollowUps(): Promise<ASELead[]> {
@@ -89,8 +91,17 @@ export class ASELeadService {
     return await apiClient.post(`${this.baseUrl}/bulk_import/`, { leads });
   }
 
+  async bulkDeleteByIds(ids: string[], companyId?: string | number): Promise<{ deleted_count: number }> {
+    return await apiClient.post(`${this.baseUrl}/bulk_delete_by_ids/`, { ids, company: companyId });
+  }
+
   async bulkDeleteByFilter(filters: { search?: string; status?: string; priority?: string }): Promise<{ deleted_count: number }> {
     return await apiClient.post(`${this.baseUrl}/bulk_delete_by_filter/`, filters);
+  }
+
+  async getCreators(company?: string | number): Promise<{ id: number; name: string }[]> {
+    const url = company ? `${this.baseUrl}/creators/?company=${company}` : `${this.baseUrl}/creators/`;
+    return await apiClient.get(url);
   }
 }
 

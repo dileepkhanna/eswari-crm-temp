@@ -49,7 +49,6 @@ def get_accessible_user_ids(user):
     
     return []
 
-
 def filter_by_user_access(queryset, user, assigned_to_field='assigned_to', created_by_field='created_by'):
     """
     Filter a queryset based on user's role and accessible users with strict access control.

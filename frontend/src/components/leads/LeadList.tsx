@@ -152,10 +152,7 @@ export default function LeadList({
       setDeleteAllMatching(false);
     } else {
       setSelectedIds(new Set(filteredLeads.map(lead => lead.id)));
-      // If there are more pages, flag that delete should use filter-based approach
-      if (leadsTotalCount > filteredLeads.length) {
-        setDeleteAllMatching(true);
-      }
+      setDeleteAllMatching(false); // never auto-enable filter-based delete
     }
   };
 
@@ -484,18 +481,41 @@ export default function LeadList({
             {someSelected && (
               <div className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-lg border">
                 <span className="text-sm text-muted-foreground">
-                  {selectedIds.size} selected
+                  {deleteAllMatching ? `All ${leadsTotalCount}` : selectedIds.size} selected
                 </span>
                 {canDelete && (
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="h-7"
-                  >
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Delete
-                  </Button>
+                  <>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="h-7"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      {deleteAllMatching ? `Delete All (${leadsTotalCount})` : `Delete (${selectedIds.size})`}
+                    </Button>
+                    {/* Show "Select All" across pages only when current page is fully selected */}
+                    {allSelected && leadsTotalCount > filteredLeads.length && !deleteAllMatching && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setDeleteAllMatching(true)}
+                      >
+                        Select all {leadsTotalCount}
+                      </Button>
+                    )}
+                    {deleteAllMatching && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setDeleteAllMatching(false)}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             )}

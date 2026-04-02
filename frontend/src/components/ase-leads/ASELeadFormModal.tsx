@@ -21,6 +21,9 @@ import {
 
 import { apiClient } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { useCompany } from '@/contexts/CompanyContext';
+import { useAuth } from '@/contexts/AuthContextDjango';
+
 interface ASELeadFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -34,14 +37,35 @@ export default function ASELeadFormModal({
   onSave,
   lead
 }: ASELeadFormModalProps) {
+  const { selectedCompany } = useCompany();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; role: string }[]>([]);
+
+  // Fetch team members for admin/manager to assign leads
+  useEffect(() => {
+    if (!open) return;
+    if (!['admin', 'manager', 'hr'].includes(user?.role || '')) return;
+    const companyId = selectedCompany?.id || user?.company?.id;
+    const url = companyId ? `/accounts/users/?company=${companyId}` : '/accounts/users/';
+    apiClient.get(url).then((data: any) => {
+      const list = Array.isArray(data) ? data : (data?.results ?? []);
+      setTeamMembers(list.map((u: any) => ({
+        id: String(u.id),
+        name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username,
+        role: u.role,
+      })));
+    }).catch(() => {});
+  }, [open, user?.role, selectedCompany]);
 
   const checkPhoneDuplicate = async (phone: string) => {
     if (!phone.trim()) return;
     try {
+      const companyId = selectedCompany?.id || user?.company?.id;
       const params = new URLSearchParams({ phone: phone.trim() });
       if (lead?.id) params.append('exclude_id', String(lead.id));
+      if (companyId) params.append('company', String(companyId));
       const data = await apiClient.get(`/ase-leads/check_phone/?${params}`);
       if (data?.exists) {
         setPhoneError(`Phone number '${phone.trim()}' already exists in your company.`);
@@ -108,6 +132,7 @@ export default function ASELeadFormModal({
           referral_source: lead.referral_source || '',
           status: lead.status as ASELeadStatus,
           priority: lead.priority as ASELeadPriority,
+          assigned_to: lead.assigned_to ? String(lead.assigned_to) : undefined,
           first_contact_date: lead.first_contact_date ? new Date(lead.first_contact_date) : undefined,
           last_contact_date: lead.last_contact_date ? new Date(lead.last_contact_date) : undefined,
           next_follow_up: lead.next_follow_up ? new Date(lead.next_follow_up) : undefined,
@@ -140,6 +165,7 @@ export default function ASELeadFormModal({
           referral_source: '',
           status: 'new',
           priority: 'medium',
+          assigned_to: undefined,
           first_contact_date: undefined,
           last_contact_date: undefined,
           next_follow_up: undefined,
@@ -501,6 +527,26 @@ export default function ASELeadFormModal({
                   </SelectContent>
                 </Select>
               </div>
+              {['admin', 'manager', 'hr'].includes(user?.role || '') && teamMembers.length > 0 && (
+                <div>
+                  <Label htmlFor="assigned_to">Assign To</Label>
+                  <Select
+                    value={formData.assigned_to || ''}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value || undefined }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team member" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamMembers.map(member => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name} ({member.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
 

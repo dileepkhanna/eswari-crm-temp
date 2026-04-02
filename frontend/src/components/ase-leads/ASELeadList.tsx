@@ -286,6 +286,10 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
             {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0 && (
               <div className="text-xs text-muted-foreground mt-1 truncate">{lead.service_interests_display.join(', ')}</div>
             )}
+            <div className="text-xs text-muted-foreground mt-1">
+              Assigned: <span className="font-medium text-foreground">{lead.assigned_to_name || 'Unassigned'}</span>
+              {lead.created_by_name && <span> · by {lead.created_by_name}</span>}
+            </div>
           </div>
         ))}
       </div>
@@ -310,7 +314,7 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
               <th className="text-left py-2 px-3 font-medium">Budget</th>
               <th className="text-left py-2 px-3 font-medium">Priority</th>
               <th className="text-left py-2 px-3 font-medium">Status</th>
-              <th className="text-left py-2 px-3 font-medium">Created By</th>
+              <th className="text-left py-2 px-3 font-medium">Assigned To</th>
               <th className="text-left py-2 px-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -378,13 +382,11 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                 <td className="py-3 px-3">
                   <div className="flex items-center gap-1.5">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                      {(lead.created_by_name || 'U').charAt(0).toUpperCase()}
+                      {(lead.assigned_to_name || lead.created_by_name || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-xs font-medium leading-tight">{lead.created_by_name || '-'}</div>
-                      {lead.assigned_to_name && lead.assigned_to_name !== lead.created_by_name && (
-                        <div className="text-xs text-muted-foreground">→ {lead.assigned_to_name}</div>
-                      )}
+                      <div className="text-xs font-medium leading-tight">{lead.assigned_to_name || 'Unassigned'}</div>
+                      <div className="text-xs text-muted-foreground">by {lead.created_by_name || '-'}</div>
                     </div>
                   </div>
                 </td>

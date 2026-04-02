@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import TopBar from '@/components/layout/TopBar';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import ASELeadList from '@/components/ase-leads/ASELeadList';
@@ -16,6 +17,7 @@ import { aseLeadService } from '@/services/ase-lead.service';
 import { logger } from '@/lib/logger';
 export default function AdminASELeads() {
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const {
     leads,
     searchTerm, setSearchTerm,
@@ -23,8 +25,9 @@ export default function AdminASELeads() {
     priorityFilter, setPriorityFilter,
     industryFilter, setIndustryFilter,
     createdByFilter, setCreatedByFilter,
+    creators,
     clearFilters,
-    createLead, updateLead, deleteLead,
+    createLead, updateLead, deleteLead, refreshData,
     currentPage, setCurrentPage, totalPages, totalCount,
   } = useASELead();
 
@@ -32,32 +35,21 @@ export default function AdminASELeads() {
   const [selectedLead, setSelectedLead] = useState<ASELead | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleteAllMatching, setDeleteAllMatching] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  // Unique creators from current page leads (for filter dropdown)
+  // Fetch all creators from API (not just current page)
   const uniqueCreators = useMemo(() => {
-    const map = new Map<string, string>();
-    leads.forEach(l => {
-      if (l.created_by && l.created_by_name) {
-        map.set(String(l.created_by), l.created_by_name);
-      }
-    });
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [leads]);
+    return creators.map(c => [String(c.id), c.name] as [string, string])
+      .sort((a, b) => a[1].localeCompare(b[1]));
+  }, [creators]);
 
   // ── Selection helpers ──────────────────────────────────────────────────
   const toggleAll = () => {
     if (selectedIds.size === leads.length) {
       setSelectedIds(new Set());
-      setDeleteAllMatching(false);
     } else {
       setSelectedIds(new Set(leads.map((l) => l.id)));
-      // If there are more pages, flag delete to use filter-based approach
-      if (totalCount > leads.length) {
-        setDeleteAllMatching(true);
-      }
     }
   };
 
@@ -68,30 +60,22 @@ export default function AdminASELeads() {
       else next.add(id);
       return next;
     });
-    setDeleteAllMatching(false);
   };
 
   // ── Bulk delete ────────────────────────────────────────────────────────
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    const count = deleteAllMatching ? totalCount : selectedIds.size;
-    if (!window.confirm(`Delete ${count} lead(s)? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${selectedIds.size} lead(s)? This cannot be undone.`)) return;
     setBulkDeleting(true);
     try {
-      if (deleteAllMatching) {
-        await aseLeadService.bulkDeleteByFilter({ search: searchTerm, status: statusFilter, priority: priorityFilter });
-        toast.success(`Deleted ${count} leads`);
-      } else {
-        let deleted = 0;
-        for (const id of selectedIds) {
-          const ok = await deleteLead(id);
-          if (ok) deleted++;
-        }
-        toast.success(`Deleted ${deleted} lead(s)`);
-      }
+      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      await aseLeadService.bulkDeleteByIds(Array.from(selectedIds), companyId);
+      toast.success(`Deleted ${selectedIds.size} lead(s)`);
+      await refreshData();
+    } catch {
+      toast.error('Failed to delete leads');
     } finally {
       setSelectedIds(new Set());
-      setDeleteAllMatching(false);
       setBulkDeleting(false);
     }
   };
@@ -375,7 +359,7 @@ export default function AdminASELeads() {
                   disabled={bulkDeleting}
                 >
                   <Trash2Icon className="w-3.5 h-3.5" />
-                  {bulkDeleting ? 'Deleting...' : deleteAllMatching ? `Delete All (${totalCount})` : `Delete (${selectedIds.size})`}
+                  {bulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}
                 </Button>
               )}
             </div>

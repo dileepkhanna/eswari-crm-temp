@@ -52,20 +52,26 @@ export const CompanyBranding = () => {
  * Update the favicon dynamically
  */
 function updateFavicon(iconUrl: string) {
-  // Remove existing favicon links
-  const existingLinks = document.querySelectorAll("link[rel*='icon']");
-  existingLinks.forEach(link => link.remove());
+  // Verify the image exists before setting as favicon
+  const img = new Image();
+  img.onload = () => {
+    // Remove existing favicon links
+    const existingLinks = document.querySelectorAll("link[rel*='icon']");
+    existingLinks.forEach(link => link.remove());
 
-  // Add new favicon
-  const link = document.createElement('link');
-  link.rel = 'icon';
-  link.type = 'image/png';
-  link.href = iconUrl;
-  document.head.appendChild(link);
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/png';
+    link.href = iconUrl;
+    document.head.appendChild(link);
 
-  // Also add apple-touch-icon for mobile devices
-  const appleLink = document.createElement('link');
-  appleLink.rel = 'apple-touch-icon';
-  appleLink.href = iconUrl;
-  document.head.appendChild(appleLink);
+    const appleLink = document.createElement('link');
+    appleLink.rel = 'apple-touch-icon';
+    appleLink.href = iconUrl;
+    document.head.appendChild(appleLink);
+  };
+  img.onerror = () => {
+    // Logo file missing — silently skip, keep default favicon
+  };
+  img.src = iconUrl;
 }

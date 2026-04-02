@@ -13,6 +13,7 @@ interface ASELeadContextType {
   stats: ASELeadStats | null;
   loading: boolean;
   error: string | null;
+  creators: { id: number; name: string }[];
   
   // Pagination
   currentPage: number;
@@ -61,6 +62,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const [stats, setStats] = useState<ASELeadStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [creators, setCreators] = useState<{ id: number; name: string }[]>([]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,7 +93,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       setError(null);
       
       const PAGE_SIZE = 50;
-      const params = {
+      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const params: any = {
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         priority: priorityFilter || undefined,
@@ -100,6 +103,10 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
         page: currentPage,
         page_size: PAGE_SIZE,
       };
+      // Pass company so admin sees the correct company's leads
+      if (companyId) {
+        params.company = companyId;
+      }
       
       const response = await aseLeadService.getLeads(params);
 
@@ -120,6 +127,13 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch leads';
+      // If invalid page (404), reset to page 1 and retry
+      if (errorMessage.includes('Invalid page') || errorMessage.includes('404')) {
+        if (currentPage !== 1) {
+          setCurrentPage(1);
+          return; // the currentPage useEffect will re-fetch at page 1
+        }
+      }
       setError(errorMessage);
       logger.error('❌ ASE Leads: Failed to fetch leads:', err);
       toast.error('Error loading leads');
@@ -130,28 +144,44 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   
   const fetchStats = async () => {
     try {
-      logger.log('🔄 ASE Leads: Fetching stats');
-      const statsData = await aseLeadService.getStats();
+      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const statsData = await aseLeadService.getStats(companyId ? String(companyId) : undefined);
       setStats(statsData);
-      logger.log('✅ ASE Leads: Fetched stats:', statsData);
     } catch (err) {
       logger.error('❌ ASE Leads: Failed to fetch stats:', err);
     }
   };
   
+  const fetchCreators = async () => {
+    try {
+      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const data = await aseLeadService.getCreators(companyId);
+      setCreators(data);
+    } catch (err) {
+      logger.error('❌ ASE Leads: Failed to fetch creators:', err);
+    }
+  };
+
   const createLead = async (leadData: ASELeadFormData): Promise<ASELead | null> => {
     try {
       setLoading(true);
-      const companyId = selectedCompany?.id || user?.company?.id;
+      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      if (!companyId) {
+        toast.error('No company selected');
+        return null;
+      }
       const payload: any = { ...leadData };
-      if (companyId && !payload.company) {
+      if (!payload.company) {
         payload.company = companyId;
       }
       const newLead = await aseLeadService.createLead(payload);
+      // Optimistic: prepend to local state immediately
+      setLeads(prev => [newLead, ...prev]);
+      setTotalCount(prev => prev + 1);
       toast.success('Lead created successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || user?.company?.id || 0),
+        companyId: Number(companyId),
         module: 'leads', action: 'created',
         details: `created lead: ${newLead.contact_person || newLead.phone}`,
       });
@@ -163,19 +193,19 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       return null;
     } finally {
       setLoading(false);
-      // Refresh list after mutation (outside loading guard to avoid double-loading)
-      fetchLeads();
     }
   };
-  
+
   const updateLead = async (id: string, leadData: Partial<ASELeadFormData>): Promise<ASELead | null> => {
     try {
       setLoading(true);
       const updatedLead = await aseLeadService.updateLead(id, leadData);
+      // Optimistic: replace in local state immediately
+      setLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
       toast.success('Lead updated successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || user?.company?.id || 0),
+        companyId: Number(selectedCompany?.id || user?.company || 0),
         module: 'leads', action: 'updated',
         details: `updated lead: ${updatedLead.contact_person || updatedLead.phone}`,
       });
@@ -187,19 +217,21 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       return null;
     } finally {
       setLoading(false);
-      fetchLeads();
     }
   };
-  
+
   const deleteLead = async (id: string): Promise<boolean> => {
     try {
       setLoading(true);
       const lead = leads.find(l => l.id === id);
       await aseLeadService.deleteLead(id);
+      // Optimistic: remove from local state immediately
+      setLeads(prev => prev.filter(l => l.id !== id));
+      setTotalCount(prev => Math.max(0, prev - 1));
       toast.success('Lead deleted successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || user?.company?.id || 0),
+        companyId: Number(selectedCompany?.id || user?.company || 0),
         module: 'leads', action: 'deleted',
         details: `deleted lead: ${lead?.contact_person || lead?.phone || id}`,
       });
@@ -211,12 +243,11 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       return false;
     } finally {
       setLoading(false);
-      fetchLeads();
     }
   };
   
   const refreshData = async () => {
-    await Promise.all([fetchLeads(), fetchStats()]);
+    await Promise.all([fetchLeads(), fetchStats(), fetchCreators()]);
   };
   
   const clearFilters = () => {
@@ -229,20 +260,25 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     setCurrentPage(1);
   };
   
-  // Single effect: reset page when filters change, then fetch
+  // Reset page to 1 when filters or company change, then fetch
   useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter]);
+    if (currentPage === 1) {
+      fetchLeads(); // already on page 1, fetch directly
+    } else {
+      setCurrentPage(1); // this triggers the currentPage useEffect below
+    }
+  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter, selectedCompany]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch whenever page or debounced filters change
+  // Fetch when page changes (pagination clicks or reset to 1)
   useEffect(() => {
     fetchLeads();
-  }, [currentPage, debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter]);
+  }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Initial stats fetch
+  // Initial stats fetch + re-fetch on company change
   useEffect(() => {
     fetchStats();
-  }, []);
+    fetchCreators();
+  }, [selectedCompany]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const value: ASELeadContextType = {
     // State
@@ -250,6 +286,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     stats,
     loading,
     error,
+    creators,
     
     // Pagination
     currentPage,
