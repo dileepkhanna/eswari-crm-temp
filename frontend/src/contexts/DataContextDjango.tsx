@@ -288,7 +288,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!user) return [];
     
     try {
-      const response = await apiClient.getTasks({ page: 1, page_size: 500 });
+      const response = await apiClient.getTasks({ page: 1, page_size: 10000 });
       const pageResults = response.results || (Array.isArray(response) ? response : []);
       const tasksList = pageResults.map(apiToTask);
       setTasks(tasksList);

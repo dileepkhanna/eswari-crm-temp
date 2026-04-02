@@ -36,11 +36,14 @@ export function isManagerView(userRole: UserRole): boolean {
 }
 
 /**
- * Determines if the current user can delete leads and tasks
- * Only admins and managers can delete, employees cannot
+ * Determines if the current user can delete leads and customers.
+ * - Admin and Manager: always can delete
+ * - Employee: only in Eswari Group (non-ASE companies)
  */
-export function canDeleteLeadsAndTasks(userRole: UserRole): boolean {
-  return userRole === 'admin' || userRole === 'manager';
+export function canDeleteLeadsAndTasks(userRole: UserRole, companyCode?: string): boolean {
+  if (userRole === 'admin' || userRole === 'manager') return true;
+  if (userRole === 'employee') return companyCode !== 'ASE';
+  return false;
 }
 
 /**

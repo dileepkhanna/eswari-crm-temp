@@ -47,6 +47,9 @@ export default function ManagerReports() {
   const { leads, tasks } = useData();
   const location = useLocation();
   const isASE = location.pathname.startsWith('/manager/ase');
+
+  // Use primitive ID as dependency so useEffect re-runs reliably when user loads
+  const effectiveCompanyId = useMemo(() => (user?.company as any)?.id, [user]);
   const [aseLeadsCount, setAseLeadsCount] = useState(0);
   const [aseCustomersCount, setAseCustomersCount] = useState(0);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
@@ -104,15 +107,9 @@ export default function ManagerReports() {
           logger.warn('Could not fetch ASE counts:', e);
         }
 
-        // Fetch users scoped to manager's company
-        logger.log('Fetching users...');
-        const companyId = (user?.company as any)?.id;
-        if (!companyId) {
-          logger.warn('No company context — skipping user fetch');
-          setTeamMembers([]);
-          return;
-        }
-        const usersResponse = await apiClient.getUsers({ company: companyId });
+        // Fetch users — scoped to company if resolved, otherwise backend scopes by role
+        logger.log('Fetching users... companyId:', effectiveCompanyId);
+        const usersResponse = await apiClient.getUsers(effectiveCompanyId ? { company: effectiveCompanyId } : undefined);
         logger.log('Users response:', usersResponse);
         
         // Handle paginated response from Django
@@ -155,7 +152,7 @@ export default function ManagerReports() {
     };
 
     fetchData();
-  }, []);
+  }, [effectiveCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const allTeamMembers = teamMembers;
   const filteredUsers = selectedUserId === "all" ? allTeamMembers : allTeamMembers.filter((u) => u.id === selectedUserId);

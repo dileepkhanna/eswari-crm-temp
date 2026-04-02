@@ -2,8 +2,10 @@ import TopBar from '@/components/layout/TopBar';
 import CustomerList from '@/components/customers/CustomerList';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { useData } from '@/contexts/DataContextDjango';
+import { useAuth } from '@/contexts/AuthContextDjango';
 
 export default function StaffCustomers() {
+  const { user } = useAuth();
   const { projects } = useData();
   const {
     customers,
@@ -17,6 +19,9 @@ export default function StaffCustomers() {
     createLeadFromCustomer,
     refreshCustomers,
   } = useCustomers();
+
+  // Employees in Eswari Group can delete their own customers
+  const canDelete = user?.role === 'employee' && (user?.company as any)?.code !== 'ASE';
 
   return (
     <div className="min-h-screen">
@@ -38,6 +43,7 @@ export default function StaffCustomers() {
           onCreateLead={createLeadFromCustomer}
           onRefreshCustomers={refreshCustomers}
           canManageAll={false}
+          canDelete={canDelete}
         />
       </div>
     </div>

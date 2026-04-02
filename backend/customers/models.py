@@ -65,7 +65,7 @@ class Customer(models.Model):
     ]
     
     name = models.CharField(max_length=255, blank=True, null=True)
-    phone = models.CharField(max_length=20, unique=True)  # Make phone number unique
+    phone = models.CharField(max_length=20)  # Unique per company (enforced via unique_together)
     call_status = models.CharField(max_length=20, choices=CALL_STATUS_CHOICES, default='pending')
     custom_call_status = models.CharField(max_length=100, blank=True, null=True)
     company = models.ForeignKey(
@@ -86,6 +86,7 @@ class Customer(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        unique_together = [('phone', 'company')]
         indexes = [
             models.Index(fields=['company']),
             models.Index(fields=['company', 'created_at']),

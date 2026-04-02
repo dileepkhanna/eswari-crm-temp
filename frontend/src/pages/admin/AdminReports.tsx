@@ -48,9 +48,17 @@ type DateRange = {
 export default function AdminReports() {
   const { user } = useAuth();
   const { leads, tasks } = useData();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, availableCompanies } = useCompany();
   const location = useLocation();
   const isASE = location.pathname.startsWith('/admin/ase');
+
+  // Derive company ID directly from route + availableCompanies
+  // ASE panel → find company with code 'ASE', Eswari panel → find company with code 'ESWARI'
+  const effectiveCompanyId = useMemo(() => {
+    if (availableCompanies.length === 0) return selectedCompany?.id;
+    const match = availableCompanies.find(c => isASE ? c.code === 'ASE' : c.code === 'ESWARI');
+    return match?.id ?? selectedCompany?.id;
+  }, [isASE, availableCompanies, selectedCompany?.id]);
   const [aseLeadsCount, setAseLeadsCount] = useState(0);
   const [aseCustomersCount, setAseCustomersCount] = useState(0);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
@@ -96,15 +104,9 @@ export default function AdminReports() {
         logger.log('Transformed leaves:', transformedLeaves.length);
         setLeaves(transformedLeaves);
 
-        // Fetch users scoped to the selected company
-        logger.log('Fetching users...');
-        const companyId = selectedCompany?.id || (user?.company as any)?.id;
-        if (!companyId) {
-          logger.warn('No company context — skipping user fetch');
-          setTeamMembers([]);
-          return;
-        }
-        const usersResponse = await apiClient.getUsers({ company: companyId });
+        // Fetch users — scoped to company if resolved, otherwise backend scopes by role
+        logger.log('Fetching users... companyId:', effectiveCompanyId);
+        const usersResponse = await apiClient.getUsers(effectiveCompanyId ? { company: effectiveCompanyId } : undefined);
         logger.log('Users response:', usersResponse);
         
         // Handle paginated response from Django
@@ -147,12 +149,12 @@ export default function AdminReports() {
     };
 
     fetchData();
-  }, [selectedCompany]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset user filter when company changes
+  // Reset user filter when effective company changes
   useEffect(() => {
     setSelectedUserId('all');
-  }, [selectedCompany]);
+  }, [effectiveCompanyId]);
 
   // Re-fetch ASE counts when filters change
   useEffect(() => {
@@ -160,8 +162,9 @@ export default function AdminReports() {
     const fetchAseCounts = async () => {
       try {
         const { apiClient } = await import('@/lib/api');
-        let leadsUrl = '/ase-leads/?page_size=1';
-        let customersUrl = '/ase/customers/?page_size=1';
+        const companyId = effectiveCompanyId;
+        let leadsUrl = `/ase-leads/?page_size=1${companyId ? `&company=${companyId}` : ''}`;
+        let customersUrl = `/ase/customers/?page_size=1${companyId ? `&company=${companyId}` : ''}`;
         if (selectedUserId !== 'all') {
           leadsUrl += `&created_by=${selectedUserId}`;
           customersUrl += `&assigned_to=${selectedUserId}`;
@@ -183,7 +186,7 @@ export default function AdminReports() {
       }
     };
     fetchAseCounts();
-  }, [isASE, selectedUserId, dateRange]);
+  }, [isASE, selectedUserId, dateRange, effectiveCompanyId]);
 
   const allTeamMembers = teamMembers;
   const filteredUsers = selectedUserId === "all" ? allTeamMembers : allTeamMembers.filter((u) => u.id === selectedUserId);

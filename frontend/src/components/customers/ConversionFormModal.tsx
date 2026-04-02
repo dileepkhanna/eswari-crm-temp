@@ -124,13 +124,6 @@ export default function ConversionFormModal({ open, onClose, customer, onConvers
       toast.success('Customer converted to lead successfully!');
       onConversionComplete();
       handleClose();
-
-      // Redirect to lead detail page
-      if (response.lead && response.lead.id) {
-        setTimeout(() => {
-          window.location.href = `/leads/${response.lead.id}`;
-        }, 500);
-      }
     } catch (error: any) {
       logger.error('Failed to convert customer:', error);
       toast.error('Failed to convert customer. Please try again.');

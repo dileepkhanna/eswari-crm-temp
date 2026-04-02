@@ -70,6 +70,7 @@ interface CustomerListProps {
   onCreateLead: (leadData: any) => void;
   onRefreshCustomers: () => Promise<void>;
   canManageAll?: boolean;
+  canDelete?: boolean;
   isManagerView?: boolean;
 }
 
@@ -86,6 +87,7 @@ function CustomerList({
   onCreateLead,
   onRefreshCustomers,
   canManageAll = false,
+  canDelete: canDeleteProp = false,
   isManagerView = false
 }: CustomerListProps) {
   const { user } = useAuth();
@@ -791,7 +793,7 @@ function CustomerList({
 
             {selectedIds.size > 0 && !isManagerView && (
               <div className="flex flex-wrap gap-2">
-                {canManageAll && (
+                {(canManageAll || canDeleteProp) && (
                   <>
                     <Button 
                       variant="destructive" 

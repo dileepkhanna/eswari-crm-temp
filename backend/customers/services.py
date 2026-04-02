@@ -502,7 +502,7 @@ class ImportService:
         with transaction.atomic():
             created_customers = Customer.objects.bulk_create(
                 customers_to_create,
-                ignore_conflicts=False  # Don't ignore conflicts - validation should have caught them
+                ignore_conflicts=True  # Skip duplicate phone+company rows
             )
         
         # Get the created IDs by querying for the phones we just created

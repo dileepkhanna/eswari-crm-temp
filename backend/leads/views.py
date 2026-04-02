@@ -60,71 +60,17 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
     
     def perform_destroy(self, instance):
-        """
-        Handle lead deletion with proper permissions:
-        - Admin: Can delete any lead
-        - Manager: Can delete any lead
-        - Employee: Can only delete leads assigned to them
-        """
         user = self.request.user
-        
-        print(f"DEBUG: User {user.username} (ID: {user.id}, Role: {user.role}) attempting to delete lead {instance.id}")
-        print(f"DEBUG: Lead assigned to: {instance.assigned_to}")
-        print(f"DEBUG: Lead created by: {instance.created_by}")
-        print(f"DEBUG: Lead name: {instance.name}")
-        
-        # Check if lead exists before deletion
-        lead_exists_before = Lead.objects.filter(id=instance.id).exists()
-        print(f"DEBUG: Lead exists before deletion: {lead_exists_before}")
-        
-        if user.role in ['admin', 'manager']:
-            # Admin and managers can delete any lead
-            print(f"DEBUG: Admin/Manager deletion allowed")
-            try:
-                with transaction.atomic():
-                    instance.delete()
-                    print(f"DEBUG: instance.delete() called successfully with transaction")
-                
-                # Check if lead still exists after deletion
-                lead_exists_after = Lead.objects.filter(id=instance.id).exists()
-                print(f"DEBUG: Lead exists after deletion: {lead_exists_after}")
-                
-                if lead_exists_after:
-                    print(f"ERROR: Lead still exists in database after deletion!")
-                else:
-                    print(f"SUCCESS: Lead successfully deleted from database")
-                    
-            except Exception as e:
-                print(f"ERROR: Exception during deletion: {e}")
-                raise e
-                
-        elif user.role == 'employee':
-            # Employees can only delete leads assigned to them
-            if instance.assigned_to == user:
-                print(f"DEBUG: Employee deletion allowed (lead assigned to them)")
-                try:
-                    with transaction.atomic():
-                        instance.delete()
-                        print(f"DEBUG: instance.delete() called successfully with transaction")
-                    
-                    # Check if lead still exists after deletion
-                    lead_exists_after = Lead.objects.filter(id=instance.id).exists()
-                    print(f"DEBUG: Lead exists after deletion: {lead_exists_after}")
-                    
-                except Exception as e:
-                    print(f"ERROR: Exception during deletion: {e}")
-                    raise e
-            else:
-                print(f"DEBUG: Employee deletion denied (lead not assigned to them)")
-                raise PermissionDenied("You can only delete leads assigned to you.")
+        if user.role in ['admin', 'manager', 'employee']:
+            instance.delete()
         else:
-            print(f"DEBUG: Deletion denied (invalid role)")
             raise PermissionDenied("You do not have permission to delete leads.")
     
     @action(detail=False, methods=['post'])
     def bulk_import(self, request):
         """
         Bulk import leads in a single DB transaction.
+        Auto-assigns leads round-robin to active employees in the company.
         Expects: {"leads": [{...}, ...]}
         Returns: {"imported": N, "errors": [...]}
         """
@@ -137,11 +83,35 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         if not company:
             return Response({'error': 'User has no company assigned'}, status=status.HTTP_400_BAD_REQUEST)
 
+        from accounts.models import User as UserModel
+
+        # Build assignee pool for round-robin
+        if user.role == 'employee':
+            assignees = [user]
+        elif user.role == 'manager':
+            team_ids = list(
+                UserModel.objects.filter(
+                    manager=user, company=company, is_active=True
+                ).values_list('id', flat=True)
+            )
+            team_ids.append(user.id)
+            assignees = list(UserModel.objects.filter(id__in=team_ids))
+        else:
+            # admin/hr — assign across all active employees in company
+            assignees = list(
+                UserModel.objects.filter(
+                    company=company, role='employee', is_active=True
+                )
+            )
+            if not assignees:
+                assignees = [user]
+
         to_create = []
         errors = []
 
         for i, row in enumerate(rows):
             try:
+                assigned_to = assignees[i % len(assignees)]
                 obj = Lead(
                     name=row.get('name', ''),
                     phone=row.get('phone', ''),
@@ -157,6 +127,7 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
                     description=row.get('description', ''),
                     company=company,
                     created_by=user,
+                    assigned_to=assigned_to,
                 )
                 to_create.append(obj)
             except Exception as e:
@@ -165,7 +136,11 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         imported = 0
         if to_create:
             with transaction.atomic():
-                created = Lead.objects.bulk_create(to_create, batch_size=500)
+                created = Lead.objects.bulk_create(
+                    to_create,
+                    batch_size=500,
+                    ignore_conflicts=True,  # skip duplicate phone+company rows
+                )
                 imported = len(created)
 
         return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
@@ -177,84 +152,31 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         """
         user = request.user
         lead_ids = request.data.get('lead_ids', [])
-        
+
         if not lead_ids:
+            return Response({'error': 'No lead IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.role not in ['admin', 'manager', 'employee']:
+            raise PermissionDenied("You do not have permission to delete leads.")
+
+        # Scope to user's accessible leads then filter by requested IDs
+        qs = self.get_queryset().filter(id__in=lead_ids)
+        count = qs.count()
+
+        if count == 0:
             return Response(
-                {'error': 'No lead IDs provided'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        print(f"DEBUG: User {user.username} (ID: {user.id}, Role: {user.role}) attempting bulk delete of {len(lead_ids)} leads")
-        print(f"DEBUG: Lead IDs to delete: {lead_ids}")
-        
-        # Get leads that exist and user has permission to delete
-        leads_to_delete = []
-        permission_errors = []
-        
-        for lead_id in lead_ids:
-            try:
-                lead = Lead.objects.get(id=lead_id)
-                
-                # Check permissions
-                if user.role in ['admin', 'manager']:
-                    leads_to_delete.append(lead)
-                elif user.role == 'employee':
-                    if lead.assigned_to == user:
-                        leads_to_delete.append(lead)
-                    else:
-                        permission_errors.append(f"Lead {lead_id}: Not assigned to you")
-                else:
-                    permission_errors.append(f"Lead {lead_id}: No permission to delete")
-                    
-            except Lead.DoesNotExist:
-                permission_errors.append(f"Lead {lead_id}: Not found")
-        
-        if not leads_to_delete and permission_errors:
-            return Response(
-                {'error': 'No leads could be deleted', 'details': permission_errors}, 
+                {'error': 'No leads could be deleted', 'details': ['No matching leads found or not assigned to you']},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        # Perform bulk deletion
-        deleted_count = 0
-        deletion_errors = []
-        
-        try:
-            with transaction.atomic():
-                for lead in leads_to_delete:
-                    try:
-                        lead_name = lead.name
-                        lead_id = lead.id
-                        lead.delete()
-                        deleted_count += 1
-                        print(f"DEBUG: Successfully deleted lead {lead_id} ({lead_name})")
-                    except Exception as e:
-                        deletion_errors.append(f"Lead {lead.id}: {str(e)}")
-                        print(f"ERROR: Failed to delete lead {lead.id}: {e}")
-                
-                print(f"SUCCESS: Bulk deleted {deleted_count} leads")
-                
-        except Exception as e:
-            print(f"ERROR: Bulk deletion transaction failed: {e}")
-            return Response(
-                {'error': 'Bulk deletion failed', 'details': str(e)}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        
-        # Prepare response
-        response_data = {
-            'deleted_count': deleted_count,
+
+        with transaction.atomic():
+            Lead.objects.filter(id__in=qs.values_list('id', flat=True)).delete()
+
+        return Response({
+            'deleted_count': count,
             'requested_count': len(lead_ids),
-            'success': True
-        }
-        
-        if permission_errors:
-            response_data['permission_errors'] = permission_errors
-        
-        if deletion_errors:
-            response_data['deletion_errors'] = deletion_errors
-        
-        return Response(response_data, status=status.HTTP_200_OK)
+            'success': True,
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'])
     def bulk_delete_by_filter(self, request):
@@ -265,10 +187,11 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         Returns: {"deleted_count": N}
         """
         user = request.user
-        if user.role not in ['admin', 'manager']:
-            raise PermissionDenied("Only admins and managers can bulk delete by filter.")
+        if user.role not in ['admin', 'manager', 'employee']:
+            raise PermissionDenied("Only admins, managers and employees can bulk delete by filter.")
 
         # Build queryset using the same logic as get_queryset
+        # For employees, get_queryset already scopes to their assigned leads only
         queryset = self.get_queryset()
 
         # Apply the same filters the frontend is using
@@ -292,6 +215,7 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
 
         count = queryset.count()
         with transaction.atomic():
-            queryset.delete()
+            # Must filter by IDs because delete() doesn't work on distinct() querysets
+            Lead.objects.filter(id__in=queryset.values_list('id', flat=True)).delete()
 
         return Response({'deleted_count': count}, status=status.HTTP_200_OK)

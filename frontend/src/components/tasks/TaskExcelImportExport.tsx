@@ -36,15 +36,6 @@ export default function TaskExcelImportExport({ tasks = [], onImport, getProject
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Only allow import/export for users who can view phone numbers for at least some tasks
-  const canViewAnyPhoneNumbers = tasks.some(task => 
-    canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy)
-  );
-  
-  if (!canViewAnyPhoneNumbers) {
-    return null;
-  }
-
   const handleExport = () => {
     try {
       if (tasks.length === 0) {
@@ -52,21 +43,24 @@ export default function TaskExcelImportExport({ tasks = [], onImport, getProject
         return;
       }
 
-      const exportData = tasks.map(task => ({
-        'Lead Name': task.lead?.name || 'Unknown Lead',
-        'Lead Phone': task.lead?.phone || '-',
-        'Lead Email': task.lead?.email || '-',
-        'Requirement Type': task.lead?.requirementType || '-',
-        'BHK': task.lead?.bhkRequirement || '-',
-        'Budget Min': task.lead?.budgetMin || 0,
-        'Budget Max': task.lead?.budgetMax || 0,
-        'Project': getProjectName ? getProjectName(task.assignedProject) : task.assignedProject,
-        'Status': task.status,
-        'Assigned To': task.assignedTo,
-        'Next Action Date': task.nextActionDate ? format(task.nextActionDate, 'yyyy-MM-dd') : '',
-        'Created Date': format(task.createdAt, 'yyyy-MM-dd'),
-        'Notes': task.notes.map(note => note.content).join('; '),
-      }));
+      const exportData = tasks.map(task => {
+        const canSeePhone = canViewCustomerPhone(user?.role, user?.id, task.lead?.createdBy);
+        return {
+          'Lead Name': task.lead?.name || 'Unknown Lead',
+          'Lead Phone': canSeePhone ? (task.lead?.phone || '-') : '***masked***',
+          'Lead Email': canSeePhone ? (task.lead?.email || '-') : '***masked***',
+          'Requirement Type': task.lead?.requirementType || '-',
+          'BHK': task.lead?.bhkRequirement || '-',
+          'Budget Min': task.lead?.budgetMin || 0,
+          'Budget Max': task.lead?.budgetMax || 0,
+          'Project': getProjectName ? getProjectName(task.assignedProject) : task.assignedProject,
+          'Status': task.status,
+          'Assigned To': task.assignedTo,
+          'Next Action Date': task.nextActionDate ? format(task.nextActionDate, 'yyyy-MM-dd') : '',
+          'Created Date': format(task.createdAt, 'yyyy-MM-dd'),
+          'Notes': task.notes.map(note => note.content).join('; '),
+        };
+      });
 
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();

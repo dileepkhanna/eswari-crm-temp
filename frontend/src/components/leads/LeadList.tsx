@@ -81,7 +81,7 @@ export default function LeadList({
   const { user } = useAuth();
   const { leads, leadsPage, leadsTotalPages, leadsTotalCount, leadsSearch, leadsStatus, setLeadsPage, setLeadsSearch, setLeadsStatus, projects, tasks, addLead, updateLead, deleteLead, bulkDeleteLeads, bulkDeleteLeadsByFilter, addTask, refreshData } = useData();
   // Check if user can delete leads and tasks
-  const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
+  const canDelete = user ? canDeleteLeadsAndTasks(user.role, (user.company as any)?.code) : false;
 
   // Helper function to check if current user can see a lead's phone number
   const canSeePhoneNumber = (lead: Lead) => {

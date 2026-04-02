@@ -69,7 +69,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const isManager = user ? isManagerRole(user.role) : false;
   
   // Check if user can delete tasks
-  const canDelete = user ? canDeleteLeadsAndTasks(user.role) : false;
+  const canDelete = user ? canDeleteLeadsAndTasks(user.role, (user.company as any)?.code) : false;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");

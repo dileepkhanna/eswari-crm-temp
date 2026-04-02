@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models, transaction
 from .models import Task
@@ -9,9 +10,17 @@ from .serializers import TaskSerializer
 from accounts.permissions import filter_by_user_access, can_hr_access_module, CompanyAccessPermission
 from utils.mixins import CompanyFilterMixin
 
+
+class TaskPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 10000
+
+
 class TaskViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+    pagination_class = TaskPagination
     permission_classes = [CompanyAccessPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'priority', 'project', 'assigned_to']

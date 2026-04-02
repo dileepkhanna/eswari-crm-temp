@@ -75,6 +75,7 @@ class Lead(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        unique_together = [('phone', 'company')]
         indexes = [
             models.Index(fields=['phone']),
             models.Index(fields=['email']),
