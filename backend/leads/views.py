@@ -3,12 +3,28 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter, CharFilter
 from django.db import models, transaction
+from django.db.models import Q
 from .models import Lead
 from .serializers import LeadSerializer
 from accounts.permissions import filter_by_user_access, can_hr_access_module, CompanyAccessPermission
 from utils.mixins import CompanyFilterMixin
+
+
+class LeadFilter(FilterSet):
+    status = CharFilter(field_name='status')
+    source = CharFilter(field_name='source')
+    requirement_type = CharFilter(field_name='requirement_type')
+    user = NumberFilter(method='filter_by_user')
+
+    def filter_by_user(self, queryset, name, value):
+        """Filter leads where assigned_to OR created_by matches the given user ID"""
+        return queryset.filter(Q(assigned_to=value) | Q(created_by=value)).distinct()
+
+    class Meta:
+        model = Lead
+        fields = ['status', 'source', 'requirement_type', 'user']
 
 
 class LeadPagination(PageNumberPagination):
@@ -22,7 +38,7 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     permission_classes = [CompanyAccessPermission]
     pagination_class = LeadPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'source', 'assigned_to', 'created_by', 'requirement_type']
+    filterset_class = LeadFilter
     search_fields = ['name', 'email', 'address', 'description']
     ordering_fields = ['created_at', 'updated_at', 'name']
     ordering = ['-created_at']

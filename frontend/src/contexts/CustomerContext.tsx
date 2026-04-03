@@ -102,9 +102,9 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
         };
       });
       
-      // Filter employees and managers (admins can assign to both)
+      // Include all roles that can be assigned leads (employee, manager, admin)
       const employeeUsers = transformedUsers.filter((u: User) => 
-        u.role === 'employee' || u.role === 'manager' || (u.role as string) === 'telecaller'
+        u.role === 'employee' || u.role === 'manager' || u.role === 'admin' || (u.role as string) === 'telecaller'
       );
       setEmployees(employeeUsers);
       

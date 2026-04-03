@@ -270,7 +270,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const params: Record<string, any> = { page: leadsPage, page_size: PAGE_SIZE };
       if (debouncedLeadsSearch) params.search = debouncedLeadsSearch;
       if (leadsStatus) params.status = leadsStatus;
-      if (leadsUser) params.assigned_to = leadsUser;
+      if (leadsUser) params.user = leadsUser;
 
       const response = await apiClient.getLeads(params);
       

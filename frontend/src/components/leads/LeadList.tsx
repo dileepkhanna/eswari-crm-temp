@@ -336,6 +336,7 @@ export default function LeadList({
       const params: Record<string, any> = { page, page_size: PAGE_SIZE };
       if (leadsSearch) params.search = leadsSearch;
       if (leadsStatus) params.status = leadsStatus;
+      if (leadsUser) params.user = leadsUser;
       const response = await apiClient.getLeads(params);
       const results = Array.isArray(response) ? response : (response.results || []);
       allLeads = allLeads.concat(results.map(apiToLead));
