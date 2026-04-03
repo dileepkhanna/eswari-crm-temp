@@ -57,7 +57,14 @@ interface ASELeadProviderProps {
 
 export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const { user } = useAuth();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, availableCompanies } = useCompany();
+
+  // ASE context always uses the ASE company — never the globally selected company
+  // This prevents cross-company data leaks when admin switches between panels
+  const aseCompanyId = availableCompanies.find(c => c.code === 'ASE')?.id
+    || ((user?.company as any)?.code === 'ASE' ? (user?.company as any)?.id : undefined)
+    // For non-admin users whose company IS ASE, selectedCompany is their own company
+    || (selectedCompany?.code === 'ASE' ? selectedCompany?.id : undefined);
   const [leads, setLeads] = useState<ASELead[]>([]);
   const [stats, setStats] = useState<ASELeadStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -93,7 +100,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       setError(null);
       
       const PAGE_SIZE = 50;
-      const companyId = selectedCompany?.id || ((user?.company as any)?.id);
+      const companyId = aseCompanyId;
       const params: any = {
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
@@ -144,7 +151,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   
   const fetchStats = async () => {
     try {
-      const companyId = selectedCompany?.id || ((user?.company as any)?.id);
+      const companyId = aseCompanyId;
       const statsData = await aseLeadService.getStats(companyId ? String(companyId) : undefined);
       setStats(statsData);
     } catch (err) {
@@ -154,7 +161,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   
   const fetchCreators = async () => {
     try {
-      const companyId = selectedCompany?.id || ((user?.company as any)?.id);
+      const companyId = aseCompanyId;
       const data = await aseLeadService.getCreators(companyId);
       setCreators(data);
     } catch (err) {
@@ -166,7 +173,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     try {
       setLoading(true);
       // user.company in auth context is a Company object with .id
-      const companyId = selectedCompany?.id || (user?.company as any)?.id;
+      const companyId = aseCompanyId;
       if (!companyId) {
         toast.error('No company selected');
         return null;
@@ -206,7 +213,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       toast.success('Lead updated successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || (user?.company as any)?.id || 0),
+        companyId: Number(aseCompanyId || 0),
         module: 'leads', action: 'updated',
         details: `updated lead: ${updatedLead.contact_person || updatedLead.phone}`,
       });
@@ -232,7 +239,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       toast.success('Lead deleted successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || (user?.company as any)?.id || 0),
+        companyId: Number(aseCompanyId || 0),
         module: 'leads', action: 'deleted',
         details: `deleted lead: ${lead?.contact_person || lead?.phone || id}`,
       });
@@ -261,25 +268,31 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     setCurrentPage(1);
   };
   
+  // Admin/HR need aseCompanyId to scope correctly; employee/manager are scoped by backend
+  const needsCompanyId = user?.role === 'admin' || user?.role === 'hr';
+
   // Reset page to 1 when filters or company change, then fetch
   useEffect(() => {
+    if (needsCompanyId && !aseCompanyId) return;
     if (currentPage === 1) {
-      fetchLeads(); // already on page 1, fetch directly
+      fetchLeads();
     } else {
-      setCurrentPage(1); // this triggers the currentPage useEffect below
+      setCurrentPage(1);
     }
-  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter, selectedCompany]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter, aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch when page changes (pagination clicks or reset to 1)
   useEffect(() => {
+    if (needsCompanyId && !aseCompanyId) return;
     fetchLeads();
   }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
-  
+
   // Initial stats fetch + re-fetch on company change
   useEffect(() => {
+    if (needsCompanyId && !aseCompanyId) return;
     fetchStats();
     fetchCreators();
-  }, [selectedCompany]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const value: ASELeadContextType = {
     // State

@@ -1,37 +1,45 @@
 import { useEffect } from 'react';
 import { useAuth } from './AuthContextDjango';
 import { useCompany } from './CompanyContext';
-
+import { apiClient } from '@/lib/api';
 import { logger } from '@/lib/logger';
+
 /**
  * Bridge component that synchronizes authentication state with company context.
- * This component initializes company context from authentication response.
+ * Sits inside both AuthProvider and CompanyProvider so it can access both.
  */
 export const CompanyAuthBridge: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
-  const { initializeCompanyContext, clearCompanyContext } = useCompany();
+  const { initializeCompanyContext, clearCompanyContext, availableCompanies } = useCompany();
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      // TODO: Once backend provides company data in auth response, initialize here
-      // For now, this is a placeholder for future integration
-      // Expected data structure from backend:
-      // - user.company: { id, name, code } for manager/employee
-      // - user.companies: [{ id, name, code }] for admin/hr
-      
-      // Example initialization (will be replaced with actual backend data):
-      // if (user.role === 'admin' || user.role === 'hr') {
-      //   initializeCompanyContext(user.role, undefined, user.companies);
-      // } else {
-      //   initializeCompanyContext(user.role, user.company);
-      // }
-      
-      logger.log('CompanyAuthBridge: User authenticated, waiting for backend company data');
-    } else {
-      // Clear company context on logout
+    if (!isAuthenticated || !user) {
       clearCompanyContext();
+      return;
     }
-  }, [isAuthenticated, user, initializeCompanyContext, clearCompanyContext]);
+
+    // Already initialized — don't re-fetch
+    if (availableCompanies.length > 0) return;
+
+    const init = async () => {
+      const userCompany = user.company as any;
+      let companies = (user as any).available_companies || [];
+
+      // Admin/HR: fetch full companies list from API
+      if (user.role === 'admin' || user.role === 'hr') {
+        try {
+          const res = await apiClient.getCompanies() as any;
+          companies = Array.isArray(res) ? res : res.results || [];
+        } catch (e) {
+          logger.error('CompanyAuthBridge: failed to fetch companies', e);
+        }
+      }
+
+      initializeCompanyContext(user.role, userCompany, companies);
+    };
+
+    init();
+  }, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <>{children}</>;
 };

@@ -45,18 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [adminExists, setAdminExists] = useState<boolean | null>(null);
 
-  // Get company context functions - will be undefined if CompanyProvider is not available
-  let companyContext: any = null;
-  try {
-    // Dynamically import to avoid circular dependency
-    const CompanyModule = require('@/contexts/CompanyContext');
-    if (CompanyModule && CompanyModule.useCompany) {
-      companyContext = CompanyModule.useCompany();
-    }
-  } catch (error) {
-    // CompanyContext not available, continue without it
-    logger.log('CompanyContext not available in AuthProvider');
-  }
+  // Company context is initialized by CompanyAuthBridge (which sits inside both providers)
+  const companyContext: any = null;
 
   // Check if admin exists by checking if we can access the API
   const checkAdminExists = useCallback(async () => {

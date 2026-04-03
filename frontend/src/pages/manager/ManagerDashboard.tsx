@@ -19,7 +19,7 @@ export default function ManagerDashboard() {
   const { leads, tasks, projects, announcements, leadsTotalCount } = useData();
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
-  const { leads: aseLeads } = useASELead();
+  const { leads: aseLeads, totalCount: aseTotalCount } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
   const [pendingLeaves, setPendingLeaves] = useState(0);
 
@@ -65,7 +65,7 @@ export default function ManagerDashboard() {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="ASE Leads" value={aseLeads.length}
+            <StatCard title="ASE Leads" value={aseTotalCount}
               change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
               changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={0} href="/manager/ase-leads" />
             <StatCard title="ASE Customers" value={aseCustomers.length}

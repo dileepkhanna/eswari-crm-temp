@@ -20,7 +20,7 @@ import TaskStatusChip from '@/components/tasks/TaskStatusChip';
 export default function StaffDashboard() {
   const { user } = useAuth();
   const { leads, tasks, announcements, leadsTotalCount } = useData();
-  const { leads: aseLeads, loading: aseLeadsLoading } = useASELead();
+  const { leads: aseLeads, loading: aseLeadsLoading, totalCount: aseTotalCount } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
 
   const userCompanyCode = user?.company?.code || '';
@@ -58,8 +58,8 @@ export default function StaffDashboard() {
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="My ASE Leads" value={myASELeads.length}
-              change={myASELeads.filter(l => l.status === 'new').length > 0 ? `${myASELeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
+            <StatCard title="My ASE Leads" value={aseTotalCount}
+              change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
               changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={0} href="/staff/ase-leads" />
             <StatCard title="ASE Customers" value={myASECustomers.length}
               change={pendingASECustomers > 0 ? `${pendingASECustomers} pending` : 'All handled'}

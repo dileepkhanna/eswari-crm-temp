@@ -18,7 +18,7 @@ import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp, B
 
 export default function AdminDashboard() {
   const { leads, tasks, projects, leaves, leadsTotalCount } = useData();
-  const { leads: aseLeads } = useASELead();
+  const { leads: aseLeads, totalCount: aseTotalCount, stats: aseStats } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
   const [teamCount, setTeamCount] = useState(0);
 
@@ -69,8 +69,8 @@ export default function AdminDashboard() {
           <StatCard title="Conversion Rate" value={`${conversionRate}%`}
             change={leadsTotalCount > 0 ? 'Based on tasks' : 'No data'}
             changeType="neutral" icon={TrendingUp} iconColor="gradient-success" delay={250} href="/admin/activity" />
-          <StatCard title="ASE Leads" value={aseLeads.length}
-            change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
+          <StatCard title="ASE Leads" value={aseTotalCount}
+            change={(aseStats?.by_status?.new?.count ?? 0) > 0 ? `${aseStats?.by_status?.new?.count} new` : 'No new leads'}
             changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={300} href="/admin/ase-leads" />
           <StatCard title="ASE Customers" value={aseCustomers.length}
             change={aseCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${aseCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
 
         {/* ASE Technologies — Leads Pie Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <ASELeadStatusChart leads={aseLeads} title="ASE Technologies — Leads by Status" />
+          <ASELeadStatusChart leads={aseLeads} totalCount={aseTotalCount} stats={aseStats} title="ASE Technologies — Leads by Status" />
         </div>
 
         {/* Reminders + Birthday Widget */}        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

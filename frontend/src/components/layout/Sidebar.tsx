@@ -260,20 +260,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           )}
         </Link>
         
-        {/* Company Display - Only show for admin/hr who can switch companies */}
-        {selectedCompany && !collapsed && (user.role === 'admin' || user.role === 'hr') && (
-          <div className="mt-3 pt-3 border-t border-sidebar-border/50">
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-sidebar-accent/50">
-              <div className="w-6 h-6 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-xs font-semibold text-sidebar-primary">
-                {selectedCompany.code.charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-sidebar-foreground truncate">{selectedCompany.name}</p>
-                <p className="text-[10px] text-sidebar-foreground/60">{selectedCompany.code}</p>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Navigation */}

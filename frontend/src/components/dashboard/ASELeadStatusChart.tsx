@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { ASELead } from '@/types/ase-customer';
+import { ASELead, ASELeadStats } from '@/types/ase-customer';
 import { ASE_LEAD_STATUS_OPTIONS } from '@/types/ase-customer';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Briefcase, X } from 'lucide-react';
 
 interface ASELeadStatusChartProps {
   leads: ASELead[];
+  totalCount?: number;
+  stats?: ASELeadStats | null;
   title?: string;
 }
 
@@ -21,21 +23,22 @@ const STATUS_CONFIG: Record<string, { color: string; gradient: string }> = {
   nurturing:     { color: '#ec4899', gradient: 'from-pink-500 to-rose-500' },
 };
 
-export default function ASELeadStatusChart({ leads, title = 'ASE Leads by Status' }: ASELeadStatusChartProps) {
+export default function ASELeadStatusChart({ leads, totalCount, stats, title = 'ASE Leads by Status' }: ASELeadStatusChartProps) {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const chartData = ASE_LEAD_STATUS_OPTIONS
     .map(opt => ({
       name: opt.label,
-      value: leads.filter(l => l.status === opt.value).length,
+      // Use stats from backend if available, otherwise count from loaded leads
+      value: stats ? (stats.by_status?.[opt.value]?.count ?? 0) : leads.filter(l => l.status === opt.value).length,
       status: opt.value,
       color: STATUS_CONFIG[opt.value]?.color ?? '#6b7280',
       gradient: STATUS_CONFIG[opt.value]?.gradient ?? 'from-gray-400 to-slate-500',
     }))
     .filter(d => d.value > 0);
 
-  const total = leads.length;
+  const total = stats?.total ?? totalCount ?? leads.length;
 
   const filteredLeads = selectedStatus
     ? leads.filter(l => {
