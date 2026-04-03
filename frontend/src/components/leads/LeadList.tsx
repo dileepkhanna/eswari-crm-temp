@@ -79,7 +79,7 @@ export default function LeadList({
   employees = [],
 }: LeadListProps) {
   const { user } = useAuth();
-  const { leads, leadsPage, leadsTotalPages, leadsTotalCount, leadsSearch, leadsStatus, setLeadsPage, setLeadsSearch, setLeadsStatus, projects, tasks, addLead, updateLead, deleteLead, bulkDeleteLeads, bulkDeleteLeadsByFilter, addTask, refreshData } = useData();
+  const { leads, leadsPage, leadsTotalPages, leadsTotalCount, leadsSearch, leadsStatus, leadsUser, setLeadsPage, setLeadsSearch, setLeadsStatus, setLeadsUser, projects, tasks, addLead, updateLead, deleteLead, bulkDeleteLeads, bulkDeleteLeadsByFilter, addTask, refreshData } = useData();
   // Check if user can delete leads and tasks
   const canDelete = user ? canDeleteLeadsAndTasks(user.role, (user.company as any)?.code) : false;
 
@@ -90,7 +90,6 @@ export default function LeadList({
 
   // Local-only filters (project, user, task, date) — applied client-side on current page
   const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [userFilter, setUserFilter] = useState<string>("all");
   const [taskFilter, setTaskFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -113,9 +112,7 @@ export default function LeadList({
         (lead.assignedProjects && lead.assignedProjects.includes(projectFilter)) ||
         lead.assignedProject === projectFilter;
 
-      const matchesUser = userFilter === "all" || 
-        lead.createdBy === userFilter || 
-        lead.assignedTo === userFilter;
+      const matchesUser = true; // now server-side via leadsUser
 
       let matchesTask = true;
       if (taskFilter === "converted") {
@@ -136,7 +133,7 @@ export default function LeadList({
 
       return matchesProject && matchesUser && matchesTask && matchesDate;
     });
-  }, [leads, projectFilter, userFilter, taskFilter, dateRange, tasks]);
+  }, [leads, projectFilter, taskFilter, dateRange, tasks]);
 
   // Check if user can see any phone numbers (for table headers)
   const canSeeAnyPhoneNumbers = useMemo(() => {
@@ -393,7 +390,7 @@ export default function LeadList({
               </SelectContent>
             </Select>
 
-            <Select value={userFilter} onValueChange={setUserFilter}>
+            <Select value={leadsUser || "all"} onValueChange={(v) => { setLeadsUser(v === "all" ? "" : v); }}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="User" />
               </SelectTrigger>

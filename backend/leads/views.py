@@ -22,7 +22,7 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     permission_classes = [CompanyAccessPermission]
     pagination_class = LeadPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'source', 'assigned_to', 'requirement_type']
+    filterset_fields = ['status', 'source', 'assigned_to', 'created_by', 'requirement_type']
     search_fields = ['name', 'email', 'address', 'description']
     ordering_fields = ['created_at', 'updated_at', 'name']
     ordering = ['-created_at']

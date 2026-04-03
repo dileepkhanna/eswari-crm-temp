@@ -15,9 +15,11 @@ interface DataContextType {
   leadsTotalCount: number;
   leadsSearch: string;
   leadsStatus: string;
+  leadsUser: string;
   setLeadsPage: (page: number) => void;
   setLeadsSearch: (s: string) => void;
   setLeadsStatus: (s: string) => void;
+  setLeadsUser: (userId: string) => void;
   tasks: Task[];
   projects: Project[];
   announcements: Announcement[];
@@ -194,6 +196,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [leadsTotalCount, setLeadsTotalCount] = useState(0);
   const [leadsSearch, setLeadsSearchRaw] = useState('');
   const [leadsStatus, setLeadsStatus] = useState('');
+  const [leadsUser, setLeadsUser] = useState('');
   const [debouncedLeadsSearch, setDebouncedLeadsSearch] = useState('');
   const leadsSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -267,6 +270,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const params: Record<string, any> = { page: leadsPage, page_size: PAGE_SIZE };
       if (debouncedLeadsSearch) params.search = debouncedLeadsSearch;
       if (leadsStatus) params.status = leadsStatus;
+      if (leadsUser) params.assigned_to = leadsUser;
 
       const response = await apiClient.getLeads(params);
       
@@ -288,7 +292,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
       return [];
     }
-  }, [user, isDeletingLead, leadsPage, debouncedLeadsSearch, leadsStatus]);
+  }, [user, isDeletingLead, leadsPage, debouncedLeadsSearch, leadsStatus, leadsUser]);
 
   const fetchTasks = useCallback(async () => {
     if (!user) return [];
@@ -455,17 +459,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]); // REMOVED OTHER DEPENDENCIES TO PREVENT REFETCH
 
-  // Re-fetch leads when page/search/status changes
+  // Re-fetch leads when page/search/status/user changes
   useEffect(() => {
     if (user && user.role !== 'hr') {
       fetchLeads();
     }
-  }, [leadsPage, debouncedLeadsSearch, leadsStatus]);
+  }, [leadsPage, debouncedLeadsSearch, leadsStatus, leadsUser]);
 
-  // Reset to page 1 when search/status filter changes
+  // Reset to page 1 when search/status/user filter changes
   useEffect(() => {
     setLeadsPage(1);
-  }, [debouncedLeadsSearch, leadsStatus]);
+  }, [debouncedLeadsSearch, leadsStatus, leadsUser]);
 
   // Function to add lead directly to state (for customer-to-lead conversion)
   const addLeadToState = useCallback((lead: Lead) => {
@@ -1230,9 +1234,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     leadsTotalCount,
     leadsSearch,
     leadsStatus,
+    leadsUser,
     setLeadsPage,
     setLeadsSearch,
     setLeadsStatus,
+    setLeadsUser,
     tasks,
     projects,
     announcements,
