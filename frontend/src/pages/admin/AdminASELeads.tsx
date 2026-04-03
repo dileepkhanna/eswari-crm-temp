@@ -68,7 +68,7 @@ export default function AdminASELeads() {
     if (!window.confirm(`Delete ${selectedIds.size} lead(s)? This cannot be undone.`)) return;
     setBulkDeleting(true);
     try {
-      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const companyId = selectedCompany?.id || (user?.company as any)?.id;
       await aseLeadService.bulkDeleteByIds(Array.from(selectedIds), companyId);
       toast.success(`Deleted ${selectedIds.size} lead(s)`);
       await refreshData();

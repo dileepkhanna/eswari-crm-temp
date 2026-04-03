@@ -93,7 +93,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       setError(null);
       
       const PAGE_SIZE = 50;
-      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const companyId = selectedCompany?.id || ((user?.company as any)?.id);
       const params: any = {
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
@@ -144,7 +144,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   
   const fetchStats = async () => {
     try {
-      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const companyId = selectedCompany?.id || ((user?.company as any)?.id);
       const statsData = await aseLeadService.getStats(companyId ? String(companyId) : undefined);
       setStats(statsData);
     } catch (err) {
@@ -154,7 +154,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   
   const fetchCreators = async () => {
     try {
-      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      const companyId = selectedCompany?.id || ((user?.company as any)?.id);
       const data = await aseLeadService.getCreators(companyId);
       setCreators(data);
     } catch (err) {
@@ -165,7 +165,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const createLead = async (leadData: ASELeadFormData): Promise<ASELead | null> => {
     try {
       setLoading(true);
-      const companyId = selectedCompany?.id || (typeof user?.company === 'number' ? user.company : undefined);
+      // user.company in auth context is a Company object with .id
+      const companyId = selectedCompany?.id || (user?.company as any)?.id;
       if (!companyId) {
         toast.error('No company selected');
         return null;
@@ -205,7 +206,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       toast.success('Lead updated successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || user?.company || 0),
+        companyId: Number(selectedCompany?.id || (user?.company as any)?.id || 0),
         module: 'leads', action: 'updated',
         details: `updated lead: ${updatedLead.contact_person || updatedLead.phone}`,
       });
@@ -231,7 +232,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       toast.success('Lead deleted successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(selectedCompany?.id || user?.company || 0),
+        companyId: Number(selectedCompany?.id || (user?.company as any)?.id || 0),
         module: 'leads', action: 'deleted',
         details: `deleted lead: ${lead?.contact_person || lead?.phone || id}`,
       });

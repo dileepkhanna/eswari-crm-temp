@@ -263,6 +263,12 @@ export default function ASELeadFormModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Company context indicator */}
+          {selectedCompany && (
+            <div className="px-3 py-2 bg-primary/10 rounded-lg text-sm text-primary font-medium">
+              Adding lead to: {selectedCompany.name}
+            </div>
+          )}
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Basic Information</h3>

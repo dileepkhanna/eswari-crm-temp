@@ -17,7 +17,7 @@ import { logger } from '@/lib/logger';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp, Briefcase, PhoneCall } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { leads, tasks, projects, leaves } = useData();
+  const { leads, tasks, projects, leaves, leadsTotalCount } = useData();
   const { leads: aseLeads } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
   const [teamCount, setTeamCount] = useState(0);
@@ -39,8 +39,8 @@ export default function AdminDashboard() {
   const activeTasks = tasks.filter(t => t.status !== 'completed').length;
   const pendingLeads = leads.filter(l => l.status !== 'not_interested').length;
   const pendingLeaves = leaves.filter(l => l.status === 'pending').length;
-  const conversionRate = leads.length > 0
-    ? Math.round((tasks.filter(t => t.status === 'completed').length / leads.length) * 100)
+  const conversionRate = leadsTotalCount > 0
+    ? Math.round((tasks.filter(t => t.status === 'completed').length / leadsTotalCount) * 100)
     : 0;
 
   return (
@@ -52,8 +52,8 @@ export default function AdminDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
-          <StatCard title="Total Leads" value={leads.length}
-            change={leads.length > 0 ? `${pendingLeads} active` : 'No leads yet'}
+          <StatCard title="Total Leads" value={leadsTotalCount}
+            change={leadsTotalCount > 0 ? `${pendingLeads} active` : 'No leads yet'}
             changeType="neutral" icon={ClipboardList} iconColor="gradient-primary" delay={0} href="/admin/leads" />
           <StatCard title="Active Tasks" value={activeTasks}
             change={activeTasks > 0 ? 'In progress' : 'No active tasks'}
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
           <StatCard title="Team Members" value={teamCount}
             change="Managers + Staff" changeType="neutral" icon={Users} iconColor="bg-primary" delay={200} href="/admin/users" />
           <StatCard title="Conversion Rate" value={`${conversionRate}%`}
-            change={leads.length > 0 ? 'Based on tasks' : 'No data'}
+            change={leadsTotalCount > 0 ? 'Based on tasks' : 'No data'}
             changeType="neutral" icon={TrendingUp} iconColor="gradient-success" delay={250} href="/admin/activity" />
           <StatCard title="ASE Leads" value={aseLeads.length}
             change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}

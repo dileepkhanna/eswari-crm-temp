@@ -19,7 +19,7 @@ import TaskStatusChip from '@/components/tasks/TaskStatusChip';
 
 export default function StaffDashboard() {
   const { user } = useAuth();
-  const { leads, tasks, announcements } = useData();
+  const { leads, tasks, announcements, leadsTotalCount } = useData();
   const { leads: aseLeads, loading: aseLeadsLoading } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
 
@@ -104,7 +104,7 @@ export default function StaffDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="My Leads"
-            value={myLeads.length}
+            value={leadsTotalCount}
             change={myLeads.length > 0 ? `${myLeads.filter(l => l.status === 'converted').length} converted` : "No leads yet"}
             changeType="neutral"
             icon={ClipboardList}

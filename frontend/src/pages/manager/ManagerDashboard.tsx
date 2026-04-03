@@ -16,7 +16,7 @@ import { logger } from '@/lib/logger';
 import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity, Users, Briefcase, PhoneCall } from 'lucide-react';
 
 export default function ManagerDashboard() {
-  const { leads, tasks, projects, announcements } = useData();
+  const { leads, tasks, projects, announcements, leadsTotalCount } = useData();
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
   const { leads: aseLeads } = useASELead();
@@ -124,7 +124,7 @@ export default function ManagerDashboard() {
           />
           <StatCard
             title="Total Leads"
-            value={leads.length}
+            value={leadsTotalCount}
             change="Created by team"
             changeType="neutral"
             icon={ClipboardList}
