@@ -298,7 +298,7 @@ export default function TaskDetailsModal({
                 Assigned To
               </h3>
               <div className="p-3 rounded-lg bg-muted/50">
-                <StaffProfileChip userId={task.assignedTo} showDetails={canViewPhone} />
+                <StaffProfileChip userId={task.assignedTo} userName={task.assignedToName} showDetails={canViewPhone} />
               </div>
             </div>
 

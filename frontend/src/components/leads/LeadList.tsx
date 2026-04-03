@@ -710,7 +710,7 @@ export default function LeadList({
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <StaffProfileChip userId={lead.createdBy} showDetails={!isManagerView} />
+                  <StaffProfileChip userId={lead.createdBy} userName={lead.createdByName} showDetails={!isManagerView} />
                 </TableCell>
                 {canSeeAnyPhoneNumbers && (
                   <TableCell>

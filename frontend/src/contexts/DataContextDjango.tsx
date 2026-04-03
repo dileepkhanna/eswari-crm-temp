@@ -82,6 +82,9 @@ export const apiToLead = (apiLead: any): Lead => ({
   followUpDate: apiLead.follow_up_date ? new Date(apiLead.follow_up_date) : undefined,
   notes: [],
   createdBy: apiLead.created_by_detail?.id?.toString() || apiLead.created_by?.toString() || '',
+  createdByName: apiLead.created_by_detail
+    ? (`${apiLead.created_by_detail.first_name || ''} ${apiLead.created_by_detail.last_name || ''}`.trim() || apiLead.created_by_detail.username)
+    : undefined,
   assignedTo: apiLead.assigned_to_detail?.id?.toString() || apiLead.assigned_to?.toString() || undefined,
   assignedProjects: apiLead.assigned_projects || [], // New multiple projects field
   assignedProject: apiLead.assigned_project || '', // Keep for backward compatibility
@@ -175,6 +178,9 @@ const apiToTask = (apiTask: any): Task => ({
   }] : [],
   attachments: [],
   assignedTo: apiTask.assigned_to_detail?.id?.toString() || apiTask.assigned_to?.toString() || '',
+  assignedToName: apiTask.assigned_to_detail
+    ? (`${apiTask.assigned_to_detail.first_name || ''} ${apiTask.assigned_to_detail.last_name || ''}`.trim() || apiTask.assigned_to_detail.username)
+    : undefined,
   assignedProject: apiTask.project_detail?.id?.toString() || apiTask.project?.toString() || '',
   createdAt: new Date(apiTask.created_at),
   updatedAt: new Date(apiTask.updated_at),

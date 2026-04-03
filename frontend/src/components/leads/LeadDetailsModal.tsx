@@ -241,7 +241,7 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
                 Created By
               </h3>
               <div className="p-3 rounded-lg bg-muted/50">
-                <StaffProfileChip userId={lead.createdBy} showDetails={!isManagerView} />
+                <StaffProfileChip userId={lead.createdBy} userName={lead.createdByName} showDetails={!isManagerView} />
               </div>
             </div>
             {lead.description && (

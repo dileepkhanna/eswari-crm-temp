@@ -23,17 +23,27 @@ interface Profile {
 
 interface StaffProfileChipProps {
   userId: string;
+  userName?: string;
   showDetails?: boolean;
 }
 
 // Cache for profiles to avoid repeated fetches
 const profileCache: Record<string, Profile | null> = {};
 
-export default function StaffProfileChip({ userId, showDetails = true }: StaffProfileChipProps) {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function StaffProfileChip({ userId, userName, showDetails = true }: StaffProfileChipProps) {
+  const [profile, setProfile] = useState<Profile | null>(
+    userName ? { id: userId, user_id: userId, name: userName, status: 'active', role: '' } : null
+  );
+  const [loading, setLoading] = useState(!userName);
 
   useEffect(() => {
+    // If name is provided directly, no need to fetch
+    if (userName) {
+      setProfile({ id: userId, user_id: userId, name: userName, status: 'active', role: '' });
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function fetchProfile() {

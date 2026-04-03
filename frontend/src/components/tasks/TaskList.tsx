@@ -527,7 +527,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                   )}
                 </TableCell>
                 <TableCell>
-                  <StaffProfileChip userId={task.assignedTo} showDetails={canSeeAnyPhoneNumbers} />
+                  <StaffProfileChip userId={task.assignedTo} userName={task.assignedToName} showDetails={canSeeAnyPhoneNumbers} />
                 </TableCell>
                 {canSeeAnyPhoneNumbers && (
                   <TableCell>

@@ -67,11 +67,12 @@ export interface Lead {
   followUpDate?: Date;
   notes: LeadNote[];
   createdBy: string;
-  assignedTo?: string; // Employee assignment for role-based visibility
-  assignedProjects?: string[]; // Changed to array for multiple projects
-  assignedProject?: string; // Keep for backward compatibility
-  company?: number; // Company ID
-  company_detail?: Company; // Nested company information from backend
+  createdByName?: string;
+  assignedTo?: string;
+  assignedProjects?: string[];
+  assignedProject?: string;
+  company?: number;
+  company_detail?: Company;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,9 +93,10 @@ export interface Task {
   notes: TaskNote[];
   attachments: string[];
   assignedTo: string;
+  assignedToName?: string;
   assignedProject?: string;
-  company?: number; // Company ID
-  company_detail?: Company; // Nested company information from backend
+  company?: number;
+  company_detail?: Company;
   createdAt: Date;
   updatedAt: Date;
 }
