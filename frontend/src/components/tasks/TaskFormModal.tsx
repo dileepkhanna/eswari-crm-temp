@@ -214,7 +214,7 @@ export default function TaskFormModal({
                       <SelectValue placeholder="Choose existing customer or create new below" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Create New Customer</SelectItem>
+                      <SelectItem value="__new__">Create New Customer</SelectItem>
                       {availableLeads.map((lead) => (
                         <SelectItem key={lead.id} value={lead.id}>
                           {canViewPhone ? `${lead.name} - ${lead.phone}` : lead.name}

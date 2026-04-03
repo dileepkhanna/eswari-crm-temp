@@ -1,35 +1,9 @@
-import { useEffect, useState } from 'react';
 import TopBar from "@/components/layout/TopBar";
 import TaskList from "@/components/tasks/TaskList";
-import { User } from '@/types';
-import { useAuth } from '@/contexts/AuthContextDjango';
-import { apiClient } from '@/lib/api';
+import { useCustomers } from "@/contexts/CustomerContext";
 
-import { logger } from '@/lib/logger';
 export default function ManagerTasks() {
-  const { user } = useAuth();
-  const [employees, setEmployees] = useState<User[]>([]);
-
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      if (!user) return;
-      
-      try {
-        const users = await apiClient.getUsers();
-        // For managers, show their team members
-        if (user.role === 'manager') {
-          setEmployees(users.filter(u => u.manager === parseInt(user.id)));
-        } else if (user.role === 'admin') {
-          // For admins, show all users
-          setEmployees(users);
-        }
-      } catch (error) {
-        logger.error('Failed to fetch employees:', error);
-      }
-    };
-
-    fetchEmployees();
-  }, [user]);
+  const { employees } = useCustomers();
 
   return (
     <div className="min-h-screen">

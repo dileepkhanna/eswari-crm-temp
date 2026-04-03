@@ -77,19 +77,6 @@ export default function TopBar({ title, subtitle, showBackButton = true, childre
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
-        {/* Company Selector */}
-        <CompanySelector />
-
-        {/* Current Company Display (for non-admin/hr users) */}
-        {selectedCompany && (
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md">
-            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-              {selectedCompany.code.charAt(0)}
-            </div>
-            <span className="text-sm font-medium text-foreground">{selectedCompany.name}</span>
-          </div>
-        )}
-
         {/* Action buttons (e.g., New Announcement) */}
         {children && (
           <div className="flex items-center gap-2">

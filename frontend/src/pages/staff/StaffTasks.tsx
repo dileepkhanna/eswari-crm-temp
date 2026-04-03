@@ -1,12 +1,15 @@
 import TopBar from "@/components/layout/TopBar";
 import TaskList from "@/components/tasks/TaskList";
+import { useCustomers } from "@/contexts/CustomerContext";
 
 export default function StaffTasks() {
+  const { employees } = useCustomers();
+
   return (
     <div className="min-h-screen">
       <TopBar title="Tasks" subtitle="Create and manage tasks" />
       <div className="p-4 md:p-6">
-        <TaskList canCreate canEdit />
+        <TaskList canCreate canEdit employees={employees} />
       </div>
     </div>
   );

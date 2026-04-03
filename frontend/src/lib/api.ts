@@ -70,8 +70,12 @@ class ApiClient {
   private async request(endpoint: string, options: RequestInit = {}) {
     // Add company filter to URL if company is selected
     let url = `${this.baseURL}${endpoint}`;
+    
+    // Skip company injection for endpoints that manage all companies
+    const skipCompanyFilter = ['/auth/users/', '/auth/companies/', '/auth/setup/', '/auth/login/', '/auth/register/', '/auth/profile/'].some(p => endpoint.startsWith(p));
+    
     const selectedCompanyStr = localStorage.getItem('selectedCompany');
-    if (selectedCompanyStr) {
+    if (!skipCompanyFilter && selectedCompanyStr) {
       try {
         const selectedCompany = JSON.parse(selectedCompanyStr);
         if (selectedCompany && selectedCompany.id) {
@@ -192,8 +196,9 @@ class ApiClient {
   private async requestBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
     // Add company filter to URL if company is selected
     let url = `${this.baseURL}${endpoint}`;
+    const skipCompanyFilter = ['/auth/users/', '/auth/companies/', '/auth/setup/', '/auth/login/', '/auth/register/', '/auth/profile/'].some(p => endpoint.startsWith(p));
     const selectedCompanyStr = localStorage.getItem('selectedCompany');
-    if (selectedCompanyStr) {
+    if (!skipCompanyFilter && selectedCompanyStr) {
       try {
         const selectedCompany = JSON.parse(selectedCompanyStr);
         if (selectedCompany && selectedCompany.id) {
