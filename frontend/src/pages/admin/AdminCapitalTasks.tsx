@@ -111,12 +111,12 @@ export default function AdminCapitalTasks() {
     <div className="min-h-screen">
       <TopBar title="Eswari Capital — Tasks" subtitle="Follow-up tasks for loans and services" />
       <div className="p-4 md:p-6 space-y-4">
-        <div className="flex flex-wrap gap-2 items-center justify-between">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
             <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-48" />
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-48" />
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Status</option>
               <option value="in_progress">In Progress</option>
               <option value="follow_up">Follow Up</option>
@@ -126,7 +126,7 @@ export default function AdminCapitalTasks() {
               <option value="rejected">Rejected</option>
             </select>
             <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Priorities</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -134,27 +134,40 @@ export default function AdminCapitalTasks() {
               <option value="urgent">Urgent</option>
             </select>
             <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Assignees</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
             <select value={linkFilter} onChange={e => setLinkFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Links</option>
               <option value="loan">Linked to Loan</option>
               <option value="service">Linked to Service</option>
               <option value="none">Unlinked</option>
             </select>
           </div>
-          <div className="flex gap-2">
-            <label className="cursor-pointer">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <label className="cursor-pointer flex-1 sm:flex-none">
               <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm hover:bg-muted cursor-pointer"><Upload className="w-3.5 h-3.5" />Import</span>
+              <span className="inline-flex items-center justify-center gap-1 px-3 py-2 border rounded-full text-sm hover:bg-muted cursor-pointer w-full sm:w-auto">
+                <Upload className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Import</span>
+              </span>
             </label>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={downloadTemplate}><Download className="w-3.5 h-3.5 mr-1" />Template</Button>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={handleExport}><Download className="w-3.5 h-3.5 mr-1" />Export ({filtered.length})</Button>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={refreshTasks}><RefreshCw className="w-3.5 h-3.5" /></Button>
-            <Button size="sm" className="rounded-full" onClick={() => { setEditing(null); setIsModalOpen(true); }}><Plus className="w-3.5 h-3.5 mr-1" />Add Task</Button>
+            <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={downloadTemplate}>
+              <Download className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Template</span>
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={handleExport}>
+              <Download className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Export ({filtered.length})</span>
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-full" onClick={refreshTasks}>
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" className="rounded-full w-full sm:w-auto" onClick={() => { setEditing(null); setIsModalOpen(true); }}>
+              <Plus className="w-3.5 h-3.5 mr-1" />Add Task
+            </Button>
           </div>
         </div>
 
@@ -168,7 +181,8 @@ export default function AdminCapitalTasks() {
           </div>
         )}
 
-        <div className="glass-card rounded-2xl overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block glass-card rounded-2xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b text-muted-foreground text-xs">
               <th className="py-3 px-4 w-8"><input type="checkbox" className="rounded" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} /></th>
@@ -208,6 +222,75 @@ export default function AdminCapitalTasks() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {loadingTasks ? (
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No tasks found</div>
+          ) : filtered.map(t => (
+            <div key={t.id} className={`glass-card rounded-xl p-4 ${selected.has(t.id) ? 'ring-2 ring-primary' : ''}`}>
+              <div className="flex items-start gap-3 mb-3">
+                <input type="checkbox" className="rounded mt-1" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-base mb-2">{t.title || 'Untitled Task'}</div>
+                  {t.description && <div className="text-sm text-muted-foreground mb-2">{t.description}</div>}
+                </div>
+              </div>
+
+              {(t.loan_name || t.service_name) && (
+                <div className="mb-3 p-2 bg-muted/30 rounded-lg">
+                  {t.loan_name && (
+                    <div className="text-sm">
+                      <span className="font-medium text-blue-600">Loan:</span> {t.loan_name}
+                      {t.loan_phone && <div className="text-xs text-muted-foreground">{t.loan_phone}</div>}
+                    </div>
+                  )}
+                  {t.service_name && (
+                    <div className="text-sm">
+                      <span className="font-medium text-orange-600">Service:</span> {t.service_name}
+                      {t.service_type_display && <div className="text-xs text-muted-foreground">{t.service_type_display}</div>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[t.status] || 'bg-gray-100 text-gray-700'}`}>
+                  {t.status.replace(/_/g, ' ')}
+                </span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${PRIORITY_COLORS[t.priority] || ''}`}>
+                  {t.priority}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                {t.assigned_to_name && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">Assigned To</div>
+                    <div className="font-medium">{t.assigned_to_name}</div>
+                  </div>
+                )}
+                {t.due_date && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">Due Date</div>
+                    <div className="font-medium">{format(new Date(t.due_date), 'MMM dd, yyyy')}</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-3 border-t border-border">
+                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs rounded-full" onClick={() => { setEditing(t); setIsModalOpen(true); }}>
+                  <Edit className="w-3.5 h-3.5 mr-1" />Edit
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-full text-red-500" onClick={() => handleDelete(t.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

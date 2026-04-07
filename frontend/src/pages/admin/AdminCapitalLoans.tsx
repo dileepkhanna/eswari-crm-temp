@@ -130,17 +130,17 @@ export default function AdminCapitalLoans() {
     <div className="min-h-screen">
       <TopBar title="Eswari Capital — Loans" subtitle="Manage loan applications" />
       <div className="p-4 md:p-6 space-y-4">
-        <div className="flex flex-wrap gap-2 items-center justify-between">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
             <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-48" />
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-48" />
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Types</option>
               {Object.entries(LOAN_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Status</option>
               <option value="inquiry">Inquiry</option>
               <option value="documents_pending">Documents Pending</option>
@@ -151,27 +151,40 @@ export default function AdminCapitalLoans() {
               <option value="closed">Closed</option>
             </select>
             <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
-              className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Assignees</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
             {uniqueBanks.length > 0 && (
               <select value={bankFilter} onChange={e => setBankFilter(e.target.value)}
-                className="px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
                 <option value="">All Banks</option>
                 {uniqueBanks.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             )}
           </div>
-          <div className="flex gap-2">
-            <label className="cursor-pointer">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <label className="cursor-pointer flex-1 sm:flex-none">
               <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm hover:bg-muted cursor-pointer"><Upload className="w-3.5 h-3.5" />Import</span>
+              <span className="inline-flex items-center justify-center gap-1 px-3 py-2 border rounded-full text-sm hover:bg-muted cursor-pointer w-full sm:w-auto">
+                <Upload className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Import</span>
+              </span>
             </label>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={downloadTemplate}><Download className="w-3.5 h-3.5 mr-1" />Template</Button>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={handleExport}><Download className="w-3.5 h-3.5 mr-1" />Export ({filtered.length})</Button>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={refreshLoans}><RefreshCw className="w-3.5 h-3.5" /></Button>
-            <Button size="sm" className="rounded-full" onClick={() => { setEditing(null); setIsModalOpen(true); }}><Plus className="w-3.5 h-3.5 mr-1" />Add Loan</Button>
+            <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={downloadTemplate}>
+              <Download className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Template</span>
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={handleExport}>
+              <Download className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Export ({filtered.length})</span>
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-full" onClick={refreshLoans}>
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" className="rounded-full w-full sm:w-auto" onClick={() => { setEditing(null); setIsModalOpen(true); }}>
+              <Plus className="w-3.5 h-3.5 mr-1" />Add Loan
+            </Button>
           </div>
         </div>
 
@@ -185,7 +198,8 @@ export default function AdminCapitalLoans() {
           </div>
         )}
 
-        <div className="glass-card rounded-2xl overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block glass-card rounded-2xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b text-muted-foreground text-xs">
               <th className="py-3 px-4 w-8"><input type="checkbox" className="rounded" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} /></th>
@@ -228,6 +242,66 @@ export default function AdminCapitalLoans() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {loadingLoans ? (
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No loans found</div>
+          ) : filtered.map(l => (
+            <div key={l.id} className={`glass-card rounded-xl p-4 ${selected.has(l.id) ? 'ring-2 ring-primary' : ''}`}>
+              <div className="flex items-start gap-3 mb-3">
+                <input type="checkbox" className="rounded mt-1" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-base mb-1">{l.applicant_name}</div>
+                  <a href={`tel:${l.phone}`} className="text-sm text-muted-foreground hover:text-primary">{l.phone}</a>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground">Loan Type</div>
+                  <div className="font-medium">{LOAN_TYPE_LABELS[l.loan_type] || l.loan_type}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Amount</div>
+                  <div className="font-medium text-green-600">{fmt(l.loan_amount)}</div>
+                </div>
+                {l.bank_name && (
+                  <div className="col-span-2">
+                    <div className="text-xs text-muted-foreground">Bank</div>
+                    <div className="font-medium">{l.bank_name}</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[l.status] || 'bg-gray-100 text-gray-700'}`}>
+                  {l.status_display || l.status.replace(/_/g, ' ')}
+                </span>
+              </div>
+
+              {l.assigned_to_name && (
+                <div className="text-xs text-muted-foreground mb-3">
+                  Assigned to: <span className="font-medium text-foreground">{l.assigned_to_name}</span>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-3 border-t border-border">
+                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs rounded-full gap-1" onClick={() => setTaskLoan(l)}>
+                  <ClipboardList className="w-3.5 h-3.5" />Task
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-full" onClick={() => { setEditing(l); setIsModalOpen(true); }}>
+                  <Edit className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-full text-red-500" onClick={() => handleDelete(l.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
