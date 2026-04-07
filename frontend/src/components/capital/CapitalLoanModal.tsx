@@ -49,30 +49,30 @@ export default function CapitalLoanModal({ loan, employees, currentUserId, curre
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background border-b border-border px-5 py-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{loan ? 'Edit Loan' : 'Add Loan'}</h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">Applicant Name *</label>
-              <input required className={inp} value={form.applicant_name} onChange={e => set('applicant_name', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Applicant Name *</label>
+              <input required className={inp} value={form.applicant_name} onChange={e => set('applicant_name', e.target.value)} placeholder="Enter name" />
             </div>
             <div>
-              <label className="text-sm font-medium">Phone *</label>
-              <input required className={inp} value={form.phone} onChange={e => set('phone', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Phone *</label>
+              <input required className={inp} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="Enter phone" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">Email</label>
-              <input type="email" className={inp} value={form.email} onChange={e => set('email', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input type="email" className={inp} value={form.email} onChange={e => set('email', e.target.value)} placeholder="Enter email" />
             </div>
             <div>
-              <label className="text-sm font-medium">Loan Type</label>
+              <label className="block text-sm font-medium mb-1">Loan Type</label>
               <select className={inp} value={form.loan_type} onChange={e => set('loan_type', e.target.value)}>
                 <option value="personal">Personal Loan</option>
                 <option value="business">Business Loan</option>
@@ -86,30 +86,30 @@ export default function CapitalLoanModal({ loan, employees, currentUserId, curre
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">Address</label>
-            <input className={inp} value={form.address} onChange={e => set('address', e.target.value)} />
+            <label className="block text-sm font-medium mb-1">Address</label>
+            <input className={inp} value={form.address} onChange={e => set('address', e.target.value)} placeholder="Enter address" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-sm font-medium">Loan Amount (₹)</label>
+              <label className="block text-sm font-medium mb-1">Loan Amount (₹)</label>
               <input type="number" className={inp} value={form.loan_amount} onChange={e => set('loan_amount', e.target.value)} placeholder="0.00" />
             </div>
             <div>
-              <label className="text-sm font-medium">Tenure (months)</label>
+              <label className="block text-sm font-medium mb-1">Tenure (months)</label>
               <input type="number" className={inp} value={form.tenure_months} onChange={e => set('tenure_months', e.target.value)} placeholder="12" />
             </div>
             <div>
-              <label className="text-sm font-medium">Interest Rate (%)</label>
+              <label className="block text-sm font-medium mb-1">Interest Rate (%)</label>
               <input type="number" step="0.01" className={inp} value={form.interest_rate} onChange={e => set('interest_rate', e.target.value)} placeholder="10.5" />
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">Bank Name</label>
-            <input className={inp} value={form.bank_name} onChange={e => set('bank_name', e.target.value)} />
+            <label className="block text-sm font-medium mb-1">Bank Name</label>
+            <input className={inp} value={form.bank_name} onChange={e => set('bank_name', e.target.value)} placeholder="Enter bank name" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">Status</label>
+              <label className="block text-sm font-medium mb-1">Status</label>
               <select className={inp} value={form.status} onChange={e => set('status', e.target.value)}>
                 <option value="inquiry">Inquiry</option>
                 <option value="documents_pending">Documents Pending</option>
@@ -121,7 +121,7 @@ export default function CapitalLoanModal({ loan, employees, currentUserId, curre
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium">Assigned To</label>
+              <label className="block text-sm font-medium mb-1">Assigned To</label>
               {currentUserRole === 'employee' ? (
                 <input readOnly className={`${inp} bg-muted cursor-not-allowed`} value={employees.find(e => e.id === currentUserId)?.name || 'You'} />
               ) : (
@@ -133,10 +133,10 @@ export default function CapitalLoanModal({ loan, employees, currentUserId, curre
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">Notes</label>
-            <textarea rows={2} className={inp} value={form.notes} onChange={e => set('notes', e.target.value)} />
+            <label className="block text-sm font-medium mb-1">Notes</label>
+            <textarea rows={2} className={inp} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Add notes..." />
           </div>
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-3 border-t border-border">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
           </div>

@@ -102,30 +102,30 @@ export default function CapitalTaskModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-background rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b">
-          <h2 className="text-base font-semibold">{task ? 'Edit Task' : 'New Task'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        <div className="sticky top-0 bg-background border-b border-border px-5 py-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{task ? 'Edit Task' : 'New Task'}</h2>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
           <div>
-            <label className={labelCls}>Title</label>
+            <label className="block text-sm font-medium mb-1">Title</label>
             <input className={inputCls} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Task title" required />
           </div>
 
           <div>
-            <label className={labelCls}>Description</label>
+            <label className="block text-sm font-medium mb-1">Description</label>
             <textarea className={inputCls} rows={2} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Optional notes..." />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Status</label>
+              <label className="block text-sm font-medium mb-1">Status</label>
               <select className={inputCls} value={form.status} onChange={e => set('status', e.target.value)}>
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>Priority</label>
+              <label className="block text-sm font-medium mb-1">Priority</label>
               <select className={inputCls} value={form.priority} onChange={e => set('priority', e.target.value)}>
                 {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -133,12 +133,12 @@ export default function CapitalTaskModal({
           </div>
 
           <div>
-            <label className={labelCls}>Link To</label>
+            <label className="block text-sm font-medium mb-1.5">Link To</label>
             <div className="flex gap-2 mb-2">
               {(['none', 'loan', 'service'] as const).map(t => (
                 <button key={t} type="button"
                   onClick={() => handleLinkTypeChange(t)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${form.link_type === t ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${form.link_type === t ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary'}`}>
                   {t === 'none' ? 'None' : t === 'loan' ? 'Loan' : 'Service'}
                 </button>
               ))}
@@ -159,21 +159,21 @@ export default function CapitalTaskModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Assigned To</label>
+              <label className="block text-sm font-medium mb-1">Assigned To</label>
               <select className={inputCls} value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
                 <option value="">Unassigned</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>Due Date</label>
+              <label className="block text-sm font-medium mb-1">Due Date</label>
               <input type="datetime-local" className={inputCls} value={form.due_date} onChange={e => set('due_date', e.target.value)} />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onClose}>Cancel</Button>
-            <Button type="submit" size="sm" className="rounded-full" disabled={saving}>{saving ? 'Saving...' : task ? 'Update' : 'Create'}</Button>
+          <div className="flex gap-2 pt-3 border-t border-border">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={saving}>{saving ? 'Saving...' : task ? 'Update' : 'Create'}</Button>
           </div>
         </form>
       </div>

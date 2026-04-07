@@ -3,7 +3,7 @@ import { CapitalCustomer } from '@/services/capital.service';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
-const inp = 'w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+const inp = 'w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 
 const INTEREST_OPTIONS = [
   { value: 'none', label: 'Not Decided' },
@@ -54,66 +54,142 @@ export default function CapitalCustomerModal({ customer, employees, currentUserI
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 py-8 overflow-y-auto" onClick={onClose}>
+      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg my-auto flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Fixed Header */}
+        <div className="flex-shrink-0 bg-background border-b border-border px-6 py-3 flex items-center justify-between rounded-t-2xl">
           <h2 className="text-lg font-semibold">{customer ? 'Edit Customer' : 'Add Customer'}</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div><label className="text-sm font-medium">Name</label>
-            <input className={inp} value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-          <div><label className="text-sm font-medium">Phone *</label>
-            <input required className={inp} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
-          <div><label className="text-sm font-medium">Email</label>
-            <input type="email" className={inp} value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-          <div><label className="text-sm font-medium">Company Name</label>
-            <input className={inp} value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div>
+        
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto px-6 py-4 max-h-[70vh]">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Name</label>
+              <input 
+                className={inp} 
+                value={form.name} 
+                onChange={e => setForm({...form, name: e.target.value})} 
+                placeholder="Enter customer name"
+              />
+            </div>
 
-          {/* Interest — what service does the customer want */}
-          <div>
-            <label className="text-sm font-medium">Interested In</label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {INTEREST_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setForm({...form, interest: opt.value})}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                    form.interest === opt.value
-                      ? `${INTEREST_COLORS[opt.value]} border-transparent ring-2 ring-offset-1 ring-primary`
-                      : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
-                  }`}
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Phone *</label>
+              <input 
+                required 
+                className={inp} 
+                value={form.phone} 
+                onChange={e => setForm({...form, phone: e.target.value})} 
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Email</label>
+              <input 
+                type="email" 
+                className={inp} 
+                value={form.email} 
+                onChange={e => setForm({...form, email: e.target.value})} 
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Company Name</label>
+              <input 
+                className={inp} 
+                value={form.company_name} 
+                onChange={e => setForm({...form, company_name: e.target.value})} 
+                placeholder="Enter company name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Interested In</label>
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({...form, interest: opt.value})}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                      form.interest === opt.value
+                        ? `${INTEREST_COLORS[opt.value]} border-transparent ring-2 ring-offset-1 ring-primary`
+                        : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Call Status</label>
+              <select 
+                className={inp} 
+                value={form.call_status} 
+                onChange={e => setForm({...form, call_status: e.target.value})}
+              >
+                <option value="pending">Pending</option>
+                <option value="answered">Answered</option>
+                <option value="not_answered">Not Answered</option>
+                <option value="busy">Busy</option>
+                <option value="not_interested">Not Interested</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Assigned To</label>
+              {currentUserRole === 'employee' ? (
+                <input 
+                  readOnly 
+                  className={`${inp} bg-muted cursor-not-allowed`} 
+                  value={employees.find(e => e.id === currentUserId)?.name || 'You'} 
+                />
+              ) : (
+                <select 
+                  className={inp} 
+                  value={form.assigned_to} 
+                  onChange={e => setForm({...form, assigned_to: e.target.value})}
                 >
-                  {opt.label}
-                </button>
-              ))}
+                  <option value="">Unassigned</option>
+                  {employees.map(e => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}{e.id === currentUserId ? ' (You)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Notes</label>
+              <textarea 
+                rows={3} 
+                className={inp} 
+                value={form.notes} 
+                onChange={e => setForm({...form, notes: e.target.value})} 
+                placeholder="Add any additional notes..."
+              />
             </div>
           </div>
+        </div>
 
-          <div><label className="text-sm font-medium">Call Status</label>
-            <select className={inp} value={form.call_status} onChange={e => setForm({...form, call_status: e.target.value})}>
-              <option value="pending">Pending</option>
-              <option value="answered">Answered</option>
-              <option value="not_answered">Not Answered</option>
-              <option value="busy">Busy</option>
-              <option value="not_interested">Not Interested</option>
-            </select></div>
-          <div><label className="text-sm font-medium">Assigned To</label>
-            {currentUserRole === 'employee' ? (
-              <input readOnly className={`${inp} bg-muted cursor-not-allowed`} value={employees.find(e => e.id === currentUserId)?.name || 'You'} />
-            ) : (
-              <select className={inp} value={form.assigned_to} onChange={e => setForm({...form, assigned_to: e.target.value})}>
-                <option value="">Unassigned</option>
-                {employees.map(e => <option key={e.id} value={e.id}>{e.name}{e.id === currentUserId ? ' (You)' : ''}</option>)}
-              </select>
-            )}
-          </div>
-          <div><label className="text-sm font-medium">Notes</label>
-            <textarea rows={2} className={inp} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} /></div>
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+        {/* Fixed Footer */}
+        <form onSubmit={handleSubmit} className="flex-shrink-0 border-t border-border px-6 py-4 bg-background rounded-b-2xl">
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" className="flex-1 h-10 text-sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1 h-10 text-sm" disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
           </div>
         </form>
       </div>

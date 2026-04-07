@@ -81,17 +81,17 @@ export default function CapitalServiceModal({ service, employees, currentUserId,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background border-b border-border px-5 py-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{service ? 'Edit Service' : 'Add Service'}</h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted"><X className="w-5 h-5" /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
           {/* Service Type */}
           <div>
-            <label className="text-sm font-medium">Service Type *</label>
+            <label className="block text-sm font-medium mb-1">Service Type *</label>
             <select required className={inp} value={form.service_type} onChange={e => set('service_type', e.target.value)}>
               <optgroup label="GST Services">
                 <option value="gst_registration">GST Registration (New)</option>
@@ -123,30 +123,30 @@ export default function CapitalServiceModal({ service, employees, currentUserId,
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">Name *</label>
-              <input required className={inp} value={form.client_name} onChange={e => set('client_name', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Name *</label>
+              <input required className={inp} value={form.client_name} onChange={e => set('client_name', e.target.value)} placeholder="Enter name" />
             </div>
             <div>
-              <label className="text-sm font-medium">Mobile *</label>
-              <input required className={inp} value={form.phone} onChange={e => set('phone', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Mobile *</label>
+              <input required className={inp} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="Enter mobile" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">Email</label>
-              <input type="email" className={inp} value={form.email} onChange={e => set('email', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input type="email" className={inp} value={form.email} onChange={e => set('email', e.target.value)} placeholder="Enter email" />
             </div>
             <div>
-              <label className="text-sm font-medium">City / State</label>
-              <input className={inp} value={form.city_state} onChange={e => set('city_state', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">City / State</label>
+              <input className={inp} value={form.city_state} onChange={e => set('city_state', e.target.value)} placeholder="Enter city/state" />
             </div>
           </div>
 
           {/* Business Name — shown for GST & MSME */}
           {(isGST || isMSME) && (
             <div>
-              <label className="text-sm font-medium">Business Name</label>
-              <input className={inp} value={form.business_name} onChange={e => set('business_name', e.target.value)} />
+              <label className="block text-sm font-medium mb-1">Business Name</label>
+              <input className={inp} value={form.business_name} onChange={e => set('business_name', e.target.value)} placeholder="Enter business name" />
             </div>
           )}
 
