@@ -78,6 +78,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const userCompanyCode = user?.company?.code || selectedCompany?.code || '';
   const isASETechnologies = userCompanyCode === 'ASE_TECH' || userCompanyCode === 'ASE';
   const isEswariGroup = userCompanyCode === 'ESWARI' || userCompanyCode === 'ESWARI_GROUP';
+  const isEswariCapital = userCompanyCode === 'ESWARI_CAP';
 
   // Admin-only items (shown for all companies at the top)
   const adminOnlyItems: NavItem[] = [
@@ -159,6 +160,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       { label: 'Common', items: commonNavItems, collapsible: true, defaultOpen: true },
       { label: 'ASE Technologies', items: aseSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'Eswari Group', items: eswariSpecificItems, collapsible: true, defaultOpen: true },
+      { label: 'Eswari Capital', items: [
+        { label: 'Dashboard', icon: DashboardIcon, href: '/capital-dashboard', roles: ['admin'] },
+        { label: 'Customers', icon: PhoneIcon, href: '/capital-customers', roles: ['admin'] },
+        { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin'] },
+        { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin'] },
+        { label: 'Tasks', icon: TasksIcon, href: '/capital-tasks', roles: ['admin'] },
+        { label: 'Reports', icon: ReportsIcon, href: '/capital-reports', roles: ['admin'] },
+        { label: 'Activity', icon: ActivityIcon, href: '/capital-activity', roles: ['admin'] },
+      ], collapsible: true, defaultOpen: true },
       { label: 'System Management', items: adminOnlyItems, collapsible: true, defaultOpen: true },
       { label: '', items: [settingsNavItem], collapsible: false },
     ];
@@ -174,13 +184,32 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     } else if (isEswariGroup) {
       companySpecific = eswariSpecificItems;
       companyLabel = 'Eswari Group';
+    } else if (isEswariCapital) {
+      companySpecific = [
+        { label: 'Customers', icon: PhoneIcon, href: '/capital-customers', roles: ['admin', 'manager', 'employee'] },
+        { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin', 'manager', 'employee'] },
+        { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin', 'manager', 'employee'] },
+        { label: 'Tasks', icon: TasksIcon, href: '/capital-tasks', roles: ['admin', 'manager', 'employee'] },
+      ];
+      companyLabel = 'Eswari Capital';
     } else {
       companySpecific = eswariSpecificItems;
       companyLabel = 'Eswari Group';
     }
     
     menuGroups = [
-      { label: '', items: [dashboardItem, ...commonNavItems, ...companySpecific, settingsNavItem], collapsible: false }
+      { label: '', items: isEswariCapital
+        ? [dashboardItem,
+            { label: 'Capital Dashboard', icon: DashboardIcon, href: '/capital-dashboard', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
+            { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
+            { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
+            ...companySpecific,
+            { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
+            { label: 'Reports', icon: ReportsIcon, href: '/capital-reports', roles: ['admin', 'manager'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
+            { label: 'Activity', icon: ActivityIcon, href: '/capital-activity', roles: ['admin', 'manager'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
+            settingsNavItem]
+        : [dashboardItem, ...commonNavItems, ...companySpecific, settingsNavItem],
+        collapsible: false }
     ];
   }
 

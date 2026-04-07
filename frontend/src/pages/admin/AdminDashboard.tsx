@@ -5,6 +5,7 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import ASELeadStatusChart from '@/components/dashboard/ASELeadStatusChart';
+import CapitalLeadStatusChart from '@/components/dashboard/CapitalLeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
@@ -13,14 +14,18 @@ import { useData } from '@/contexts/DataContextDjango';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useASECustomers } from '@/contexts/ASECustomerContext';
 import { apiClient } from '@/lib/api';
+import { capitalLeadService } from '@/services/capital.service';
 import { logger } from '@/lib/logger';
-import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp, Briefcase, PhoneCall } from 'lucide-react';
+import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp, Briefcase, PhoneCall, DollarSign } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { leads, tasks, projects, leaves, leadsTotalCount } = useData();
   const { leads: aseLeads, totalCount: aseTotalCount, stats: aseStats } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
   const [teamCount, setTeamCount] = useState(0);
+  const [capitalLeads, setCapitalLeads] = useState<any[]>([]);
+  const [capitalLeadsCount, setCapitalLeadsCount] = useState(0);
+  const [hotLeadsCount, setHotLeadsCount] = useState(0);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -36,8 +41,37 @@ export default function AdminDashboard() {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    const fetchCapitalLeads = async () => {
+      try {
+        const response = await capitalLeadService.list();
+        const leadsData = Array.isArray(response) ? response : (response as any).results || [];
+        setCapitalLeads(leadsData);
+        setCapitalLeadsCount(leadsData.length);
+      } catch (error) {
+        logger.error('Error fetching capital leads:', error);
+        setCapitalLeads([]);
+        setCapitalLeadsCount(0);
+      }
+    };
+    fetchCapitalLeads();
+  }, []);
+
+  useEffect(() => {
+    const fetchHotLeadsCount = async () => {
+      try {
+        const response = await apiClient.getLeads({ status: 'hot', page: 1, page_size: 1 });
+        const count = response.count || 0;
+        setHotLeadsCount(count);
+      } catch (error) {
+        logger.error('Error fetching hot leads count:', error);
+        setHotLeadsCount(0);
+      }
+    };
+    fetchHotLeadsCount();
+  }, []);
+
   const activeTasks = tasks.filter(t => t.status !== 'completed').length;
-  const pendingLeads = leads.filter(l => l.status !== 'not_interested').length;
   const pendingLeaves = leaves.filter(l => l.status === 'pending').length;
   const conversionRate = leadsTotalCount > 0
     ? Math.round((tasks.filter(t => t.status === 'completed').length / leadsTotalCount) * 100)
@@ -52,14 +86,14 @@ export default function AdminDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
-          <StatCard title="Total Leads" value={leadsTotalCount}
-            change={leadsTotalCount > 0 ? `${pendingLeads} active` : 'No leads yet'}
+          <StatCard title="Eswari Group Leads" value={leadsTotalCount}
+            change={hotLeadsCount > 0 ? `${hotLeadsCount} hot leads` : 'No hot leads'}
             changeType="neutral" icon={ClipboardList} iconColor="gradient-primary" delay={0} href="/admin/leads" />
-          <StatCard title="Active Tasks" value={activeTasks}
-            change={activeTasks > 0 ? 'In progress' : 'No active tasks'}
+          <StatCard title="Eswari Group Tasks" value={tasks.length}
+            change={activeTasks > 0 ? `${activeTasks} in progress` : 'No active tasks'}
             changeType="neutral" icon={CheckSquare} iconColor="bg-info" delay={50} href="/admin/tasks" />
-          <StatCard title="Projects" value={projects.length}
-            change={`${projects.filter(p => p.status === 'ready_to_go').length} ready`}
+          <StatCard title="Total Projects" value={projects.length}
+            change="All projects"
             changeType="neutral" icon={Building} iconColor="gradient-accent" delay={100} href="/admin/projects" />
           <StatCard title="Pending Leaves" value={pendingLeaves}
             change={pendingLeaves > 0 ? 'Requires attention' : 'No pending'}
@@ -75,6 +109,9 @@ export default function AdminDashboard() {
           <StatCard title="ASE Customers" value={aseCustomers.length}
             change={aseCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${aseCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
             changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={350} href="/admin/ase-customers" />
+          <StatCard title="Capital Leads" value={capitalLeadsCount}
+            change={capitalLeads.filter(l => l.status === 'new').length > 0 ? `${capitalLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
+            changeType="neutral" icon={DollarSign} iconColor="bg-indigo-500" delay={400} href="/admin/capital-leads" />
         </div>
 
         {/* Charts Row — Eswari Group */}
@@ -84,9 +121,10 @@ export default function AdminDashboard() {
           <ProjectStatusChart projects={projects} />
         </div>
 
-        {/* ASE Technologies — Leads Pie Chart */}
+        {/* ASE Technologies & Eswari Capital — Leads Pie Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <ASELeadStatusChart leads={aseLeads} totalCount={aseTotalCount} stats={aseStats} title="ASE Technologies — Leads by Status" />
+          <CapitalLeadStatusChart leads={capitalLeads} totalCount={capitalLeadsCount} title="Eswari Capital — Leads by Status" />
         </div>
 
         {/* Reminders + Birthday Widget */}        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

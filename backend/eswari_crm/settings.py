@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "customers",
     "ase_customers",  # ASE Customers app
     "ase_leads",      # ASE Leads app
+    "capital",        # Eswari Capital app
     "app_settings",
     "notifications",
     "documentation",  # Documentation system

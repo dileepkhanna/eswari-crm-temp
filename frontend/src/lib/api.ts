@@ -71,8 +71,12 @@ class ApiClient {
     // Add company filter to URL if company is selected
     let url = `${this.baseURL}${endpoint}`;
     
-    // Skip company injection for endpoints that manage all companies
-    const skipCompanyFilter = ['/auth/users/', '/auth/companies/', '/auth/setup/', '/auth/login/', '/auth/register/', '/auth/profile/'].some(p => endpoint.startsWith(p));
+    // Skip company injection for endpoints that manage all companies,
+    // or when company is already explicitly in the URL
+    const skipCompanyFilter = 
+      ['/auth/users/', '/auth/companies/', '/auth/setup/', '/auth/login/', '/auth/register/', '/auth/profile/'].some(p => endpoint.startsWith(p)) ||
+      endpoint.startsWith('/capital/') ||
+      endpoint.includes('company=');
     
     const selectedCompanyStr = localStorage.getItem('selectedCompany');
     if (!skipCompanyFilter && selectedCompanyStr) {
@@ -196,7 +200,10 @@ class ApiClient {
   private async requestBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
     // Add company filter to URL if company is selected
     let url = `${this.baseURL}${endpoint}`;
-    const skipCompanyFilter = ['/auth/users/', '/auth/companies/', '/auth/setup/', '/auth/login/', '/auth/register/', '/auth/profile/'].some(p => endpoint.startsWith(p));
+    const skipCompanyFilter = 
+      ['/auth/users/', '/auth/companies/', '/auth/setup/', '/auth/login/', '/auth/register/', '/auth/profile/'].some(p => endpoint.startsWith(p)) ||
+      endpoint.startsWith('/capital/') ||
+      endpoint.includes('company=');
     const selectedCompanyStr = localStorage.getItem('selectedCompany');
     if (!skipCompanyFilter && selectedCompanyStr) {
       try {
@@ -525,7 +532,7 @@ class ApiClient {
   // Customers
   async getCustomers(params?: Record<string, any>): Promise<any> {
     const query = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+      Object.fromEntries(Object.entries(params).filter(([,v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)]))
     ).toString() : '';
     return this.request(`/customers/${query}`);
   }

@@ -12,8 +12,9 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useASECustomers } from '@/contexts/ASECustomerContext';
+import { useCapital } from '@/contexts/CapitalCustomerContext';
 import { logger } from '@/lib/logger';
-import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity, Users, Briefcase, PhoneCall } from 'lucide-react';
+import { Building, ClipboardList, CheckSquare, CalendarOff, BarChart3, Activity, Users, Briefcase, PhoneCall, DollarSign, Landmark } from 'lucide-react';
 
 export default function ManagerDashboard() {
   const { leads, tasks, projects, announcements, leadsTotalCount } = useData();
@@ -21,10 +22,12 @@ export default function ManagerDashboard() {
   const { selectedCompany } = useCompany();
   const { leads: aseLeads, totalCount: aseTotalCount } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
+  const { customers: capitalCustomers, loans: capitalLoans } = useCapital();
   const [pendingLeaves, setPendingLeaves] = useState(0);
 
   const userCompanyCode = user?.company?.code || '';
   const isASE = userCompanyCode === 'ASE_TECH' || userCompanyCode === 'ASE';
+  const isCapital = userCompanyCode === 'CAPITAL' || userCompanyCode === 'ESWARI_CAPITAL';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,6 +47,44 @@ export default function ManagerDashboard() {
   const activeTasks = tasks.filter(t => t.status !== 'completed').length;
   const employeeNames = user?.employees_names || [];
   const employeeCount = user?.employees_count || 0;
+
+  if (isCapital) {
+    const activeLoans = capitalLoans.filter(l => ['inquiry', 'documents_pending', 'under_review', 'approved'].includes(l.status)).length;
+    
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Manager Dashboard" subtitle="Monitor your team's performance" />
+        <div className="p-6 space-y-6">
+          <AnnouncementBanner userRole="manager" maxDisplay={2} />
+          {employeeCount > 0 && (
+            <div className="glass-card rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                My Team ({employeeCount} {employeeCount === 1 ? 'Employee' : 'Employees'})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {employeeNames.map((name, index) => (
+                  <span key={index} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">{name}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Capital Customers" value={capitalCustomers.length}
+              change={capitalCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${capitalCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
+              changeType="neutral" icon={DollarSign} iconColor="bg-indigo-500" delay={0} href="/manager/capital-customers" />
+            <StatCard title="Capital Loans" value={capitalLoans.length}
+              change={activeLoans > 0 ? `${activeLoans} active` : 'No active loans'}
+              changeType="neutral" icon={Landmark} iconColor="bg-green-500" delay={50} href="/manager/capital-loans" />
+            <StatCard title="Reports" value="View" change="Performance insights" changeType="neutral"
+              icon={BarChart3} iconColor="bg-success" delay={100} href="/manager/reports" />
+            <StatCard title="Activity" value="Monitor" change="Recent actions" changeType="neutral"
+              icon={Activity} iconColor="bg-purple-500" delay={150} href="/manager/activity" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isASE) {
     return (

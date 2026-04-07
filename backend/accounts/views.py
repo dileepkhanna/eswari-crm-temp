@@ -479,17 +479,13 @@ class UserListView(generics.ListAPIView):
         """Filter users based on strict role-based access control"""
         user = self.request.user
         
-        if user.role == 'admin':
-            # Admin can see all users, but optionally filter by company
+        if user.role == 'admin' or user.role == 'hr':
+            # Admin and HR can see all users, but optionally filter by company
             company_id = self.request.query_params.get('company')
             qs = User.objects.all().order_by('-created_at')
             if company_id:
                 qs = qs.filter(company_id=company_id)
             return qs
-        
-        elif user.role == 'hr':
-            # HR can see all users within their company only
-            return User.objects.filter(company=user.company).order_by('-created_at')
         
         elif user.role == 'manager':
             # Manager can see ONLY their assigned employees + themselves
@@ -506,9 +502,9 @@ class UserListView(generics.ListAPIView):
 @permission_classes([IsAuthenticated])
 def managers_list_view(request):
     """Get list of all managers for assignment purposes"""
-    if request.user.role != 'admin':
+    if request.user.role not in ['admin', 'hr']:
         return Response({
-            'error': 'Only administrators can access this endpoint'
+            'error': 'Only administrators and HR can access this endpoint'
         }, status=status.HTTP_403_FORBIDDEN)
     
     managers = User.objects.filter(role='manager').order_by('first_name', 'last_name')
@@ -946,7 +942,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
     
     # These companies are fixed and cannot be modified
-    PROTECTED_COMPANY_NAMES = ['Eswari Group', 'ASE Technologies']
+    PROTECTED_COMPANY_NAMES = ['Eswari Group', 'ASE Technologies', 'Eswari Capital']
     
     def get_permissions(self):
         """
@@ -961,9 +957,9 @@ class CompanyViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        Admin sees all companies, others see only active companies.
+        Admin and HR see all companies, others see only active companies.
         """
-        if self.request.user.role == 'admin':
+        if self.request.user.role in ['admin', 'hr']:
             return Company.objects.all()
         # Others see only active companies
         return Company.objects.filter(is_active=True)

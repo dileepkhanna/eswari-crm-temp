@@ -45,7 +45,8 @@ type DateRange = {
   to: Date | undefined;
 };
 
-export default function AdminReports() {
+export default function AdminReports(props: { capitalCompanyId?: string; capitalCustomersCount?: number; capitalTasksCount?: number } = {}) {
+  const { capitalCompanyId, capitalCustomersCount, capitalTasksCount } = props;
   const { user } = useAuth();
   const { leads, tasks } = useData();
   const { selectedCompany, availableCompanies } = useCompany();
@@ -55,10 +56,11 @@ export default function AdminReports() {
   // Derive company ID directly from route + availableCompanies
   // ASE panel → find company with code 'ASE', Eswari panel → find company with code 'ESWARI'
   const effectiveCompanyId = useMemo(() => {
+    if (capitalCompanyId) return capitalCompanyId;
     if (availableCompanies.length === 0) return selectedCompany?.id;
     const match = availableCompanies.find(c => isASE ? c.code === 'ASE' : c.code === 'ESWARI');
     return match?.id ?? selectedCompany?.id;
-  }, [isASE, availableCompanies, selectedCompany?.id]);
+  }, [capitalCompanyId, isASE, availableCompanies, selectedCompany?.id]);
   const [aseLeadsCount, setAseLeadsCount] = useState(0);
   const [aseCustomersCount, setAseCustomersCount] = useState(0);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
@@ -294,7 +296,7 @@ export default function AdminReports() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title="🔴 ADMIN - Reports" subtitle="Team performance analytics and insights" />
+      <TopBar title={capitalCompanyId ? "Eswari Capital — Reports" : "🔴 ADMIN - Reports"} subtitle="Team performance analytics and insights" />
 
       <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
 
@@ -520,13 +522,17 @@ export default function AdminReports() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-green-500" />
-                {isASE ? "ASE Leads" : "Total Leads"}
+                {capitalCompanyId ? "Capital Customers" : isASE ? "ASE Leads" : "Total Leads"}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-1">
-                <p className="text-3xl font-bold text-foreground">{isASE ? aseLeadsCount : filteredLeads.length}</p>
-                <p className="text-xs text-muted-foreground">{isASE ? "Total ASE leads" : (dateRange.from ? "In selected period" : "All time")}</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {capitalCompanyId ? (capitalCustomersCount ?? 0) : isASE ? aseLeadsCount : filteredLeads.length}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {capitalCompanyId ? "Total customers" : isASE ? "Total ASE leads" : (dateRange.from ? "In selected period" : "All time")}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -535,12 +541,14 @@ export default function AdminReports() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <CheckSquare className="w-4 h-4 text-purple-500" />
-                {isASE ? "ASE Customers" : "Total Tasks"}
+                {capitalCompanyId ? "Capital Tasks" : isASE ? "ASE Customers" : "Total Tasks"}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-1">
-                <p className="text-3xl font-bold text-foreground">{isASE ? aseCustomersCount : filteredTasks.length}</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {capitalCompanyId ? (capitalTasksCount ?? 0) : isASE ? aseCustomersCount : filteredTasks.length}
+                </p>
                 <p className="text-xs text-muted-foreground">{isASE ? "Total ASE customers" : `${filteredTasks.filter((t) => t.status === "completed").length} completed`}</p>
               </div>
             </CardContent>
@@ -595,7 +603,7 @@ export default function AdminReports() {
 
         {/* Performance Overview Chart */}
         <div className="w-full">
-          {!isASE && (
+          {!isASE && !capitalCompanyId && (
             <StaffPerformanceChart users={filteredUsers} leads={filteredLeads} tasks={filteredTasks} />
           )}
         </div>

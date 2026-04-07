@@ -12,7 +12,8 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { useData } from '@/contexts/DataContextDjango';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useASECustomers } from '@/contexts/ASECustomerContext';
-import { ClipboardList, CheckSquare, CalendarOff, Bell, Target, UserCheck, Briefcase, PhoneCall } from 'lucide-react';
+import { useCapital } from '@/contexts/CapitalCustomerContext';
+import { ClipboardList, CheckSquare, CalendarOff, Bell, Target, UserCheck, Briefcase, PhoneCall, DollarSign, Landmark } from 'lucide-react';
 import { format } from 'date-fns';
 import LeadStatusChip from '@/components/leads/LeadStatusChip';
 import TaskStatusChip from '@/components/tasks/TaskStatusChip';
@@ -22,9 +23,11 @@ export default function StaffDashboard() {
   const { leads, tasks, announcements, leadsTotalCount } = useData();
   const { leads: aseLeads, loading: aseLeadsLoading, totalCount: aseTotalCount } = useASELead();
   const { customers: aseCustomers } = useASECustomers();
+  const { customers: capitalCustomers, loans: capitalLoans } = useCapital();
 
   const userCompanyCode = user?.company?.code || '';
   const isASE = userCompanyCode === 'ASE_TECH' || userCompanyCode === 'ASE';
+  const isCapital = userCompanyCode === 'CAPITAL' || userCompanyCode === 'ESWARI_CAPITAL';
 
   // Filter data for current user (Eswari Group)
   const myLeads = leads.filter(lead => lead.assignedTo === user?.id || lead.createdBy === user?.id);
@@ -39,6 +42,48 @@ export default function StaffDashboard() {
   const myASELeads = aseLeads;
   const myASECustomers = aseCustomers;
   const pendingASECustomers = myASECustomers.filter(c => c.call_status === 'pending').length;
+
+  if (isCapital) {
+    const activeLoans = capitalLoans.filter(l => ['inquiry', 'documents_pending', 'under_review', 'approved'].includes(l.status)).length;
+    const pendingCapitalCustomers = capitalCustomers.filter(c => c.call_status === 'pending').length;
+    
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Staff Dashboard" subtitle={`Welcome back, ${user?.name || 'User'}!`} />
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+          <AnnouncementBanner userRole="employee" maxDisplay={2} />
+          {user?.manager_name && (
+            <div className="glass-card rounded-2xl p-4 md:p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-primary" />
+                Reporting Manager
+              </h3>
+              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                {user.manager_name}
+              </span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="My Capital Customers" value={capitalCustomers.length}
+              change={pendingCapitalCustomers > 0 ? `${pendingCapitalCustomers} pending` : 'All handled'}
+              changeType="neutral" icon={DollarSign} iconColor="bg-indigo-500" delay={0} href="/staff/capital-customers" />
+            <StatCard title="Capital Loans" value={capitalLoans.length}
+              change={activeLoans > 0 ? `${activeLoans} active` : 'No active loans'}
+              changeType="neutral" icon={Landmark} iconColor="bg-green-500" delay={50} href="/staff/capital-loans" />
+            <StatCard title="Reminders" value={pendingCapitalCustomers}
+              change={pendingCapitalCustomers > 0 ? 'Follow-ups pending' : 'No reminders'}
+              changeType="neutral" icon={Bell} iconColor="bg-info" delay={100} href="/staff/capital-customers" />
+            <StatCard title="Leave Status" value="All Clear"
+              change="No pending requests" changeType="neutral" icon={CalendarOff} iconColor="bg-warning" delay={150} href="/staff/leaves" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <LeaveStatsWidget />
+            <QuickSettingsWidget />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isASE) {
     return (

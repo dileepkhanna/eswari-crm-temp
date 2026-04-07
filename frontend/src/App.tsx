@@ -10,6 +10,7 @@ import { DataProvider } from "@/contexts/DataContextDjango";
 import { CustomerProvider } from "@/contexts/CustomerContext";
 import { ASECustomerProvider } from "@/contexts/ASECustomerContext";
 import { ASELeadProvider } from "@/contexts/ASELeadContext";
+import { CapitalProvider } from "@/contexts/CapitalCustomerContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { CompanyAuthBridge } from "@/contexts/CompanyAuthBridge";
@@ -40,15 +41,17 @@ const App = () => {
                     <CustomerProvider>
                       <ASECustomerProvider>
                         <ASELeadProvider>
-                          <TooltipProvider>
-                            <OfflineIndicator />
-                            <Toaster />
-                            <Sonner />
-                            <BrowserRouter>
-                              <AppRouter />
-                            </BrowserRouter>
-                            <PWAInstallPrompt />
-                          </TooltipProvider>
+                          <CapitalProvider>
+                            <TooltipProvider>
+                              <OfflineIndicator />
+                              <Toaster />
+                              <Sonner />
+                              <BrowserRouter>
+                                <AppRouter />
+                              </BrowserRouter>
+                              <PWAInstallPrompt />
+                            </TooltipProvider>
+                          </CapitalProvider>
                         </ASELeadProvider>
                       </ASECustomerProvider>
                     </CustomerProvider>

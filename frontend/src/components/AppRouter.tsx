@@ -78,6 +78,23 @@ import StaffEmailMarketing from '@/pages/staff/StaffEmailMarketing';
 import StaffASECustomers from '@/pages/staff/StaffASECustomers';
 import StaffASELeads from '@/pages/staff/StaffASELeads';
 
+import AdminCapitalCustomers from '@/pages/admin/AdminCapitalCustomers';
+import AdminCapitalTasks from '@/pages/admin/AdminCapitalTasks';
+import AdminCapitalLoans from '@/pages/admin/AdminCapitalLoans';
+import AdminCapitalServices from '@/pages/admin/AdminCapitalServices';
+import ManagerCapitalCustomers from '@/pages/manager/ManagerCapitalCustomers';
+import ManagerCapitalTasks from '@/pages/manager/ManagerCapitalTasks';
+import ManagerCapitalLoans from '@/pages/manager/ManagerCapitalLoans';
+import ManagerCapitalServices from '@/pages/manager/ManagerCapitalServices';
+import StaffCapitalCustomers from '@/pages/staff/StaffCapitalCustomers';
+import StaffCapitalTasks from '@/pages/staff/StaffCapitalTasks';
+import StaffCapitalLoans from '@/pages/staff/StaffCapitalLoans';
+import StaffCapitalServices from '@/pages/staff/StaffCapitalServices';
+import CapitalDashboard from '@/pages/capital/CapitalDashboard';
+import CapitalReports from '@/pages/capital/CapitalReports';
+import CapitalActivity from '@/pages/capital/CapitalActivity';
+import DashboardIndex from '@/components/DashboardIndex';
+
 import StaffConversionAnalytics from '@/pages/staff/StaffConversionAnalytics';
 
 // HR Pages
@@ -128,7 +145,7 @@ const AppRouter = () => {
 
       {/* Admin Routes */}
       <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
-        <Route index element={<AdminDashboard />} />
+        <Route index element={<DashboardIndex adminEl={<AdminDashboard />} managerEl={<AdminDashboard />} staffEl={<AdminDashboard />} basePath="/admin" />} />
         <Route path="ase-customers" element={<AdminASECustomers />} />
         <Route path="ase-leads" element={<AdminASELeads />} />
         <Route path="ase-reports" element={<AdminReports />} />
@@ -141,6 +158,13 @@ const AppRouter = () => {
         <Route path="team" element={<AdminTeam />} />
         <Route path="leads" element={<AdminLeads />} />
         <Route path="customers" element={<AdminCustomers />} />
+        <Route path="capital-customers" element={<AdminCapitalCustomers />} />
+        <Route path="capital-dashboard" element={<CapitalDashboard />} />
+        <Route path="capital-reports" element={<CapitalReports />} />
+        <Route path="capital-activity" element={<CapitalActivity />} />
+        <Route path="capital-tasks" element={<AdminCapitalTasks />} />
+        <Route path="capital-loans" element={<AdminCapitalLoans />} />
+        <Route path="capital-services" element={<AdminCapitalServices />} />
         <Route path="conversion-analytics" element={<AdminConversionAnalytics />} />
         <Route path="tasks" element={<AdminTasks />} />
         <Route path="projects" element={<AdminProjects />} />
@@ -160,7 +184,7 @@ const AppRouter = () => {
 
       {/* Manager Routes */}
       <Route path="/manager" element={<DashboardLayout requiredRole="manager" />}>
-        <Route index element={<ManagerDashboard />} />
+        <Route index element={<DashboardIndex adminEl={<ManagerDashboard />} managerEl={<ManagerDashboard />} staffEl={<ManagerDashboard />} basePath="/manager" />} />
         <Route path="ase-customers" element={<ManagerASECustomers />} />
         <Route path="ase-leads" element={<ManagerASELeads />} />
         <Route path="ase-activity" element={<ManagerASEActivity />} />
@@ -177,6 +201,13 @@ const AppRouter = () => {
         <Route path="team" element={<ManagerTeam />} />
         <Route path="leads" element={<ManagerLeads />} />
         <Route path="customers" element={<ManagerCustomers />} />
+        <Route path="capital-customers" element={<ManagerCapitalCustomers />} />
+        <Route path="capital-dashboard" element={<CapitalDashboard />} />
+        <Route path="capital-reports" element={<CapitalReports />} />
+        <Route path="capital-activity" element={<CapitalActivity />} />
+        <Route path="capital-tasks" element={<ManagerCapitalTasks />} />
+        <Route path="capital-loans" element={<ManagerCapitalLoans />} />
+        <Route path="capital-services" element={<ManagerCapitalServices />} />
         <Route path="conversion-analytics" element={<ManagerConversionAnalytics />} />
         <Route path="tasks" element={<ManagerTasks />} />
         <Route path="projects" element={<ManagerProjects />} />
@@ -191,7 +222,7 @@ const AppRouter = () => {
 
       {/* Staff Routes (for employee role) */}
       <Route path="/staff" element={<DashboardLayout requiredRole="employee" />}>
-        <Route index element={<StaffDashboard />} />
+        <Route index element={<DashboardIndex adminEl={<StaffDashboard />} managerEl={<StaffDashboard />} staffEl={<StaffDashboard />} basePath="/staff" />} />
         <Route path="ase-customers" element={<StaffASECustomers />} />
         <Route path="ase-leads" element={<StaffASELeads />} />
         <Route path="campaigns" element={<StaffCampaigns />} />
@@ -200,6 +231,13 @@ const AppRouter = () => {
         <Route path="email-marketing" element={<StaffEmailMarketing />} />
         <Route path="leads" element={<StaffLeads />} />
         <Route path="customers" element={<StaffCustomers />} />
+        <Route path="capital-customers" element={<StaffCapitalCustomers />} />
+        <Route path="capital-dashboard" element={<CapitalDashboard />} />
+        <Route path="capital-reports" element={<CapitalReports />} />
+        <Route path="capital-activity" element={<CapitalActivity />} />
+        <Route path="capital-tasks" element={<StaffCapitalTasks />} />
+        <Route path="capital-loans" element={<StaffCapitalLoans />} />
+        <Route path="capital-services" element={<StaffCapitalServices />} />
         <Route path="conversion-analytics" element={<StaffConversionAnalytics />} />
         <Route path="tasks" element={<StaffTasks />} />
         <Route path="projects" element={<StaffProjects />} />
