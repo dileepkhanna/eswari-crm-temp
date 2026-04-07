@@ -161,7 +161,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       { label: 'ASE Technologies', items: aseSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'Eswari Group', items: eswariSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'Eswari Capital', items: [
-        { label: 'Dashboard', icon: DashboardIcon, href: '/capital-dashboard', roles: ['admin'] },
         { label: 'Customers', icon: PhoneIcon, href: '/capital-customers', roles: ['admin'] },
         { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin'] },
         { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin'] },
@@ -200,7 +199,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     menuGroups = [
       { label: '', items: isEswariCapital
         ? [dashboardItem,
-            { label: 'Capital Dashboard', icon: DashboardIcon, href: '/capital-dashboard', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
             { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
             { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['admin', 'manager', 'employee'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
             ...companySpecific,
