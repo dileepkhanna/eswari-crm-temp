@@ -93,6 +93,7 @@ import StaffCapitalServices from '@/pages/staff/StaffCapitalServices';
 import CapitalDashboard from '@/pages/capital/CapitalDashboard';
 import CapitalReports from '@/pages/capital/CapitalReports';
 import CapitalActivity from '@/pages/capital/CapitalActivity';
+import CapitalTools from '@/pages/capital/CapitalTools';
 import DashboardIndex from '@/components/DashboardIndex';
 
 import StaffConversionAnalytics from '@/pages/staff/StaffConversionAnalytics';
@@ -162,6 +163,7 @@ const AppRouter = () => {
         <Route path="capital-dashboard" element={<CapitalDashboard />} />
         <Route path="capital-reports" element={<CapitalReports />} />
         <Route path="capital-activity" element={<CapitalActivity />} />
+        <Route path="capital-tools" element={<CapitalTools />} />
         <Route path="capital-tasks" element={<AdminCapitalTasks />} />
         <Route path="capital-loans" element={<AdminCapitalLoans />} />
         <Route path="capital-services" element={<AdminCapitalServices />} />
@@ -205,6 +207,7 @@ const AppRouter = () => {
         <Route path="capital-dashboard" element={<CapitalDashboard />} />
         <Route path="capital-reports" element={<CapitalReports />} />
         <Route path="capital-activity" element={<CapitalActivity />} />
+        <Route path="capital-tools" element={<CapitalTools />} />
         <Route path="capital-tasks" element={<ManagerCapitalTasks />} />
         <Route path="capital-loans" element={<ManagerCapitalLoans />} />
         <Route path="capital-services" element={<ManagerCapitalServices />} />
@@ -235,6 +238,7 @@ const AppRouter = () => {
         <Route path="capital-dashboard" element={<CapitalDashboard />} />
         <Route path="capital-reports" element={<CapitalReports />} />
         <Route path="capital-activity" element={<CapitalActivity />} />
+        <Route path="capital-tools" element={<CapitalTools />} />
         <Route path="capital-tasks" element={<StaffCapitalTasks />} />
         <Route path="capital-loans" element={<StaffCapitalLoans />} />
         <Route path="capital-services" element={<StaffCapitalServices />} />

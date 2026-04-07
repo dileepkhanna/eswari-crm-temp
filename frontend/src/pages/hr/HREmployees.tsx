@@ -680,7 +680,7 @@ export default function HREmployees() {
 
       {/* Create Employee Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Employee</DialogTitle>
             <DialogDescription>
@@ -689,140 +689,149 @@ export default function HREmployees() {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            {/* First Name */}
-            <div className="grid gap-2">
-              <Label htmlFor="first_name">
-                First Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="first_name"
-                value={createFormData.first_name}
-                onChange={(e) => setCreateFormData({ ...createFormData, first_name: e.target.value })}
-                placeholder="Enter first name"
-                disabled={isCreating}
-              />
-            </div>
-
-            {/* Last Name */}
-            <div className="grid gap-2">
-              <Label htmlFor="last_name">
-                Last Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="last_name"
-                value={createFormData.last_name}
-                onChange={(e) => setCreateFormData({ ...createFormData, last_name: e.target.value })}
-                placeholder="Enter last name"
-                disabled={isCreating}
-              />
-            </div>
-
-            {/* Email */}
-            <div className="grid gap-2">
-              <Label htmlFor="email">
-                Email <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={createFormData.email}
-                onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
-                placeholder="Enter email address"
-                disabled={isCreating}
-              />
-            </div>
-
-            {/* Phone */}
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={createFormData.phone}
-                onChange={(e) => setCreateFormData({ ...createFormData, phone: e.target.value })}
-                placeholder="Enter phone number"
-                disabled={isCreating}
-              />
-            </div>
-
-            {/* Role */}
-            <div className="grid gap-2">
-              <Label htmlFor="role">
-                Role <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={createFormData.role}
-                onValueChange={(value: 'manager' | 'employee') => 
-                  setCreateFormData({ ...createFormData, role: value, manager: value === 'manager' ? '' : createFormData.manager })
-                }
-                disabled={isCreating}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="employee">Employee</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Only manager and employee roles can be created by HR
-              </p>
-            </div>
-
-            {/* Manager (only for employees) */}
-            {createFormData.role === 'employee' && (
+            {/* Name Fields - Side by Side */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="manager">
-                  Manager <span className="text-red-500">*</span>
+                <Label htmlFor="first_name">
+                  First Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="first_name"
+                  value={createFormData.first_name}
+                  onChange={(e) => setCreateFormData({ ...createFormData, first_name: e.target.value })}
+                  placeholder="Enter first name"
+                  disabled={isCreating}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="last_name">
+                  Last Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="last_name"
+                  value={createFormData.last_name}
+                  onChange={(e) => setCreateFormData({ ...createFormData, last_name: e.target.value })}
+                  placeholder="Enter last name"
+                  disabled={isCreating}
+                />
+              </div>
+            </div>
+
+            {/* Contact Fields - Side by Side */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">
+                  Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={createFormData.email}
+                  onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
+                  placeholder="Enter email address"
+                  disabled={isCreating}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={createFormData.phone}
+                  onChange={(e) => setCreateFormData({ ...createFormData, phone: e.target.value })}
+                  placeholder="Enter phone number"
+                  disabled={isCreating}
+                />
+              </div>
+            </div>
+
+            {/* Role and Manager - Side by Side */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="role">
+                  Role <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={createFormData.manager}
-                  onValueChange={(value) => setCreateFormData({ ...createFormData, manager: value })}
+                  value={createFormData.role}
+                  onValueChange={(value: 'manager' | 'employee') => 
+                    setCreateFormData({ ...createFormData, role: value, manager: value === 'manager' ? '' : createFormData.manager })
+                  }
                   disabled={isCreating}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select manager" />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {managers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id.toString()}>
-                        {manager.first_name} {manager.last_name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="employee">Employee</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            {/* Password */}
-            <div className="grid gap-2">
-              <Label htmlFor="password">
-                Password <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={createFormData.password}
-                onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
-                placeholder="Enter password (min 8 characters)"
-                disabled={isCreating}
-              />
+              {/* Manager (only for employees) */}
+              {createFormData.role === 'employee' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="manager">
+                    Manager <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={createFormData.manager}
+                    onValueChange={(value) => setCreateFormData({ ...createFormData, manager: value })}
+                    disabled={isCreating}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {managers.map((manager) => (
+                        <SelectItem key={manager.id} value={manager.id.toString()}>
+                          {manager.first_name} {manager.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
-            {/* Confirm Password */}
-            <div className="grid gap-2">
-              <Label htmlFor="password_confirm">
-                Confirm Password <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="password_confirm"
-                type="password"
-                value={createFormData.password_confirm}
-                onChange={(e) => setCreateFormData({ ...createFormData, password_confirm: e.target.value })}
-                placeholder="Confirm password"
-                disabled={isCreating}
-              />
+            {/* Password Fields - Side by Side */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="password">
+                  Password <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={createFormData.password}
+                  onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
+                  placeholder="Min 8 characters"
+                  disabled={isCreating}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="password_confirm">
+                  Confirm Password <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="password_confirm"
+                  type="password"
+                  value={createFormData.password_confirm}
+                  onChange={(e) => setCreateFormData({ ...createFormData, password_confirm: e.target.value })}
+                  placeholder="Confirm password"
+                  disabled={isCreating}
+                />
+              </div>
+            </div>
+
+            {/* Info Note */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-800">
+                <strong>Note:</strong> Only manager and employee roles can be created by HR. The employee will be assigned to your company automatically.
+              </p>
             </div>
           </div>
 

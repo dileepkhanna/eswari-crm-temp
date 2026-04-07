@@ -20,7 +20,7 @@ import {
   PhoneIcon,
   MegaphoneIcon,
 } from '@/components/icons';
-import { UserCircle, BarChart, Share2, FileText, Mail, TrendingUp, Target, Users2, ChevronDown, ChevronRight, Gift } from 'lucide-react';
+import { UserCircle, BarChart, Share2, FileText, Mail, TrendingUp, Target, Users2, ChevronDown, ChevronRight, Gift, Calculator } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ASECustomerService } from '@/services/ase-customer.service';
 
@@ -165,6 +165,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin'] },
         { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin'] },
         { label: 'Tasks', icon: TasksIcon, href: '/capital-tasks', roles: ['admin'] },
+        { label: 'Tools', icon: Calculator, href: '/capital-tools', roles: ['admin'] },
         { label: 'Reports', icon: ReportsIcon, href: '/capital-reports', roles: ['admin'] },
         { label: 'Activity', icon: ActivityIcon, href: '/capital-activity', roles: ['admin'] },
       ], collapsible: true, defaultOpen: true },
@@ -189,6 +190,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin', 'manager', 'employee'] },
         { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin', 'manager', 'employee'] },
         { label: 'Tasks', icon: TasksIcon, href: '/capital-tasks', roles: ['admin', 'manager', 'employee'] },
+        { label: 'Tools', icon: Calculator, href: '/capital-tools', roles: ['admin', 'manager', 'employee'] },
       ];
       companyLabel = 'Eswari Capital';
     } else {

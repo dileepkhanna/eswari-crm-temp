@@ -1,15 +1,17 @@
 from rest_framework import viewsets, filters, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from django.db import transaction, IntegrityError
+from django.utils import timezone
+from decimal import Decimal
 
 from .models import CapitalCustomer, CapitalLead, CapitalTask, CapitalLoan, CapitalService
 from .serializers import CapitalCustomerSerializer, CapitalLeadSerializer, CapitalTaskSerializer, CapitalLoanSerializer, CapitalServiceSerializer
+from accounts.permissions import CompanyAccessPermission
 
 
 CAPITAL_CODE = 'ESWARI_CAP'
@@ -377,3 +379,190 @@ class CapitalServiceViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             created = CapitalService.objects.bulk_create(to_create, batch_size=200)
         return Response({'imported': len(created)}, status=status.HTTP_201_CREATED)
+
+
+
+# Advanced Features ViewSets
+
+from .models import LoanDocument, LoanApprovalStage, BankInterestRate, BankLoanStatus
+from .serializers import (
+    LoanDocumentSerializer, LoanApprovalStageSerializer,
+    BankInterestRateSerializer, BankLoanStatusSerializer, CapitalLoanDetailSerializer
+)
+
+
+class LoanDocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = LoanDocumentSerializer
+    permission_classes = [CompanyAccessPermission]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['loan', 'document_type', 'status']
+    ordering_fields = ['document_type', 'created_at']
+    ordering = ['document_type']
+    
+    def get_queryset(self):
+        user = self.request.user
+        base_queryset = LoanDocument.objects.select_related('loan', 'verified_by')
+        return get_capital_queryset(base_queryset, user)
+    
+    @action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        """Mark document as verified"""
+        document = self.get_object()
+        document.status = 'verified'
+        document.verified_by = request.user
+        document.verified_at = timezone.now()
+        document.save()
+        serializer = self.get_serializer(document)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Mark document as rejected"""
+        document = self.get_object()
+        document.status = 'rejected'
+        document.notes = request.data.get('notes', document.notes)
+        document.save()
+        serializer = self.get_serializer(document)
+        return Response(serializer.data)
+
+
+class LoanApprovalStageViewSet(viewsets.ModelViewSet):
+    serializer_class = LoanApprovalStageSerializer
+    permission_classes = [CompanyAccessPermission]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['loan', 'stage', 'status', 'assigned_to']
+    ordering_fields = ['created_at', 'stage']
+    ordering = ['created_at']
+    
+    def get_queryset(self):
+        user = self.request.user
+        base_queryset = LoanApprovalStage.objects.select_related('loan', 'assigned_to', 'completed_by')
+        return get_capital_queryset(base_queryset, user)
+    
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Mark stage as completed"""
+        stage = self.get_object()
+        stage.status = 'completed'
+        stage.completed_by = request.user
+        stage.completed_at = timezone.now()
+        stage.notes = request.data.get('notes', stage.notes)
+        stage.save()
+        serializer = self.get_serializer(stage)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Mark stage as rejected"""
+        stage = self.get_object()
+        stage.status = 'rejected'
+        stage.notes = request.data.get('notes', stage.notes)
+        stage.save()
+        serializer = self.get_serializer(stage)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def initialize_workflow(self, request):
+        """Initialize all approval stages for a loan"""
+        loan_id = request.data.get('loan_id')
+        if not loan_id:
+            return Response({'error': 'loan_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            loan = CapitalLoan.objects.get(id=loan_id)
+        except CapitalLoan.DoesNotExist:
+            return Response({'error': 'Loan not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Create all stages
+        stages = []
+        for stage_choice, _ in LoanApprovalStage.STAGE_CHOICES:
+            stage, created = LoanApprovalStage.objects.get_or_create(
+                loan=loan,
+                stage=stage_choice,
+                defaults={'assigned_to': loan.assigned_to}
+            )
+            stages.append(stage)
+        
+        serializer = self.get_serializer(stages, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class BankInterestRateViewSet(viewsets.ModelViewSet):
+    serializer_class = BankInterestRateSerializer
+    permission_classes = [CompanyAccessPermission]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['bank_name', 'loan_type', 'is_active']
+    ordering_fields = ['bank_name', 'min_interest_rate', 'created_at']
+    ordering = ['bank_name', 'loan_type']
+    
+    def get_queryset(self):
+        user = self.request.user
+        company = get_capital_company(user)
+        return BankInterestRate.objects.filter(company=company)
+    
+    def perform_create(self, serializer):
+        company = get_capital_company(self.request.user)
+        serializer.save(company=company)
+    
+    @action(detail=False, methods=['post'])
+    def calculate_emi(self, request):
+        """Calculate EMI for given parameters"""
+        principal = Decimal(request.data.get('principal', 0))
+        annual_rate = Decimal(request.data.get('annual_rate', 0))
+        tenure_months = int(request.data.get('tenure_months', 0))
+        
+        if principal <= 0 or tenure_months <= 0:
+            return Response({'error': 'Invalid parameters'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        emi = BankInterestRate.calculate_emi(principal, annual_rate, tenure_months)
+        total_payment = BankInterestRate.calculate_total_payment(emi, tenure_months)
+        total_interest = BankInterestRate.calculate_total_interest(total_payment, principal)
+        
+        return Response({
+            'principal': float(principal),
+            'annual_rate': float(annual_rate),
+            'tenure_months': tenure_months,
+            'monthly_emi': float(emi),
+            'total_payment': float(total_payment),
+            'total_interest': float(total_interest),
+        })
+    
+    @action(detail=False, methods=['get'])
+    def compare_rates(self, request):
+        """Compare interest rates across banks for a loan type"""
+        loan_type = request.query_params.get('loan_type')
+        loan_amount = Decimal(request.query_params.get('loan_amount', 0))
+        
+        if not loan_type:
+            return Response({'error': 'loan_type is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        queryset = self.get_queryset().filter(loan_type=loan_type, is_active=True)
+        
+        if loan_amount > 0:
+            queryset = queryset.filter(
+                min_loan_amount__lte=loan_amount,
+                max_loan_amount__gte=loan_amount
+            )
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class BankLoanStatusViewSet(viewsets.ModelViewSet):
+    serializer_class = BankLoanStatusSerializer
+    permission_classes = [CompanyAccessPermission]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['loan', 'bank_name', 'status']
+    ordering_fields = ['updated_at', 'submitted_date']
+    ordering = ['-updated_at']
+    
+    def get_queryset(self):
+        user = self.request.user
+        base_queryset = BankLoanStatus.objects.select_related('loan', 'last_updated_by')
+        return get_capital_queryset(base_queryset, user)
+    
+    def perform_create(self, serializer):
+        serializer.save(last_updated_by=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save(last_updated_by=self.request.user)
