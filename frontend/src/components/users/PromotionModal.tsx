@@ -228,7 +228,7 @@ export default function PromotionModal({ open, onClose, user, onPromote }: Promo
             </Button>
             <Button 
               onClick={handlePromote} 
-              className="btn-accent" 
+              className="btn-primary" 
               disabled={isPromoting}
             >
               {isPromoting ? (

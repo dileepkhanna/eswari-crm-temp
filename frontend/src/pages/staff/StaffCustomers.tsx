@@ -26,8 +26,8 @@ export default function StaffCustomers() {
   return (
     <div className="min-h-screen">
       <TopBar 
-        title="My Customers" 
-        subtitle="Manage your assigned customers and make calls" 
+        title="My Calls" 
+        subtitle="Manage your assigned calls and follow-ups" 
       />
       <div className="p-3 sm:p-4 md:p-6">
         <CustomerList

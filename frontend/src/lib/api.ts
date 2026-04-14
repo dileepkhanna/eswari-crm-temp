@@ -429,6 +429,8 @@ class ApiClient {
     role: string;
     company: number;
     manager?: number;
+    joining_date?: string;
+    designation?: string;
   }) {
     logger.log('[API] createUser called with data:', userData);
     return this.request('/auth/register/', {
@@ -503,8 +505,11 @@ class ApiClient {
 
   async adminUpdateUser(userId: string, userData: {
     name: string;
+    email?: string;
     phone: string;
     address: string;
+    designation?: string;
+    joining_date?: string;
     newPassword?: string;
     managerId?: string;
     company?: number;
@@ -698,6 +703,10 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ leads }),
     });
+  }
+
+  async getAssignableUsers() {
+    return this.request('/leads/assignable_users/');
   }
 
   async bulkImportTasks(tasks: any[]) {

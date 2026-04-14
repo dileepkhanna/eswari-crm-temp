@@ -11,11 +11,12 @@ class UserSerializer(serializers.ModelSerializer):
     employees_count = serializers.SerializerMethodField()
     employees_names = serializers.SerializerMethodField()
     company_info = serializers.SerializerMethodField()
+    approved_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'company', 'company_info', 'created_at']
-        read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count', 'employees_names', 'company_info']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'company', 'company_info', 'joining_date', 'designation', 'pending_approval', 'approved_by', 'approved_by_name', 'approved_at', 'is_active', 'created_at']
+        read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count', 'employees_names', 'company_info', 'approved_by_name', 'approved_by', 'approved_at', 'is_active']
     
     def get_manager_name(self, obj):
         """Get the manager's full name"""
@@ -35,6 +36,12 @@ class UserSerializer(serializers.ModelSerializer):
             employees = obj.employees.all()
             return [f"{emp.first_name} {emp.last_name}".strip() or emp.username for emp in employees]
         return []
+    
+    def get_approved_by_name(self, obj):
+        """Get the approver's full name"""
+        if obj.approved_by:
+            return f"{obj.approved_by.first_name} {obj.approved_by.last_name}".strip() or obj.approved_by.username
+        return None
     
     def get_company_info(self, obj):
         """Get company information with logo URL"""
@@ -88,7 +95,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'phone', 'role', 'manager', 'company']
+        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'phone', 'role', 'manager', 'company', 'joining_date', 'designation', 'pending_approval', 'is_active']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
@@ -139,8 +146,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+        
+        # Debug logging
+        print(f"DEBUG: Creating user with validated_data: pending_approval={validated_data.get('pending_approval')}, is_active={validated_data.get('is_active')}")
+        
+        # If user is pending approval, mark as inactive
+        if validated_data.get('pending_approval', False):
+            validated_data['is_active'] = False
+            print(f"DEBUG: User is pending approval, setting is_active=False")
+        
         # Don't pop username - let the model auto-generate it
         user = User.objects.create_user(**validated_data)
+        
+        print(f"DEBUG: User created - username={user.username}, pending_approval={user.pending_approval}, is_active={user.is_active}")
+        
         return user
 
 

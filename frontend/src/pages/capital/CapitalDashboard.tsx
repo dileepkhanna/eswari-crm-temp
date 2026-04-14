@@ -106,7 +106,7 @@ export default function CapitalDashboard() {
 
         {/* ── Top stat cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Customers" value={stats.totalCustomers}
+          <StatCard title="Calls" value={stats.totalCustomers}
             sub={`${stats.convertedCustomers} converted · ${stats.pendingCustomers} pending`}
             icon={Users} color="bg-blue-500"
             onClick={() => navigate(`${basePath}/capital-customers`)} />

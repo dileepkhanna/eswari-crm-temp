@@ -5,10 +5,12 @@ import TopBar from '@/components/layout/TopBar';
 import { useCapital } from '@/contexts/CapitalCustomerContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Phone, Mail, Trash2, Edit, RefreshCw, Upload, Download, ArrowRight } from 'lucide-react';
-import { CapitalCustomer } from '@/services/capital.service';
+import { CapitalCustomer, capitalCustomerService } from '@/services/capital.service';
 import CapitalCustomerModal, { INTEREST_OPTIONS, INTEREST_COLORS } from '@/components/capital/CapitalCustomerModal';
 import CapitalLoanModal from '@/components/capital/CapitalLoanModal';
 import CapitalServiceModal from '@/components/capital/CapitalServiceModal';
+import { Pagination } from '@/components/common/Pagination';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 const CALL_STATUS_COLORS: Record<string, string> = {
@@ -32,7 +34,9 @@ export default function AdminCapitalCustomers() {
   const navigate = useNavigate();
   const { customers, employees, currentUserId, currentUserRole, loadingCustomers,
     addCustomer, updateCustomer, deleteCustomer, bulkImportCustomers,
-    markCustomerConverted, refreshCustomers, addLoan, addService } = useCapital();
+    markCustomerConverted, refreshCustomers, addLoan, addService,
+    customersPage, customersTotalPages, customersTotalCount,
+    loadCustomersPage, searchCustomers, filterCustomers } = useCapital();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -50,14 +54,24 @@ export default function AdminCapitalCustomers() {
 
   const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'manager' ? '/manager' : '/staff';
 
-  const filtered = customers.filter(c => {
-    const matchSearch = !search || [c.name, c.phone, c.email, c.company_name].some(v => v?.toLowerCase().includes(search.toLowerCase()));
-    const matchStatus = !statusFilter || c.call_status === statusFilter;
-    const matchInterest = !interestFilter || c.interest === interestFilter;
-    const matchAssignee = !assigneeFilter || String(c.assigned_to) === assigneeFilter;
-    const matchConverted = !convertedFilter || (convertedFilter === 'yes' ? c.is_converted : !c.is_converted);
-    return matchSearch && matchStatus && matchInterest && matchAssignee && matchConverted;
-  });
+  // Use customers directly from context (already filtered by backend)
+  const filtered = customers;
+  
+  // Handle search
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    searchCustomers(value);
+  };
+  
+  // Handle filter
+  const handleFilter = () => {
+    const filters: any = {};
+    if (statusFilter) filters.call_status = statusFilter;
+    if (interestFilter) filters.interest = interestFilter;
+    if (assigneeFilter) filters.assigned_to = assigneeFilter;
+    if (convertedFilter) filters.is_converted = convertedFilter === 'yes';
+    filterCustomers(filters);
+  };
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -66,26 +80,46 @@ export default function AdminCapitalCustomers() {
   const toggleAll = () =>
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
   const handleBulkDelete = async () => {
-    if (!confirm(`Delete ${selected.size} customer(s)?`)) return;
+    if (!confirm(`Delete ${selected.size} call(s)?`)) return;
     await Promise.all([...selected].map(id => deleteCustomer(id)));
     setSelected(new Set());
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this customer?')) return;
+    if (!confirm('Delete this call?')) return;
     await deleteCustomer(id);
   };
 
-  const handleExport = () => {
-    const data = filtered.map(c => ({
-      Name: c.name, Phone: c.phone, Email: c.email,
-      Company: c.company_name, 'Call Status': c.call_status,
-      'Interested In': c.interest, Notes: c.notes, 'Assigned To': c.assigned_to_name,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Customers');
-    XLSX.writeFile(wb, `capital-customers-${new Date().toISOString().slice(0,10)}.xlsx`);
+  const handleExport = async () => {
+    try {
+      // Fetch ALL customers with current filters (no pagination limit)
+      const params: any = { page_size: 10000 }; // Large number to get all records
+      
+      if (search) params.search = search;
+      if (statusFilter) params.call_status = statusFilter;
+      if (interestFilter) params.interest = interestFilter;
+      if (assigneeFilter) params.assigned_to = assigneeFilter;
+      if (convertedFilter) params.is_converted = convertedFilter === 'yes';
+      
+      const res = await capitalCustomerService.list(params) as any;
+      const allCustomers = Array.isArray(res) ? res : res.results || [];
+      
+      const data = allCustomers.map((c: any) => ({
+        Name: c.name, Phone: c.phone, Email: c.email,
+        Company: c.company_name, 'Call Status': c.call_status,
+        'Interested In': c.interest, Notes: c.notes, 'Assigned To': c.assigned_to_name,
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+      XLSX.writeFile(wb, `capital-calls-${new Date().toISOString().slice(0,10)}.xlsx`);
+      
+      toast.success(`Exported ${data.length} calls`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export calls');
+    }
   };
 
   const downloadTemplate = () => {
@@ -126,7 +160,7 @@ export default function AdminCapitalCustomers() {
   const interestLabel = (val?: string) => INTEREST_OPTIONS.find(o => o.value === val)?.label || '—';
 
   // ── Counts (always based on filtered list) ──────────────────────────────
-  const totalCount = customers.length;
+  const totalCount = customersTotalCount;
   const filteredCount = filtered.length;
   const convertedCount = filtered.filter(c => c.is_converted).length;
   const pendingCount = filtered.filter(c => c.call_status === 'pending').length;
@@ -136,14 +170,14 @@ export default function AdminCapitalCustomers() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title="Eswari Capital — Customers" subtitle="Manage customer database" />
+      <TopBar title="Eswari Capital — Calls" subtitle="Manage call database" />
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           {/* Filters - Stack on mobile, row on desktop */}
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
-            <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
+            <input type="text" placeholder="Search..." value={search} onChange={e => handleSearch(e.target.value)}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-48" />
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -152,17 +186,17 @@ export default function AdminCapitalCustomers() {
               <option value="busy">Busy</option>
               <option value="not_interested">Not Interested</option>
             </select>
-            <select value={interestFilter} onChange={e => setInterestFilter(e.target.value)}
+            <select value={interestFilter} onChange={e => { setInterestFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Interests</option>
               {INTEREST_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
+            <select value={assigneeFilter} onChange={e => { setAssigneeFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Assignees</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
-            <select value={convertedFilter} onChange={e => setConvertedFilter(e.target.value)}
+            <select value={convertedFilter} onChange={e => { setConvertedFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Converted</option>
               <option value="yes">Converted</option>
@@ -185,16 +219,26 @@ export default function AdminCapitalCustomers() {
             </Button>
             <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={handleExport}>
               <Download className="w-3.5 h-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Export ({filtered.length})</span>
+              <span className="hidden sm:inline">Export ({customersTotalCount})</span>
             </Button>
             <Button variant="outline" size="sm" className="rounded-full" onClick={refreshCustomers}>
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
             <Button size="sm" className="rounded-full w-full sm:w-auto" onClick={() => { setEditing(null); setIsModalOpen(true); }}>
-              <Plus className="w-3.5 h-3.5 mr-1" />Add Customer
+              <Plus className="w-3.5 h-3.5 mr-1" />Add Call
             </Button>
           </div>
         </div>
+
+        {/* Pagination - Top */}
+        <Pagination
+          currentPage={customersPage}
+          totalPages={customersTotalPages}
+          totalCount={customersTotalCount}
+          onPageChange={loadCustomersPage}
+          loading={loadingCustomers}
+          itemName="customers"
+        />
 
         {selected.size > 0 && (
           <div className="flex items-center gap-2">
@@ -251,7 +295,7 @@ export default function AdminCapitalCustomers() {
               {loadingCustomers ? (
                 <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No customers found</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No calls found</td></tr>
               ) : filtered.map(c => (
                 <tr key={c.id} className={`border-b hover:bg-muted/30 transition-colors ${selected.has(c.id) ? 'bg-primary/5' : ''}`}>
                   <td className="py-3 px-4"><input type="checkbox" className="rounded" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} /></td>
@@ -318,7 +362,7 @@ export default function AdminCapitalCustomers() {
           {loadingCustomers ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No customers found</div>
+            <div className="text-center py-8 text-muted-foreground">No calls found</div>
           ) : filtered.map(c => (
             <div key={c.id} className={`glass-card rounded-xl p-4 ${selected.has(c.id) ? 'ring-2 ring-primary' : ''}`}>
               {/* Header with checkbox and name */}
@@ -398,6 +442,16 @@ export default function AdminCapitalCustomers() {
             </div>
           ))}
         </div>
+
+        {/* Pagination - Bottom */}
+        <Pagination
+          currentPage={customersPage}
+          totalPages={customersTotalPages}
+          totalCount={customersTotalCount}
+          onPageChange={loadCustomersPage}
+          loading={loadingCustomers}
+          itemName="customers"
+        />
       </div>
 
       {/* Customer add/edit modal */}

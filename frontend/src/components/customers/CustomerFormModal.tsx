@@ -114,12 +114,12 @@ export default function CustomerFormModal({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
         <DialogHeader>
           <DialogTitle className="text-lg sm:text-xl">
-            {customer ? 'Edit Customer' : 'Add New Customer'}
+            {customer ? 'Edit Call' : 'Add New Call'}
           </DialogTitle>
           <DialogDescription className="text-sm">
             {customer 
-              ? 'Update customer information and call status after making the call' 
-              : 'Add customer with phone number and name. You can update call status after making the call.'
+              ? 'Update call information and status after making the call' 
+              : 'Add call with phone number and name. You can update call status after making the call.'
             }
           </DialogDescription>
         </DialogHeader>
@@ -146,7 +146,7 @@ export default function CustomerFormModal({
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter customer name"
+                placeholder="Enter contact name"
                 className="input-field h-8"
               />
             </div>
@@ -263,7 +263,7 @@ export default function CustomerFormModal({
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
-                placeholder="Add any notes about this customer..."
+                placeholder="Add any notes about this call..."
                 className="input-field resize-none"
               />
             </div>
@@ -274,7 +274,7 @@ export default function CustomerFormModal({
               Cancel
             </Button>
             <Button type="submit" className="btn-primary h-8">
-              {customer ? 'Update Customer' : 'Add Customer'}
+              {customer ? 'Update Call' : 'Add Call'}
             </Button>
           </div>
         </form>

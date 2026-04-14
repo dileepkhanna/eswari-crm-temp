@@ -262,11 +262,11 @@ export default function AdminASECustomers() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       
-      toast.success(`${selectedIds.size} customers exported successfully`);
+      toast.success(`${selectedIds.size} calls exported successfully`);
       setSelectedIds(new Set());
     } catch (error) {
       logger.error('Error exporting customers:', error);
-      toast.error('Failed to export customers');
+      toast.error('Failed to export calls');
     }
   };
 
@@ -351,10 +351,10 @@ export default function AdminASECustomers() {
       filenameParts.push(dateStr);
 
       XLSX.writeFile(wb, `${filenameParts.join('_')}.xlsx`);
-      toast.success(`${exportList.length} customers exported`);
+      toast.success(`${exportList.length} calls exported`);
     } catch (error) {
       logger.error('Export error:', error);
-      toast.error('Failed to export customers');
+      toast.error('Failed to export calls');
     }
   };
 
@@ -366,7 +366,7 @@ export default function AdminASECustomers() {
         await Promise.all(
           Array.from(selectedIds).map(id => updateCustomer(id, { assigned_to: null } as any))
         );
-        toast.success(`Assignment removed from ${selectedIds.size} customer${selectedIds.size !== 1 ? 's' : ''}`);
+        toast.success(`Assignment removed from ${selectedIds.size} call${selectedIds.size !== 1 ? 's' : ''}`);
         setSelectedIds(new Set());
       } else {
         await bulkAssignCustomers(Array.from(selectedIds), bulkAssignEmployeeId);
@@ -383,7 +383,7 @@ export default function AdminASECustomers() {
     if (!bulkStatusValue) return;
     try {
       const result = await ASECustomerService.bulkUpdateStatus(Array.from(selectedIds), bulkStatusValue);
-      toast.success(`Updated status for ${result.updated} customer${result.updated !== 1 ? 's' : ''}`);
+      toast.success(`Updated status for ${result.updated} call${result.updated !== 1 ? 's' : ''}`);
       setSelectedIds(new Set());
       setShowBulkStatusDialog(false);
       setBulkStatusValue('');
@@ -480,7 +480,7 @@ export default function AdminASECustomers() {
   if (error) {
     return (
       <div className="min-h-screen bg-background">
-        <TopBar title="ASE Customers" />
+        <TopBar title="ASE Calls" />
         <div className="p-6">
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-4">
@@ -496,7 +496,7 @@ export default function AdminASECustomers() {
   }
   return (
     <div className="min-h-screen bg-background">
-      <TopBar title="ASE Customers" />
+      <TopBar title="ASE Calls" />
       
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         {/* Announcements */}
@@ -548,9 +548,9 @@ export default function AdminASECustomers() {
         <div className="glass-card p-3 md:p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 md:mb-6">
             <div>
-              <h2 className="text-xl font-semibold">ASE Customer Management</h2>
+              <h2 className="text-xl font-semibold">ASE Call Management</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Manage your ASE customer contacts and calls
+                Manage your ASE call contacts and interactions
               </p>
             </div>
           </div>
@@ -562,7 +562,7 @@ export default function AdminASECustomers() {
               <div className="relative">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or phone number..."
+                  placeholder="Search calls by name or phone number..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 input-field"
@@ -614,10 +614,10 @@ export default function AdminASECustomers() {
 
                 <Select value={conversionFilter} onValueChange={setConversionFilter}>
                   <SelectTrigger className="select-trigger-pill w-36">
-                    <SelectValue placeholder="All Customers" />
+                    <SelectValue placeholder="All Calls" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
+                    <SelectItem value="all">All Calls</SelectItem>
                     <SelectItem value="converted">Converted</SelectItem>
                     <SelectItem value="not_converted">Not Converted</SelectItem>
                   </SelectContent>
@@ -673,7 +673,7 @@ export default function AdminASECustomers() {
                 <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full sm:w-auto">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      {selectedIds.size} customer{selectedIds.size !== 1 ? 's' : ''} selected
+                      {selectedIds.size} call{selectedIds.size !== 1 ? 's' : ''} selected
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -740,7 +740,7 @@ export default function AdminASECustomers() {
               
               <Button className="btn-primary h-9 min-h-9 w-full sm:w-auto" onClick={() => setIsCreateModalOpen(true)}>
                 <PlusIcon className="w-4 h-4 mr-2" />
-                Add Customer
+                Add Call
               </Button>
             </div>
           </div>
@@ -751,16 +751,16 @@ export default function AdminASECustomers() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <UserIcon className="w-8 h-8 text-primary animate-pulse" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Loading ASE customers...</h3>
-              <p className="text-muted-foreground">Please wait while we fetch your customers</p>
+              <h3 className="text-lg font-semibold mb-2">Loading ASE calls...</h3>
+              <p className="text-muted-foreground">Please wait while we fetch your calls</p>
             </div>
           ) : (
             <>
             <div className="glass-card rounded-2xl overflow-hidden">
               <div className="p-4 border-b flex items-center justify-between">
-                <span className="text-sm font-medium">Customer List</span>
+                <span className="text-sm font-medium">Call List</span>
                 <span className="text-sm text-muted-foreground">
-                  {totalCount} customer{totalCount !== 1 ? 's' : ''}
+                  {totalCount} call{totalCount !== 1 ? 's' : ''}
                 </span>
               </div>
               
@@ -773,7 +773,7 @@ export default function AdminASECustomers() {
                         <Checkbox
                           checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
                           onCheckedChange={toggleSelectAll}
-                          aria-label="Select all customers"
+                          aria-label="Select all calls"
                         />
                       </th>
                       <th className="text-left p-4 font-medium text-sm text-muted-foreground">Phone</th>
@@ -793,7 +793,7 @@ export default function AdminASECustomers() {
                           <Checkbox
                             checked={selectedIds.has(customer.id)}
                             onCheckedChange={() => toggleSelect(customer.id)}
-                            aria-label={`Select customer ${customer.name || customer.phone}`}
+                            aria-label={`Select call ${customer.name || customer.phone}`}
                           />
                         </td>
                         
@@ -953,7 +953,7 @@ export default function AdminASECustomers() {
                                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
-                                  Edit Customer
+                                  Edit Call
                                 </DropdownMenuItem>
                                 {!customer.is_converted && (
                                   <DropdownMenuItem
@@ -1009,7 +1009,7 @@ export default function AdminASECustomers() {
                       <Checkbox
                         checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
                         onCheckedChange={toggleSelectAll}
-                        aria-label="Select all customers"
+                        aria-label="Select all calls"
                         className="h-4 w-4 flex-shrink-0"
                       />
                       <span className="text-sm font-medium">
@@ -1058,7 +1058,7 @@ export default function AdminASECustomers() {
                   </div>
                 )}
 
-                {/* Customer Cards */}
+                {/* Call Cards */}
                 {filteredCustomers.map((customer) => (
                   <div key={customer.id} className="mobile-customer-card bg-white border border-gray-200 rounded-lg p-4 space-y-3 shadow-sm">
                     {/* Header Row */}
@@ -1067,7 +1067,7 @@ export default function AdminASECustomers() {
                         <Checkbox
                           checked={selectedIds.has(customer.id)}
                           onCheckedChange={() => toggleSelect(customer.id)}
-                          aria-label={`Select customer ${customer.name || customer.phone}`}
+                          aria-label={`Select call ${customer.name || customer.phone}`}
                           className="h-4 w-4 flex-shrink-0 mt-0.5"
                         />
                         <div>
@@ -1111,7 +1111,7 @@ export default function AdminASECustomers() {
                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
-                            Edit Customer
+                            Edit Call
                           </DropdownMenuItem>
                           {!customer.is_converted && (
                             <DropdownMenuItem
@@ -1281,17 +1281,17 @@ export default function AdminASECustomers() {
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                     <UserIcon className="w-8 h-8 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">No ASE customers found</h3>
+                  <h3 className="text-lg font-semibold mb-2">No ASE calls found</h3>
                   <p className="text-muted-foreground mb-4">
                     {customers.length === 0 
-                      ? "Get started by adding your first ASE customer"
+                      ? "Get started by adding your first ASE call"
                       : "Try adjusting your search or filters"
                     }
                   </p>
                   {customers.length === 0 && (
                     <Button onClick={() => setIsCreateModalOpen(true)}>
                       <PlusIcon className="w-4 h-4 mr-2" />
-                      Add First Customer
+                      Add First Call
                     </Button>
                   )}
                 </div>
@@ -1302,7 +1302,7 @@ export default function AdminASECustomers() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * 50 + 1} - {Math.min(currentPage * 50, totalCount)} of {totalCount} customers
+                  Showing {(currentPage - 1) * 50 + 1} - {Math.min(currentPage * 50, totalCount)} of {totalCount} calls
                 </p>
                 <div className="flex items-center gap-1">
                   <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>{'«'}</Button>
@@ -1381,7 +1381,7 @@ export default function AdminASECustomers() {
             <AlertDialogHeader>
               <AlertDialogTitle>Set Custom Status</AlertDialogTitle>
               <AlertDialogDescription>
-                Enter a custom status for this customer.
+                Enter a custom status for this call.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">
@@ -1481,7 +1481,7 @@ export default function AdminASECustomers() {
             <AlertDialogHeader>
               <AlertDialogTitle>Assign Employees</AlertDialogTitle>
               <AlertDialogDescription>
-                Assign {selectedIds.size} selected customer{selectedIds.size !== 1 ? 's' : ''} to an employee.
+                Assign {selectedIds.size} selected call{selectedIds.size !== 1 ? 's' : ''} to an employee.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">
@@ -1519,7 +1519,7 @@ export default function AdminASECustomers() {
             <AlertDialogHeader>
               <AlertDialogTitle>Update Call Status</AlertDialogTitle>
               <AlertDialogDescription>
-                Set call status for {selectedIds.size} selected customer{selectedIds.size !== 1 ? 's' : ''}.
+                Set call status for {selectedIds.size} selected call{selectedIds.size !== 1 ? 's' : ''}.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">
@@ -1549,9 +1549,9 @@ export default function AdminASECustomers() {
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Selected Customers</AlertDialogTitle>
+              <AlertDialogTitle>Delete Selected Calls</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete {selectedIds.size} customer{selectedIds.size !== 1 ? 's' : ''}? 
+                Are you sure you want to delete {selectedIds.size} call{selectedIds.size !== 1 ? 's' : ''}? 
                 This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -1561,7 +1561,7 @@ export default function AdminASECustomers() {
                 onClick={handleBulkDelete}
                 className="bg-red-600 hover:bg-red-700"
               >
-                Delete {selectedIds.size} Customer{selectedIds.size !== 1 ? 's' : ''}
+                Delete {selectedIds.size} Call{selectedIds.size !== 1 ? 's' : ''}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

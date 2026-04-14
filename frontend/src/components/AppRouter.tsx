@@ -32,8 +32,12 @@ import AdminConversionAnalytics from '@/pages/admin/AdminConversionAnalytics';
 import AdminASECustomers from '@/pages/admin/AdminASECustomers';
 import AdminASELeads from '@/pages/admin/AdminASELeads';
 import AdminASEActivity from '@/pages/admin/AdminASEActivity';
+import AdminASEEmployees from '@/pages/admin/AdminASEEmployees';
+import AdminEswariEmployees from '@/pages/admin/AdminEswariEmployees';
+import AdminCapitalEmployees from '@/pages/admin/AdminCapitalEmployees';
 import AdminDocumentation from '@/pages/admin/AdminDocumentation';
 import AdminBirthdays from '@/pages/admin/AdminBirthdays';
+import AdminPendingUsers from '@/pages/admin/AdminPendingUsers';
 
 // Manager Pages
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
@@ -151,6 +155,9 @@ const AppRouter = () => {
         <Route path="ase-leads" element={<AdminASELeads />} />
         <Route path="ase-reports" element={<AdminReports />} />
         <Route path="ase-activity" element={<AdminASEActivity />} />
+        <Route path="ase-employees" element={<AdminASEEmployees />} />
+        <Route path="eswari-employees" element={<AdminEswariEmployees />} />
+        <Route path="capital-employees" element={<AdminCapitalEmployees />} />
         <Route path="campaigns" element={<AdminCampaigns />} />
         <Route path="social-media" element={<AdminSocialMedia />} />
         <Route path="content" element={<AdminContent />} />
@@ -174,6 +181,7 @@ const AppRouter = () => {
         <Route path="holidays" element={<AdminHolidays />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="pending-users" element={<AdminPendingUsers />} />
         <Route path="companies" element={<AdminCompanies />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="branding" element={<AdminBranding />} />

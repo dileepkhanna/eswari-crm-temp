@@ -106,7 +106,7 @@ export default function AdminDashboard() {
           <StatCard title="ASE Leads" value={aseTotalCount}
             change={(aseStats?.by_status?.new?.count ?? 0) > 0 ? `${aseStats?.by_status?.new?.count} new` : 'No new leads'}
             changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={300} href="/admin/ase-leads" />
-          <StatCard title="ASE Customers" value={aseCustomers.length}
+          <StatCard title="ASE Calls" value={aseCustomers.length}
             change={aseCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${aseCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
             changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={350} href="/admin/ase-customers" />
           <StatCard title="Capital Leads" value={capitalLeadsCount}

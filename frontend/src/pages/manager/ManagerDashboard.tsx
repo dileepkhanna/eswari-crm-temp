@@ -68,7 +68,7 @@ export default function ManagerDashboard() {
             <StatCard title="ASE Leads" value={aseTotalCount}
               change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
               changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={0} href="/manager/ase-leads" />
-            <StatCard title="ASE Customers" value={aseCustomers.length}
+            <StatCard title="ASE Calls" value={aseCustomers.length}
               change={aseCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${aseCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
               changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={50} href="/manager/ase-customers" />
             <StatCard title="Reports" value="View" change="Performance insights" changeType="neutral"

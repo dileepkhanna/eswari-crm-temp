@@ -132,7 +132,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects, e
         customSource: '',
         status: 'new',
         followUpDate: null,
-        assignedTo: user?.role === 'employee' ? user.id : undefined, // Auto-assign to employee when they create leads
+        assignedTo: user?.id || undefined, // Auto-assign to current user (admin, manager, or employee)
         assignedProjects: [],
       });
     }
@@ -279,16 +279,16 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects, e
             </div>
           </div>
 
-          {/* Employee Assignment Section - Only for Managers when showAssignment is true */}
-          {showAssignment && user?.role === 'manager' && (
+          {/* Employee Assignment Section - For Admins and Managers when showAssignment is true */}
+          {showAssignment && (user?.role === 'admin' || user?.role === 'manager') && (
             <div className="space-y-2">
-              <Label>Assign to Employee</Label>
+              <Label>Assign to {user?.role === 'admin' ? 'Employee/Manager' : 'Employee'}</Label>
               <Select 
                 value={formData.assignedTo || "unassigned"} 
                 onValueChange={(value) => setFormData({ ...formData, assignedTo: value === "unassigned" ? undefined : value })}
               >
                 <SelectTrigger className="input-field">
-                  <SelectValue placeholder="Select employee (optional)" />
+                  <SelectValue placeholder="Select employee/manager (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">No Assignment</SelectItem>
@@ -300,7 +300,10 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects, e
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Assign this lead to a specific employee. If assigned, only the assigned employee, managers, and admins can see this lead.
+                {user?.role === 'admin' 
+                  ? 'By default, leads are assigned to you. You can change the assignment to any employee or manager.'
+                  : 'By default, leads are assigned to you. You can change the assignment to your team members.'
+                }
               </p>
             </div>
           )}
@@ -311,7 +314,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects, e
               <Label>Lead Assignment</Label>
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  This lead will be assigned to you: <span className="font-medium text-foreground">{user.name}</span>
+                  This lead will be automatically assigned to you: <span className="font-medium text-foreground">{user.name}</span>
                 </p>
               </div>
             </div>

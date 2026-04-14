@@ -58,7 +58,7 @@ export default function CapitalCustomerModal({ customer, employees, currentUserI
       <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg my-auto flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Fixed Header */}
         <div className="flex-shrink-0 bg-background border-b border-border px-6 py-3 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-lg font-semibold">{customer ? 'Edit Customer' : 'Add Customer'}</h2>
+          <h2 className="text-lg font-semibold">{customer ? 'Edit Call' : 'Add Call'}</h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -73,7 +73,7 @@ export default function CapitalCustomerModal({ customer, employees, currentUserI
                 className={inp} 
                 value={form.name} 
                 onChange={e => setForm({...form, name: e.target.value})} 
-                placeholder="Enter customer name"
+                placeholder="Enter contact name"
               />
             </div>
 

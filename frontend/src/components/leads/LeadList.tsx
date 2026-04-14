@@ -354,7 +354,7 @@ export default function LeadList({
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search leads..."
+              placeholder="Search by name, phone, email..."
               value={leadsSearch}
               onChange={(e) => setLeadsSearch(e.target.value)}
               className="pl-10 input-field w-full"
@@ -467,7 +467,7 @@ export default function LeadList({
           <div className="flex gap-2 items-center flex-wrap">
             <ExcelImportExport leads={filteredLeads} totalCount={leadsTotalCount} onExportAll={fetchAllLeadsForExport} onImport={handleImportLeads} />
             {canCreate && (
-              <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
+              <Button onClick={() => setIsFormOpen(true)} className="btn-primary shrink-0">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Lead
               </Button>
@@ -565,6 +565,14 @@ export default function LeadList({
               <span className="truncate">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</span>
               {!isManagerView && <span className="shrink-0">{formatBudget(lead.budgetMin, lead.budgetMax)}</span>}
             </div>
+            <div className="flex items-center justify-between text-xs mb-2 gap-2">
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Users className="w-3 h-3" />
+                <span className="truncate">
+                  {lead.assignedToName ? `Assigned: ${lead.assignedToName}` : 'Unassigned'}
+                </span>
+              </div>
+            </div>
             <div className="flex gap-1 flex-wrap">
               <Button variant="outline" size="sm" className="flex-1 min-w-[60px] h-7 text-xs" onClick={() => setViewingLead(lead)}>
                 <Eye className="w-3 h-3 mr-1" />
@@ -618,14 +626,12 @@ export default function LeadList({
                   <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                 </div>
               </TableHead>
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Phone</TableHead>}
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Contact</TableHead>}
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Requirement</TableHead>}
-              <TableHead className="font-semibold">Budget</TableHead>
+              <TableHead className="font-semibold">Phone</TableHead>
+              <TableHead className="font-semibold">Contact</TableHead>
               <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Created By</TableHead>
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Follow-up</TableHead>}
+              <TableHead className="font-semibold">Assigned To</TableHead>
+              <TableHead className="font-semibold">Follow-up</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
           </TableHeader>
@@ -646,37 +652,20 @@ export default function LeadList({
                 <TableCell>
                   <div>
                     <p className="font-medium text-foreground">{lead.name}</p>
-                    {!isManagerView && (
-                      <p className="text-xs text-muted-foreground capitalize">{lead.source || "Direct"}</p>
-                    )}
+                    <p className="text-xs text-muted-foreground capitalize">{lead.source || "Direct"}</p>
                   </div>
                 </TableCell>
-                {canSeeAnyPhoneNumbers && (
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="w-3.5 h-3.5" />
-                      {canSeePhoneNumber(lead) ? lead.phone : maskPhoneNumber(lead.phone)}
-                    </div>
-                  </TableCell>
-                )}
-                {canSeeAnyPhoneNumbers && (
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="w-3.5 h-3.5" />
-                      {canSeePhoneNumber(lead) ? lead.email : maskEmail(lead.email)}
-                    </div>
-                  </TableCell>
-                )}
-                {canSeeAnyPhoneNumbers && (
-                  <TableCell>
-                    <div>
-                      <p className="text-sm capitalize">{lead.requirementType}</p>
-                      <p className="text-xs text-muted-foreground">{lead.bhkRequirement} BHK</p>
-                    </div>
-                  </TableCell>
-                )}
                 <TableCell>
-                  <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="w-3.5 h-3.5" />
+                    {lead.phone}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="w-3.5 h-3.5" />
+                    {lead.email || '-'}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm font-medium">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</p>
@@ -708,20 +697,22 @@ export default function LeadList({
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <StaffProfileChip userId={lead.createdBy} userName={lead.createdByName} showDetails={!isManagerView} />
+                  {lead.assignedTo ? (
+                    <StaffProfileChip userId={lead.assignedTo} userName={lead.assignedToName} showDetails={true} />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Unassigned</span>
+                  )}
                 </TableCell>
-                {canSeeAnyPhoneNumbers && (
-                  <TableCell>
-                    {lead.followUpDate ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {format(lead.followUpDate, "MMM dd, yyyy")}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                )}
+                <TableCell>
+                  {lead.followUpDate ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {format(lead.followUpDate, "MMM dd, yyyy")}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -110,11 +110,11 @@ const AdminBranding = () => {
             opacity: 0.9 !important;
           }
           
-          /* Sidebar color preview overrides */
-          .glass-sidebar { 
+          /* Sidebar color preview overrides - only in light mode */
+          :root:not(.dark) .glass-sidebar { 
             background: linear-gradient(180deg, hsl(${formData.sidebar_color || '152 35% 15%'}) 0%, hsl(${formData.sidebar_color || '152 35% 15%'} / 0.95) 100%) !important;
           }
-          .bg-sidebar { background-color: hsl(${formData.sidebar_color || '152 35% 15%'}) !important; }
+          :root:not(.dark) .bg-sidebar { background-color: hsl(${formData.sidebar_color || '152 35% 15%'}) !important; }
           
           /* Navigation link preview overrides */
           .nav-link-active { 

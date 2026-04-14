@@ -121,12 +121,12 @@ export default function ConversionFormModal({ open, onClose, customer, onConvers
 
       const response = await apiClient.convertCustomer(customer.id, leadData);
 
-      toast.success('Customer converted to lead successfully!');
+      toast.success('Call converted to lead successfully!');
       onConversionComplete();
       handleClose();
     } catch (error: any) {
-      logger.error('Failed to convert customer:', error);
-      toast.error('Failed to convert customer. Please try again.');
+      logger.error('Failed to convert call:', error);
+      toast.error('Failed to convert call. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -158,7 +158,7 @@ export default function ConversionFormModal({ open, onClose, customer, onConvers
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Convert Customer to Lead</DialogTitle>
+          <DialogTitle>Convert Call to Lead</DialogTitle>
           <DialogDescription>
             Fill in the lead details to convert {customer.name || customer.phone} to a lead.
           </DialogDescription>

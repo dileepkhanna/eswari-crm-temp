@@ -61,7 +61,7 @@ export default function StaffDashboard() {
             <StatCard title="My ASE Leads" value={aseTotalCount}
               change={aseLeads.filter(l => l.status === 'new').length > 0 ? `${aseLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
               changeType="neutral" icon={Briefcase} iconColor="bg-violet-500" delay={0} href="/staff/ase-leads" />
-            <StatCard title="ASE Customers" value={myASECustomers.length}
+            <StatCard title="ASE Calls" value={myASECustomers.length}
               change={pendingASECustomers > 0 ? `${pendingASECustomers} pending` : 'All handled'}
               changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={50} href="/staff/ase-customers" />
             <StatCard title="Reminders" value={pendingASECustomers}

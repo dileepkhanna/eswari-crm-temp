@@ -57,9 +57,8 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     if (isCacheValid) return;
     
     try {
-      // Filter users by the current company so cross-company employees don't appear
-      const companyId = selectedCompany?.id || user?.company?.id;
-      const response = await apiClient.getUsers(companyId ? { company: companyId } : undefined);
+      // Use the new assignable users endpoint that respects role-based permissions
+      const response = await apiClient.getAssignableUsers();
       
       // Handle both paginated and non-paginated responses
       let usersData: any[];

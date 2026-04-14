@@ -275,7 +275,7 @@ export default function ProjectList({ canCreate = false, canEdit = false, canDel
           {/* Add Project Button */}
           {canCreate && (
             <Button 
-              className="btn-accent" 
+              className="btn-primary" 
               size="sm"
               onClick={() => { setEditingProject(null); setIsFormOpen(true); }}
             >

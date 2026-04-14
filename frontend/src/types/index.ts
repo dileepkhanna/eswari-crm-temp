@@ -69,6 +69,7 @@ export interface Lead {
   createdBy: string;
   createdByName?: string;
   assignedTo?: string;
+  assignedToName?: string;
   assignedProjects?: string[];
   assignedProject?: string;
   company?: number;

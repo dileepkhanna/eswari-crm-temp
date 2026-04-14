@@ -21,8 +21,8 @@ export default function ManagerCustomers() {
   return (
     <div className="min-h-screen">
       <TopBar 
-        title="Customer Management" 
-        subtitle="Manage customers and call allocations" 
+        title="Call Management" 
+        subtitle="Manage calls and call allocations" 
       />
       <div className="p-3 sm:p-4 md:p-6">
         <CustomerList

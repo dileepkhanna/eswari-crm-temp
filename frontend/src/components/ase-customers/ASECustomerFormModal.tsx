@@ -131,18 +131,18 @@ export default function ASECustomerFormModal({
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="customer-form-description">
         <DialogHeader>
           <DialogTitle>
-            {customer ? 'Edit ASE Customer' : 'Add New ASE Customer'}
+            {customer ? 'Edit ASE Call' : 'Add New ASE Call'}
           </DialogTitle>
         </DialogHeader>
 
         <div id="customer-form-description" className="sr-only">
-          {customer ? 'Edit existing ASE customer information' : 'Add a new ASE customer with basic contact details'}
+          {customer ? 'Edit existing ASE call information' : 'Add a new ASE call with basic contact details'}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Customer Name */}
           <div>
-            <Label htmlFor="name">Customer Name</Label>
+            <Label htmlFor="name">Contact Name</Label>
             <Input
               id="name"
               value={formData.name || ''}
@@ -155,7 +155,7 @@ export default function ASECustomerFormModal({
             <Label htmlFor="company_name">Company Name</Label>
             <Input
               id="company_name"
-              placeholder="Enter customer's company name..."
+              placeholder="Enter contact's company name..."
               value={formData.company_name || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))}
             />
@@ -288,7 +288,7 @@ export default function ASECustomerFormModal({
             <Label htmlFor="notes">Notes</Label>
             <Textarea
               id="notes"
-              placeholder="Customer notes and comments..."
+              placeholder="Call notes and comments..."
               value={formData.notes || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
@@ -301,7 +301,7 @@ export default function ASECustomerFormModal({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : (customer ? 'Update Customer' : 'Create Customer')}
+              {loading ? 'Saving...' : (customer ? 'Update Call' : 'Create Call')}
             </Button>
           </div>
         </form>

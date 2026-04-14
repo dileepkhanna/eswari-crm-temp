@@ -218,6 +218,34 @@ class User(AbstractUser):
         limit_choices_to={'role': 'manager'},
         help_text='Manager assigned to this employee (only for employees)'
     )
+    joining_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Date when the user joined the company'
+    )
+    designation = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Job title or designation of the user'
+    )
+    pending_approval = models.BooleanField(
+        default=False,
+        help_text='Whether this user is pending admin approval'
+    )
+    approved_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_users',
+        help_text='Admin who approved this user'
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When this user was approved'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

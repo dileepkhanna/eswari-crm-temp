@@ -88,15 +88,16 @@ def get_capital_queryset(qs, user):
             Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
         ).distinct()
     if user.role == 'employee':
-        return qs.filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
+        # Employees can ONLY see records assigned to them (not records they created)
+        return qs.filter(assigned_to=user).distinct()
 
     return qs.none()
 
 
 class StandardPagination(PageNumberPagination):
-    page_size = 50
+    page_size = 100  # Default 100 rows per page for fast loading
     page_size_query_param = 'page_size'
-    max_page_size = 500
+    max_page_size = 2000  # Maximum allowed
 
 
 class CapitalCustomerViewSet(viewsets.ModelViewSet):
@@ -279,13 +280,26 @@ class CapitalLoanViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return get_capital_queryset(
-            CapitalLoan.objects.select_related('assigned_to', 'created_by', 'company'),
+            CapitalLoan.objects.select_related('assigned_to', 'created_by', 'company').only(
+                'id', 'applicant_name', 'phone', 'email', 'address', 'loan_type',
+                'loan_amount', 'tenure_months', 'interest_rate', 'bank_name', 'status',
+                'notes', 'created_at', 'updated_at',
+                'assigned_to__id', 'assigned_to__first_name', 'assigned_to__last_name', 'assigned_to__username',
+                'created_by__id', 'created_by__first_name', 'created_by__last_name', 'created_by__username',
+                'company__id'
+            ),
             self.request.user
         )
 
     def perform_create(self, serializer):
         company = get_capital_company(self.request.user)
         serializer.save(created_by=self.request.user, company=company)
+
+    def get_serializer_context(self):
+        """Add company to serializer context for validation"""
+        context = super().get_serializer_context()
+        context['company'] = get_capital_company(self.request.user)
+        return context
 
     def create(self, request, *args, **kwargs):
         try:
@@ -336,13 +350,26 @@ class CapitalServiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return get_capital_queryset(
-            CapitalService.objects.select_related('assigned_to', 'created_by', 'company'),
+            CapitalService.objects.select_related('assigned_to', 'created_by', 'company').only(
+                'id', 'client_name', 'phone', 'email', 'business_name', 'service_type',
+                'status', 'financial_year', 'business_type', 'turnover_range', 'income_slab',
+                'pan_number', 'gstin', 'notes', 'created_at', 'updated_at',
+                'assigned_to__id', 'assigned_to__first_name', 'assigned_to__last_name', 'assigned_to__username',
+                'created_by__id', 'created_by__first_name', 'created_by__last_name', 'created_by__username',
+                'company__id'
+            ),
             self.request.user
         )
 
     def perform_create(self, serializer):
         company = get_capital_company(self.request.user)
         serializer.save(created_by=self.request.user, company=company)
+
+    def get_serializer_context(self):
+        """Add company to serializer context for validation"""
+        context = super().get_serializer_context()
+        context['company'] = get_capital_company(self.request.user)
+        return context
 
     def create(self, request, *args, **kwargs):
         try:

@@ -45,7 +45,7 @@ def dry_run_test():
 
     today = timezone.localdate()
     from ase_customers.models import ASECustomer
-    count = ASECustomer.objects.filter(
+    count = ASECustomer.objects.filter( 
         scheduled_date__date=today,
         is_converted=False,
     ).exclude(call_status='not_interested').count()

@@ -41,9 +41,11 @@ const createUserSchema = z.object({
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
+  designation: z.string().max(100).optional(),
   role: z.enum(['admin', 'manager', 'employee', 'hr'] as const),
   company: z.number().positive('Company is required').optional(),
   managerId: z.string().optional(),
+  joining_date: z.string().optional(),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^(?=.*[a-zA-Z])/, 'Password must contain at least one letter')
@@ -70,8 +72,11 @@ const createUserSchema = z.object({
 
 const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
+  designation: z.string().max(100).optional(),
+  joining_date: z.string().optional(),
   managerId: z.string().optional(),
   company: z.number().positive('Company is required').optional(),
   newPassword: z.string()
@@ -104,14 +109,19 @@ interface UserFormModalProps {
     name: string;
     phone: string;
     address: string;
+    designation?: string;
     role: UserRole;
     company?: number; // Made optional for admin/HR
     managerId?: string;
+    joining_date?: string;
   }) => Promise<{ success: boolean; userId?: string }>;
   onUpdate?: (userId: string, userData: {
     name: string;
+    email?: string;
     phone: string;
     address: string;
+    designation?: string;
+    joining_date?: string;
     managerId?: string;
     company?: number;
     newPassword?: string;
@@ -147,9 +157,11 @@ export default function UserFormModal({
       email: '',
       phone: '',
       address: '',
+      designation: '',
       role: 'employee',
       company: defaultCompanyId as any, // Will be undefined for admin/hr, which is correct
       managerId: '',
+      joining_date: new Date().toISOString().split('T')[0], // Default to today
       password: '',
     },
   });
@@ -158,8 +170,11 @@ export default function UserFormModal({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
       name: '',
+      email: '',
       phone: '',
       address: '',
+      designation: '',
+      joining_date: '',
       managerId: 'none',
       company: 0,
       newPassword: '',
@@ -199,8 +214,11 @@ export default function UserFormModal({
       if (editUser) {
         editForm.reset({
           name: editUser.name,
+          email: (editUser as any).email || '',
           phone: editUser.phone || '',
           address: editUser.address || '',
+          designation: (editUser as any).designation || '',
+          joining_date: (editUser as any).joining_date || '',
           managerId: editUser.manager_id || 'none',
           company: editUser.company?.id || (user?.company as any)?.id || (user?.company as any) || 0,
           newPassword: '',
@@ -211,9 +229,11 @@ export default function UserFormModal({
           email: '',
           phone: '',
           address: '',
+          designation: '',
           role: 'employee',
           company: defaultCompanyId as any,
           managerId: '',
+          joining_date: new Date().toISOString().split('T')[0],
           password: '',
         });
       }
@@ -226,8 +246,20 @@ export default function UserFormModal({
     logger.log('[UserFormModal] Form data before submit:', data);
     logger.log('[UserFormModal] Company value:', data.company, 'Type:', typeof data.company);
     
-    // Convert company value: 0 means no company (null), otherwise use the number
-    const companyValue = data.company === 0 ? undefined : data.company;
+    // For manager/employee roles, company is required
+    // For admin/hr roles, company can be undefined (0 means no company selected)
+    let companyValue: number | undefined;
+    if (data.role === 'manager' || data.role === 'employee') {
+      // Company is required for these roles
+      if (!data.company || data.company === 0) {
+        toast.error('Company is required for manager and employee roles');
+        return;
+      }
+      companyValue = data.company;
+    } else {
+      // For admin/hr, 0 means no company (undefined)
+      companyValue = data.company === 0 ? undefined : data.company;
+    }
     
     const result = await onSave({
       email: data.email || '', // Handle empty email
@@ -235,9 +267,11 @@ export default function UserFormModal({
       name: data.name,
       phone: data.phone,
       address: data.address || '',
+      designation: data.designation || undefined,
       role: data.role as UserRole,
       company: companyValue,
       managerId: data.managerId || undefined,
+      joining_date: data.joining_date || undefined,
     });
 
     if (result.success && result.userId) {
@@ -250,8 +284,11 @@ export default function UserFormModal({
     
     const result = await onUpdate(editUser.id, {
       name: data.name,
+      email: data.email || undefined,
       phone: data.phone,
       address: data.address || '',
+      designation: data.designation || undefined,
+      joining_date: data.joining_date || undefined,
       managerId: data.managerId === 'none' ? undefined : data.managerId,
       company: data.company,
       newPassword: data.newPassword || undefined,
@@ -379,6 +416,23 @@ export default function UserFormModal({
 
                 <FormField
                   control={editForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Enter email address (optional)" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Email is optional
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
@@ -400,6 +454,40 @@ export default function UserFormModal({
                       <FormControl>
                         <Input placeholder="Enter address" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="designation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Software Engineer, Manager, etc." {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Job title or designation (optional)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="joining_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Joining Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Date when the user joined the company
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -468,7 +556,7 @@ export default function UserFormModal({
                   <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                     Cancel
                   </Button>
-                  <Button type="submit" className="btn-accent" disabled={isSubmitting}>
+                  <Button type="submit" className="btn-primary" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -589,6 +677,40 @@ export default function UserFormModal({
 
               <FormField
                 control={createForm.control}
+                name="joining_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Joining Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Date when the user joined the company
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={createForm.control}
+                name="designation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Designation</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Software Engineer, Manager, etc." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Job title or designation (optional)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={createForm.control}
                 name="role"
                 render={({ field }) => (
                   <FormItem>
@@ -667,7 +789,7 @@ export default function UserFormModal({
                 <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit" className="btn-accent" disabled={isSubmitting}>
+                <Button type="submit" className="btn-primary" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

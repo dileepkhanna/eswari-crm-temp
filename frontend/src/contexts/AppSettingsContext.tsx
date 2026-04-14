@@ -108,11 +108,11 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           opacity: 0.9 !important;
         }
         
-        /* Sidebar color overrides */
-        .glass-sidebar { 
+        /* Sidebar color overrides - only in light mode */
+        :root:not(.dark) .glass-sidebar { 
           background: linear-gradient(180deg, hsl(${s.sidebar_color}) 0%, hsl(${s.sidebar_color} / 0.95) 100%) !important;
         }
-        .bg-sidebar { background-color: hsl(${s.sidebar_color}) !important; }
+        :root:not(.dark) .bg-sidebar { background-color: hsl(${s.sidebar_color}) !important; }
         .text-sidebar { color: hsl(var(--sidebar-foreground)) !important; }
         
         /* Navigation link overrides */

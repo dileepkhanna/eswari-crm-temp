@@ -133,7 +133,7 @@ class CapitalLoan(models.Model):
     LOAN_TYPE_CHOICES = [
         ('personal', 'Personal Loan'), ('business', 'Business Loan'), ('home', 'Home Loan'),
         ('vehicle', 'Vehicle Loan'), ('education', 'Education Loan'), ('gold', 'Gold Loan'),
-        ('mortgage', 'Mortgage Loan'), ('other', 'Other'),
+        ('mortgage', 'Mortgage Loan'), ('property', 'Property Loan'), ('other', 'Other'),
     ]
     STATUS_CHOICES = [
         ('inquiry', 'Inquiry'), ('documents_pending', 'Documents Pending'), ('under_review', 'Under Review'),
@@ -143,7 +143,7 @@ class CapitalLoan(models.Model):
     phone = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True)
-    loan_type = models.CharField(max_length=20, choices=LOAN_TYPE_CHOICES, default='personal')
+    loan_type = models.CharField(max_length=100, default='personal')
     loan_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     tenure_months = models.PositiveIntegerField(null=True, blank=True)
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
@@ -162,6 +162,14 @@ class CapitalLoan(models.Model):
         indexes = [models.Index(fields=['company']), models.Index(fields=['status']), models.Index(fields=['loan_type']), models.Index(fields=['assigned_to'])]
 
     def __str__(self): return f"{self.applicant_name} - {self.get_loan_type_display()} ({self.get_status_display()})"
+    
+    def get_loan_type_display(self):
+        """Return display name for loan type, handling custom types"""
+        for value, label in self.LOAN_TYPE_CHOICES:
+            if self.loan_type == value:
+                return label
+        # For custom types, format nicely
+        return self.loan_type.replace('_', ' ').title()
 
     @property
     def assigned_to_name(self):
@@ -181,6 +189,7 @@ class CapitalService(models.Model):
     SERVICE_TYPE_CHOICES = [
         # GST Services
         ('gst_registration', 'GST Registration (New)'),
+        ('gst_filing', 'GST Filing'),
         ('gst_filing_monthly', 'GST Return Filing (Monthly)'),
         ('gst_filing_quarterly', 'GST Return Filing (Quarterly)'),
         ('gst_amendment', 'GST Amendment / Update'),
@@ -194,27 +203,56 @@ class CapitalService(models.Model):
         ('msme_amendment', 'MSME Amendment'),
         # Income Tax Services
         ('itr_filing', 'Income Tax Filing'),
+        ('income_tax_filing', 'Income Tax Filing'),
         ('itr_notice', 'Income Tax Notice'),
-        # Other
+        ('tds_filing', 'TDS Filing'),
+        # Other Services
         ('company_registration', 'Company Registration'),
         ('trademark', 'Trademark Registration'),
+        ('accounting', 'Accounting Services'),
         ('other', 'Other'),
     ]
     STATUS_CHOICES = [
-        ('inquiry', 'Inquiry'), ('documents_pending', 'Documents Pending'),
-        ('in_progress', 'In Progress'), ('completed', 'Completed'), ('rejected', 'Rejected'),
+        ('inquiry', 'Inquiry'),
+        ('documentation', 'Documentation'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('on_hold', 'On Hold'),
+        ('cancelled', 'Cancelled'),
+        # Legacy values
+        ('documents_pending', 'Documents Pending'),
+        ('in_progress', 'In Progress'),
+        ('rejected', 'Rejected'),
     ]
     BUSINESS_TYPE_CHOICES = [
-        ('proprietor', 'Proprietor'), ('partnership', 'Partnership'), ('company', 'Company'),
+        ('proprietor', 'Proprietor'),
+        ('proprietorship', 'Proprietorship'),
+        ('partnership', 'Partnership'),
+        ('llp', 'LLP'),
+        ('private_limited', 'Private Limited'),
+        ('public_limited', 'Public Limited'),
+        ('company', 'Company'),
+        ('other', 'Other'),
     ]
     TURNOVER_CHOICES = [
         ('below_20l', 'Below ₹20 Lakhs'),
+        ('20l_40l', '₹20L – ₹40L'),
+        ('40l_1cr', '₹40L – ₹1 Cr'),
+        ('1cr_5cr', '₹1 Cr – ₹5 Cr'),
+        ('5cr_10cr', '₹5 Cr – ₹10 Cr'),
+        ('above_10cr', 'Above ₹10 Cr'),
+        # Legacy values
         ('20l_1cr', '₹20L – ₹1 Cr'),
         ('above_1cr', 'Above ₹1 Cr'),
     ]
     INCOME_SLAB_CHOICES = [
-        ('0_5l', '0 to ₹5 Lakh'),
+        ('below_5l', 'Below ₹5 Lakh'),
         ('5l_10l', '₹5 Lakh to ₹10 Lakh'),
+        ('10l_25l', '₹10 Lakh to ₹25 Lakh'),
+        ('25l_50l', '₹25 Lakh to ₹50 Lakh'),
+        ('above_50l', 'Above ₹50 Lakh'),
+        # Legacy values
+        ('0_5l', '0 to ₹5 Lakh'),
         ('10l_18l', '₹10 Lakh to ₹18 Lakh'),
         ('above_18l', '₹18 Lakh and above'),
     ]

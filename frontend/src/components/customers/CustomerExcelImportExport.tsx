@@ -55,11 +55,11 @@ export default function CustomerExcelImportExport({
       ];
       ws['!cols'] = colWidths;
 
-      XLSX.writeFile(wb, `customers_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Customer data exported successfully');
+      XLSX.writeFile(wb, `calls_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Call data exported successfully');
     } catch (error) {
       logger.error('Export error:', error);
-      toast.error('Failed to export customer data');
+      toast.error('Failed to export call data');
     }
   };
 
@@ -125,13 +125,13 @@ export default function CustomerExcelImportExport({
 
         if (importedCustomers.length > 0) {
           onImport(importedCustomers);
-          toast.success(`Successfully imported ${importedCustomers.length} customer(s)`);
+          toast.success(`Successfully imported ${importedCustomers.length} call(s)`);
         } else {
-          toast.error('No valid customer data found in the file');
+          toast.error('No valid call data found in the file');
         }
       } catch (error) {
         logger.error('Import error:', error);
-        toast.error('Failed to import customer data. Please check the file format.');
+        toast.error('Failed to import call data. Please check the file format.');
       }
     };
 
@@ -171,18 +171,18 @@ export default function CustomerExcelImportExport({
 
     // Create instructions sheet with role-specific information
     const instructionsData = [
-      { 'Field': 'Phone Number', 'Required': 'Yes', 'Description': 'Customer phone number (mandatory and must be unique)' },
-      { 'Field': 'Name', 'Required': 'No', 'Description': 'Customer name (optional)' },
+      { 'Field': 'Phone Number', 'Required': 'Yes', 'Description': 'Contact phone number (mandatory and must be unique)' },
+      { 'Field': 'Name', 'Required': 'No', 'Description': 'Contact name (optional)' },
       { 'Field': 'Default Values', 'Required': '', 'Description': 'Call Status: pending, Notes: empty, Scheduled Date: none' },
-      { 'Field': 'Duplicate Handling', 'Required': '', 'Description': 'Customers with existing phone numbers will be skipped during import' },
-      { 'Field': 'Auto-Assignment', 'Required': '', 'Description': canAssignToEmployee ? 'Admin/Manager: Use bulk assignment after import' : 'Employee: Customers will be automatically assigned to you' },
+      { 'Field': 'Duplicate Handling', 'Required': '', 'Description': 'Calls with existing phone numbers will be skipped during import' },
+      { 'Field': 'Auto-Assignment', 'Required': '', 'Description': canAssignToEmployee ? 'Admin/Manager: Use bulk assignment after import' : 'Employee: Calls will be automatically assigned to you' },
     ];
     
     const instructionsWs = XLSX.utils.json_to_sheet(instructionsData);
     XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
     instructionsWs['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 60 }];
 
-    XLSX.writeFile(wb, 'customer_import_template.xlsx');
+    XLSX.writeFile(wb, 'call_import_template.xlsx');
     toast.success('Template downloaded successfully');
   };
 
@@ -204,7 +204,7 @@ export default function CustomerExcelImportExport({
         size="sm"
         onClick={() => fileInputRef.current?.click()}
         className="flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
-        title={canAssignToEmployee ? "Import customers (use bulk assignment after import)" : "Import customers (will be automatically assigned to you)"}
+        title={canAssignToEmployee ? "Import calls (use bulk assignment after import)" : "Import calls (will be automatically assigned to you)"}
       >
         <Upload className="w-4 h-4" />
         <span className="hidden sm:inline">Import Excel</span>

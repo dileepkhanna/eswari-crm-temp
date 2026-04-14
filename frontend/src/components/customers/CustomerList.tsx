@@ -619,7 +619,7 @@ function CustomerList({
           <div className="flex items-center justify-center py-8">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-muted-foreground">Loading customers...</span>
+              <span className="text-muted-foreground">Loading calls...</span>
             </div>
           </div>
         </div>
@@ -692,10 +692,10 @@ function CustomerList({
 
                 <Select value={conversionFilter} onValueChange={setConversionFilter}>
                   <SelectTrigger className="w-full sm:w-36 h-9">
-                    <SelectValue placeholder="All Customers" />
+                    <SelectValue placeholder="All Calls" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
+                    <SelectItem value="all">All Calls</SelectItem>
                     <SelectItem value="converted">Converted</SelectItem>
                     <SelectItem value="not_converted">Not Converted</SelectItem>
                   </SelectContent>
@@ -822,7 +822,7 @@ function CustomerList({
                       className="text-xs"
                     >
                       <ArrowRightIcon className="w-4 h-4 mr-1" />
-                      Convert to Leads ({selectedIds.size})
+                      Convert ({selectedIds.size})
                     </Button>
                   </>
                 )}
@@ -842,11 +842,11 @@ function CustomerList({
                   </Suspense>
                   
                   <Button 
-                    className="btn-accent text-xs sm:text-sm" 
+                    className="btn-primary text-xs sm:text-sm" 
                     onClick={() => setIsFormOpen(true)}
                   >
                     <PlusIcon className="w-4 h-4 mr-1 sm:mr-2" />
-                    Add Customer
+                    Add Call
                   </Button>
                 </>
               )}
@@ -856,9 +856,9 @@ function CustomerList({
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="hidden lg:block">
               <div className="p-4 border-b flex items-center justify-between">
-                <span className="text-sm font-medium">Customer List</span>
+                <span className="text-sm font-medium">Call List</span>
                 <span className="text-sm text-muted-foreground">
-                  {sortedCustomers.length} customer{sortedCustomers.length !== 1 ? 's' : ''}
+                  {sortedCustomers.length} call{sortedCustomers.length !== 1 ? 's' : ''}
                 </span>
               </div>
               <Table>
@@ -1100,7 +1100,7 @@ function CustomerList({
                   </div>
                 )}
                 <span className="text-sm text-muted-foreground">
-                  {sortedCustomers.length} customer{sortedCustomers.length !== 1 ? 's' : ''}
+                  {sortedCustomers.length} call{sortedCustomers.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
@@ -1294,13 +1294,13 @@ function CustomerList({
 
             {sortedCustomers.length === 0 && customers.length === 0 && !loading && (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">No customers available</p>
+                <p className="text-muted-foreground mb-4">No calls available</p>
               </div>
             )}
 
             {sortedCustomers.length === 0 && customers.length > 0 && (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">No customers found matching your filters</p>
+                <p className="text-muted-foreground mb-4">No calls found matching your filters</p>
               </div>
             )}
 
@@ -1308,7 +1308,7 @@ function CustomerList({
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t">
                 <div className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, sortedCustomers.length)} of {sortedCustomers.length} customers
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, sortedCustomers.length)} of {sortedCustomers.length} calls
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -1367,10 +1367,10 @@ function CustomerList({
                 <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
                   <DeleteIcon className="w-4 h-4 text-red-600" />
                 </div>
-                Delete Customers
+                Delete Calls
               </AlertDialogTitle>
               <AlertDialogDescription className="text-sm">
-                Are you sure you want to delete <span className="font-semibold text-red-600">{selectedIds.size}</span> customer{selectedIds.size > 1 ? 's' : ''}? 
+                Are you sure you want to delete <span className="font-semibold text-red-600">{selectedIds.size}</span> call{selectedIds.size !== 1 ? 's' : ''}?
                 <br />
                 <span className="text-red-500 font-medium">This action cannot be undone.</span>
               </AlertDialogDescription>

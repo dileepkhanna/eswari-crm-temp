@@ -88,6 +88,9 @@ export const apiToLead = (apiLead: any): Lead => ({
     ? (`${apiLead.created_by_detail.first_name || ''} ${apiLead.created_by_detail.last_name || ''}`.trim() || apiLead.created_by_detail.username)
     : undefined,
   assignedTo: apiLead.assigned_to_detail?.id?.toString() || apiLead.assigned_to?.toString() || undefined,
+  assignedToName: apiLead.assigned_to_detail
+    ? (`${apiLead.assigned_to_detail.first_name || ''} ${apiLead.assigned_to_detail.last_name || ''}`.trim() || apiLead.assigned_to_detail.username)
+    : undefined,
   assignedProjects: apiLead.assigned_projects || [], // New multiple projects field
   assignedProject: apiLead.assigned_project || '', // Keep for backward compatibility
   createdAt: new Date(apiLead.created_at),
@@ -246,7 +249,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!user) return [];
     
     try {
-      const response = await apiClient.getProjects({ page: 1, page_size: 500 });
+      const response = await apiClient.getProjects({ page: 1, page_size: 2000 });
       const pageResults = response.results || (Array.isArray(response) ? response : []);
       const projectsList = pageResults.map(apiToProject);
       setProjects(projectsList);
@@ -503,7 +506,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         preferred_location: lead.preferredLocation || '',
         status: lead.status,
         source: lead.source || 'website',
-        assigned_to: lead.assignedTo || null,
+        assigned_to: lead.assignedTo && lead.assignedTo !== '' ? lead.assignedTo : null,
         assigned_projects: lead.assignedProjects || [],
         assigned_project: lead.assignedProject || null,
         follow_up_date: lead.followUpDate?.toISOString() || null,
@@ -537,13 +540,68 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       toast.success('Lead created successfully');
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error adding lead:', error);
       
       // Remove optimistic update on error
       setLeads(prev => prev.filter(l => l.id !== tempId));
       
-      toast.error('Failed to add lead');
+      // Parse error message for better user feedback
+      let errorMessage = 'Failed to add lead';
+      
+      if (error?.message) {
+        try {
+          // Try to parse the error message
+          const errorStr = error.message;
+          
+          // Check for duplicate phone number error
+          if (errorStr.includes('UNIQUE constraint failed') || errorStr.includes('unique_together') || errorStr.includes('duplicate')) {
+            errorMessage = `A lead with phone number "${lead.phone}" already exists in this company`;
+          }
+          // Check for validation errors
+          else if (errorStr.includes('HTTP error! status: 400')) {
+            // Try to extract the actual error details
+            const match = errorStr.match(/details: ({.*})/);
+            if (match) {
+              try {
+                const details = JSON.parse(match[1]);
+                if (details.phone) {
+                  errorMessage = `Phone: ${Array.isArray(details.phone) ? details.phone[0] : details.phone}`;
+                } else if (details.error) {
+                  errorMessage = details.error;
+                } else if (details.detail) {
+                  errorMessage = details.detail;
+                } else {
+                  errorMessage = JSON.stringify(details);
+                }
+              } catch (parseError) {
+                errorMessage = 'Invalid data provided. Please check all fields.';
+              }
+            } else {
+              errorMessage = 'Invalid data provided. Please check all fields.';
+            }
+          }
+          // Check for permission errors
+          else if (errorStr.includes('HTTP error! status: 403')) {
+            errorMessage = 'You do not have permission to create leads';
+          }
+          // Check for authentication errors
+          else if (errorStr.includes('HTTP error! status: 401')) {
+            errorMessage = 'Session expired. Please login again';
+          }
+          // Generic server error
+          else if (errorStr.includes('HTTP error! status: 500')) {
+            errorMessage = 'Server error. Please try again later';
+          }
+        } catch (parseError) {
+          logger.error('Error parsing error message:', parseError);
+        }
+      }
+      
+      toast.error(errorMessage, {
+        duration: 5000,
+        description: 'Please check the information and try again'
+      });
       throw error;
     }
   }, [notificationContext, user]);
@@ -575,6 +633,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.preferredLocation !== undefined) updateData.preferred_location = data.preferredLocation;
       if (data.status !== undefined) updateData.status = data.status;
       if (data.source !== undefined) updateData.source = data.source;
+      if (data.assignedTo !== undefined) updateData.assigned_to = data.assignedTo || null;
       if (data.assignedProjects !== undefined) updateData.assigned_projects = data.assignedProjects;
       if (data.assignedProject !== undefined) updateData.assigned_project = data.assignedProject;
       if (data.followUpDate !== undefined) {

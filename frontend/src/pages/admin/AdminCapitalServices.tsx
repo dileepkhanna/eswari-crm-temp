@@ -2,10 +2,13 @@ import { useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useCapital } from '@/contexts/CapitalCustomerContext';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Edit, RefreshCw, ClipboardList, Upload, Download } from 'lucide-react';
-import { CapitalService } from '@/services/capital.service';
+import { Plus, Trash2, Edit, RefreshCw, ClipboardList, Upload, Download, Eye } from 'lucide-react';
+import { CapitalService, capitalServiceService } from '@/services/capital.service';
 import CapitalServiceModal from '@/components/capital/CapitalServiceModal';
+import CapitalServiceDetailsModal from '@/components/capital/CapitalServiceDetailsModal';
 import CapitalTaskModal from '@/components/capital/CapitalTaskModal';
+import { Pagination } from '@/components/common/Pagination';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,7 +34,25 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export default function AdminCapitalServices() {
-  const { services, employees, currentUserId, currentUserRole, loadingServices, addService, updateService, deleteService, refreshServices, bulkImportServices, addTask } = useCapital();
+  const { 
+    services, 
+    employees, 
+    currentUserId, 
+    currentUserRole, 
+    loadingServices, 
+    addService, 
+    updateService, 
+    deleteService, 
+    refreshServices, 
+    bulkImportServices, 
+    addTask,
+    servicesPage,
+    servicesTotalPages,
+    servicesTotalCount,
+    loadServicesPage,
+    searchServices,
+    filterServices
+  } = useCapital();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -39,17 +60,26 @@ export default function AdminCapitalServices() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<CapitalService | null>(null);
+  const [viewing, setViewing] = useState<CapitalService | null>(null);
   const [taskService, setTaskService] = useState<CapitalService | null>(null);
 
-  const filtered = services.filter(s => {
-    const matchSearch = !search || [s.client_name, s.phone, s.email, s.business_name].some(v => v?.toLowerCase().includes(search.toLowerCase()));
-    const cat = SERVICE_CATEGORY[s.service_type] || 'Other';
-    const matchCat = !categoryFilter || cat === categoryFilter;
-    const matchStatus = !statusFilter || s.status === statusFilter;
-    const matchAssignee = !assigneeFilter || String(s.assigned_to) === assigneeFilter;
-    const matchType = !serviceTypeFilter || s.service_type === serviceTypeFilter;
-    return matchSearch && matchCat && matchStatus && matchAssignee && matchType;
-  });
+  // Use services directly from context (already filtered by backend)
+  const filtered = services;
+  
+  // Handle search
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    searchServices(value);
+  };
+  
+  // Handle filter
+  const handleFilter = () => {
+    const filters: any = {};
+    if (statusFilter) filters.status = statusFilter;
+    if (serviceTypeFilter) filters.service_type = serviceTypeFilter;
+    if (assigneeFilter) filters.assigned_to = assigneeFilter;
+    filterServices(filters);
+  };
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -68,21 +98,40 @@ export default function AdminCapitalServices() {
     await deleteService(id);
   };
 
-  const handleExport = () => {
-    const data = filtered.map(s => ({
-      'Client Name': s.client_name, Phone: s.phone, Email: s.email || '',
-      'Business Name': s.business_name || '', 'City/State': s.city_state || '',
-      Category: SERVICE_CATEGORY[s.service_type] || 'Other',
-      'Service Type': s.service_type_display || s.service_type,
-      Status: s.status_display || s.status,
-      'PAN Number': s.pan_number || '', 'Aadhaar Number': s.aadhaar_number || '',
-      'Financial Year': s.financial_year || '', 'Service Fee': s.service_fee || '',
-      Notes: s.notes || '', 'Assigned To': s.assigned_to_name || '',
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Services');
-    XLSX.writeFile(wb, `capital-services-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const handleExport = async () => {
+    try {
+      // Fetch ALL services with current filters (no pagination limit)
+      const params: any = { page_size: 10000 }; // Large number to get all records
+      
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (serviceTypeFilter) params.service_type = serviceTypeFilter;
+      if (assigneeFilter) params.assigned_to = assigneeFilter;
+      
+      const res = await capitalServiceService.list(params) as any;
+      const allServices = Array.isArray(res) ? res : res.results || [];
+      
+      const data = allServices.map((s: any) => ({
+        'Client Name': s.client_name, Phone: s.phone, Email: s.email || '',
+        'Business Name': s.business_name || '', 'City/State': s.city_state || '',
+        Category: SERVICE_CATEGORY[s.service_type] || 'Other',
+        'Service Type': s.service_type_display || s.service_type,
+        Status: s.status_display || s.status,
+        'PAN Number': s.pan_number || '', 'Aadhaar Number': s.aadhaar_number || '',
+        'Financial Year': s.financial_year || '', 'Service Fee': s.service_fee || '',
+        Notes: s.notes || '', 'Assigned To': s.assigned_to_name || '',
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Services');
+      XLSX.writeFile(wb, `capital-services-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      
+      toast.success(`Exported ${data.length} services`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export services');
+    }
   };
 
   const downloadTemplate = () => {
@@ -164,7 +213,7 @@ export default function AdminCapitalServices() {
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
-            <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
+            <input type="text" placeholder="Search..." value={search} onChange={e => handleSearch(e.target.value)}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-48" />
             <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setServiceTypeFilter(''); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
@@ -173,14 +222,14 @@ export default function AdminCapitalServices() {
               <option value="MSME">MSME</option>
               <option value="ITR">Income Tax</option>
             </select>
-            <select value={serviceTypeFilter} onChange={e => setServiceTypeFilter(e.target.value)}
+            <select value={serviceTypeFilter} onChange={e => { setServiceTypeFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Service Types</option>
               {SERVICE_TYPE_OPTIONS.filter(o => !categoryFilter || o.cat === categoryFilter).map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Status</option>
               <option value="inquiry">Inquiry</option>
@@ -209,7 +258,7 @@ export default function AdminCapitalServices() {
             </Button>
             <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={handleExport}>
               <Download className="w-3.5 h-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Export ({filtered.length})</span>
+              <span className="hidden sm:inline">Export ({servicesTotalCount})</span>
             </Button>
             <Button variant="outline" size="sm" className="rounded-full" onClick={refreshServices}>
               <RefreshCw className="w-3.5 h-3.5" />
@@ -219,6 +268,16 @@ export default function AdminCapitalServices() {
             </Button>
           </div>
         </div>
+
+        {/* Pagination - Top */}
+        <Pagination
+          currentPage={servicesPage}
+          totalPages={servicesTotalPages}
+          totalCount={servicesTotalCount}
+          onPageChange={loadServicesPage}
+          loading={loadingServices}
+          itemName="services"
+        />
 
         {selected.size > 0 && (
           <div className="flex items-center gap-2">
@@ -270,6 +329,7 @@ export default function AdminCapitalServices() {
                     <td className="py-3 px-4 text-muted-foreground">{s.assigned_to_name || '—'}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" title="View Details" onClick={() => setViewing(s)}><Eye className="w-3.5 h-3.5" /></Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500" title="Add Task" onClick={() => setTaskService(s)}><ClipboardList className="w-3.5 h-3.5" /></Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditing(s); setIsModalOpen(true); }}><Edit className="w-3.5 h-3.5" /></Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDelete(s.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
@@ -322,6 +382,9 @@ export default function AdminCapitalServices() {
                 )}
 
                 <div className="flex gap-2 pt-3 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 h-8 text-xs rounded-full gap-1" onClick={() => setViewing(s)}>
+                    <Eye className="w-3.5 h-3.5" />View
+                  </Button>
                   <Button variant="outline" size="sm" className="flex-1 h-8 text-xs rounded-full gap-1" onClick={() => setTaskService(s)}>
                     <ClipboardList className="w-3.5 h-3.5" />Task
                   </Button>
@@ -336,6 +399,16 @@ export default function AdminCapitalServices() {
             );
           })}
         </div>
+
+        {/* Pagination - Bottom */}
+        <Pagination
+          currentPage={servicesPage}
+          totalPages={servicesTotalPages}
+          totalCount={servicesTotalCount}
+          onPageChange={loadServicesPage}
+          loading={loadingServices}
+          itemName="services"
+        />
       </div>
 
       {isModalOpen && (
@@ -349,6 +422,18 @@ export default function AdminCapitalServices() {
             if (editing) await updateService(editing.id, data);
             else await addService(data);
             setIsModalOpen(false); setEditing(null);
+          }}
+        />
+      )}
+
+      {viewing && (
+        <CapitalServiceDetailsModal
+          service={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            setEditing(viewing);
+            setViewing(null);
+            setIsModalOpen(true);
           }}
         />
       )}

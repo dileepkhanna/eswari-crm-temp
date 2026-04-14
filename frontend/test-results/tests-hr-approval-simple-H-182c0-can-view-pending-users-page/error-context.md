@@ -1,0 +1,200 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - region "Notifications (F8)":
+      - list
+    - region "Notifications alt+T"
+    - generic [ref=e3]:
+      - complementary [ref=e5]:
+        - link "ESWARI CONNECTS ESWARI CONNECTS" [ref=e7] [cursor=pointer]:
+          - /url: /admin
+          - img "ESWARI CONNECTS" [ref=e8]
+          - generic [ref=e9]: ESWARI CONNECTS
+        - navigation [ref=e10]:
+          - link "Dashboard" [ref=e12] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e13]
+            - generic [ref=e18]: Dashboard
+          - generic [ref=e19]:
+            - button "Common" [ref=e21] [cursor=pointer]:
+              - img [ref=e22]
+              - generic [ref=e24]: Common
+            - link "Announcements" [ref=e25] [cursor=pointer]:
+              - /url: /admin/announcements
+              - img [ref=e26]
+              - generic [ref=e30]: Announcements
+            - link "Birthday Calendar" [ref=e31] [cursor=pointer]:
+              - /url: /admin/birthdays
+              - img [ref=e32]
+              - generic [ref=e36]: Birthday Calendar
+            - link "Holidays" [ref=e37] [cursor=pointer]:
+              - /url: /admin/holidays
+              - img [ref=e38]
+              - generic [ref=e48]: Holidays
+            - link "Leaves" [ref=e49] [cursor=pointer]:
+              - /url: /admin/leaves
+              - img [ref=e50]
+              - generic [ref=e60]: Leaves
+          - generic [ref=e61]:
+            - button "ASE Technologies" [ref=e63] [cursor=pointer]:
+              - img [ref=e64]
+              - generic [ref=e66]: ASE Technologies
+            - link "Employees" [ref=e67] [cursor=pointer]:
+              - /url: /admin/ase-employees
+              - img [ref=e68]
+              - generic [ref=e73]: Employees
+            - link "Calls" [ref=e74] [cursor=pointer]:
+              - /url: /admin/ase-customers
+              - img [ref=e75]
+              - generic [ref=e79]: Calls
+            - link "Leads" [ref=e80] [cursor=pointer]:
+              - /url: /admin/ase-leads
+              - img [ref=e81]
+              - generic [ref=e84]: Leads
+            - link "Reports" [ref=e85] [cursor=pointer]:
+              - /url: /admin/ase-reports
+              - img [ref=e86]
+              - generic [ref=e91]: Reports
+            - link "Activity" [ref=e92] [cursor=pointer]:
+              - /url: /admin/ase-activity
+              - img [ref=e93]
+              - generic [ref=e97]: Activity
+          - generic [ref=e98]:
+            - button "Eswari Group" [ref=e100] [cursor=pointer]:
+              - img [ref=e101]
+              - generic [ref=e103]: Eswari Group
+            - link "Employees" [ref=e104] [cursor=pointer]:
+              - /url: /admin/eswari-employees
+              - img [ref=e105]
+              - generic [ref=e110]: Employees
+            - link "Calls" [ref=e111] [cursor=pointer]:
+              - /url: /admin/customers
+              - img [ref=e112]
+              - generic [ref=e116]: Calls
+            - link "Leads" [ref=e117] [cursor=pointer]:
+              - /url: /admin/leads
+              - img [ref=e118]
+              - generic [ref=e121]: Leads
+            - link "Conversion Analytics" [ref=e122] [cursor=pointer]:
+              - /url: /admin/conversion-analytics
+              - img [ref=e123]
+              - generic [ref=e126]: Conversion Analytics
+            - link "Tasks" [ref=e127] [cursor=pointer]:
+              - /url: /admin/tasks
+              - img [ref=e128]
+              - generic [ref=e136]: Tasks
+            - link "Projects" [ref=e137] [cursor=pointer]:
+              - /url: /admin/projects
+              - img [ref=e138]
+              - generic [ref=e143]: Projects
+            - link "Reports" [ref=e144] [cursor=pointer]:
+              - /url: /admin/reports
+              - img [ref=e145]
+              - generic [ref=e150]: Reports
+            - link "Activity" [ref=e151] [cursor=pointer]:
+              - /url: /admin/activity
+              - img [ref=e152]
+              - generic [ref=e156]: Activity
+          - generic [ref=e157]:
+            - button "Eswari Capital" [ref=e159] [cursor=pointer]:
+              - img [ref=e160]
+              - generic [ref=e162]: Eswari Capital
+            - link "Employees" [ref=e163] [cursor=pointer]:
+              - /url: /admin/capital-employees
+              - img [ref=e164]
+              - generic [ref=e169]: Employees
+            - link "Calls" [ref=e170] [cursor=pointer]:
+              - /url: /admin/capital-customers
+              - img [ref=e171]
+              - generic [ref=e175]: Calls
+            - link "Loans" [ref=e176] [cursor=pointer]:
+              - /url: /admin/capital-loans
+              - img [ref=e177]
+              - generic [ref=e178]: Loans
+            - link "Services" [ref=e179] [cursor=pointer]:
+              - /url: /admin/capital-services
+              - img [ref=e180]
+              - generic [ref=e183]: Services
+            - link "Tasks" [ref=e184] [cursor=pointer]:
+              - /url: /admin/capital-tasks
+              - img [ref=e185]
+              - generic [ref=e193]: Tasks
+            - link "Tools" [ref=e194] [cursor=pointer]:
+              - /url: /admin/capital-tools
+              - img [ref=e195]
+              - generic [ref=e197]: Tools
+            - link "Reports" [ref=e198] [cursor=pointer]:
+              - /url: /admin/capital-reports
+              - img [ref=e199]
+              - generic [ref=e204]: Reports
+            - link "Activity" [ref=e205] [cursor=pointer]:
+              - /url: /admin/capital-activity
+              - img [ref=e206]
+              - generic [ref=e210]: Activity
+          - generic [ref=e211]:
+            - button "System Management" [ref=e213] [cursor=pointer]:
+              - img [ref=e214]
+              - generic [ref=e216]: System Management
+            - link "Employees" [ref=e217] [cursor=pointer]:
+              - /url: /admin/users
+              - img [ref=e218]
+              - generic [ref=e223]: Employees
+            - link "Pending Users" [active] [ref=e224] [cursor=pointer]:
+              - /url: /admin/pending-users
+              - img [ref=e225]
+              - generic [ref=e229]: Pending Users
+            - link "Companies" [ref=e230] [cursor=pointer]:
+              - /url: /admin/companies
+              - img [ref=e231]
+              - generic [ref=e243]: Companies
+            - link "Branding" [ref=e244] [cursor=pointer]:
+              - /url: /admin/branding
+              - img [ref=e245]
+              - generic [ref=e248]: Branding
+          - link "Settings" [ref=e250] [cursor=pointer]:
+            - /url: /admin/settings
+            - img [ref=e251]
+            - generic [ref=e254]: Settings
+        - generic [ref=e255]:
+          - generic [ref=e256]:
+            - img [ref=e258]
+            - generic [ref=e262]:
+              - paragraph [ref=e263]: admin admin
+              - paragraph [ref=e264]: admin
+          - generic [ref=e265]:
+            - button "Collapse sidebar" [ref=e266] [cursor=pointer]:
+              - img [ref=e267]
+            - link "Settings" [ref=e269] [cursor=pointer]:
+              - /url: /admin/settings
+              - img [ref=e270]
+            - button "Logout" [ref=e273] [cursor=pointer]:
+              - img [ref=e274]
+      - main [ref=e277]:
+        - generic [ref=e279]:
+          - generic [ref=e280]:
+            - generic [ref=e281]:
+              - button [ref=e282] [cursor=pointer]:
+                - img
+              - heading "Pending User Approvals" [level=1] [ref=e284]
+            - generic [ref=e285]:
+              - button [ref=e286] [cursor=pointer]:
+                - img
+              - generic [ref=e287]:
+                - generic [ref=e288]: a
+                - generic [ref=e289]:
+                  - paragraph [ref=e290]: admin admin
+                  - paragraph [ref=e291]: admin
+          - generic [ref=e293]:
+            - generic [ref=e294]:
+              - generic [ref=e295]:
+                - heading "Users Pending Approval" [level=2] [ref=e296]
+                - paragraph [ref=e297]: Review and approve users created by HR
+              - generic [ref=e298]: 0 Pending
+            - generic [ref=e299]:
+              - img [ref=e301]
+              - heading "All Caught Up!" [level=3] [ref=e303]
+              - paragraph [ref=e304]: No users pending approval at the moment
+  - generic [ref=e305]: Stage
+```

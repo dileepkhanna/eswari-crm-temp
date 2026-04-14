@@ -166,11 +166,11 @@ export default function BulkConversionModal({
         const { success_count, skipped_count, error_count } = response.summary;
         
         if (error_count === 0 && skipped_count === 0) {
-          toast.success(`Successfully converted ${success_count} customer(s) to leads!`);
+          toast.success(`Successfully converted ${success_count} call(s) to leads!`);
         } else if (success_count > 0) {
-          toast.success(`Converted ${success_count} customer(s). ${skipped_count} skipped, ${error_count} errors.`);
+          toast.success(`Converted ${success_count} call(s). ${skipped_count} skipped, ${error_count} errors.`);
         } else {
-          toast.warning(`No customers converted. ${skipped_count} skipped, ${error_count} errors.`);
+          toast.warning(`No calls converted. ${skipped_count} skipped, ${error_count} errors.`);
         }
         
         // Refresh customer list
@@ -243,9 +243,9 @@ export default function BulkConversionModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Bulk Convert Customers to Leads</DialogTitle>
+          <DialogTitle>Bulk Convert Calls to Leads</DialogTitle>
           <DialogDescription>
-            Convert {selectedCustomerIds.length} selected customer(s) to leads with default values.
+            Convert {selectedCustomerIds.length} selected call(s) to leads with default values.
           </DialogDescription>
         </DialogHeader>
 
@@ -261,7 +261,7 @@ export default function BulkConversionModal({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Already-converted customers will be automatically skipped
+                Already-converted calls will be automatically skipped
               </p>
             </div>
 
@@ -409,7 +409,7 @@ export default function BulkConversionModal({
             {isSubmitting && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Converting customers...</span>
+                  <span>Converting calls...</span>
                   <span>{progress}%</span>
                 </div>
                 <Progress value={progress} />
@@ -428,7 +428,7 @@ export default function BulkConversionModal({
                     Converting...
                   </>
                 ) : (
-                  `Convert ${selectedCustomerIds.length} Customer(s)`
+                  `Convert ${selectedCustomerIds.length} Call(s)`
                 )}
               </Button>
             </div>

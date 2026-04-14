@@ -2,10 +2,13 @@ import { useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useCapital } from '@/contexts/CapitalCustomerContext';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Edit, RefreshCw, ClipboardList, Upload, Download } from 'lucide-react';
-import { CapitalLoan } from '@/services/capital.service';
+import { Plus, Trash2, Edit, RefreshCw, ClipboardList, Upload, Download, Eye } from 'lucide-react';
+import { CapitalLoan, capitalLoanService } from '@/services/capital.service';
 import CapitalLoanModal from '@/components/capital/CapitalLoanModal';
+import CapitalLoanDetailsModal from '@/components/capital/CapitalLoanDetailsModal';
 import CapitalTaskModal from '@/components/capital/CapitalTaskModal';
+import { Pagination } from '@/components/common/Pagination';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -25,7 +28,25 @@ const LOAN_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function AdminCapitalLoans() {
-  const { loans, employees, currentUserId, currentUserRole, loadingLoans, addLoan, updateLoan, deleteLoan, refreshLoans, bulkImportLoans, addTask } = useCapital();
+  const { 
+    loans, 
+    employees, 
+    currentUserId, 
+    currentUserRole, 
+    loadingLoans, 
+    addLoan, 
+    updateLoan, 
+    deleteLoan, 
+    refreshLoans, 
+    bulkImportLoans, 
+    addTask,
+    loansPage,
+    loansTotalPages,
+    loansTotalCount,
+    loadLoansPage,
+    searchLoans,
+    filterLoans
+  } = useCapital();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -33,18 +54,30 @@ export default function AdminCapitalLoans() {
   const [bankFilter, setBankFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<CapitalLoan | null>(null);
+  const [viewing, setViewing] = useState<CapitalLoan | null>(null);
   const [taskLoan, setTaskLoan] = useState<CapitalLoan | null>(null);
 
+  // Get unique loan types from actual data
+  const uniqueLoanTypes = [...new Set(loans.map(l => l.loan_type).filter(Boolean))] as string[];
   const uniqueBanks = [...new Set(loans.map(l => l.bank_name).filter(Boolean))] as string[];
 
-  const filtered = loans.filter(l => {
-    const matchSearch = !search || [l.applicant_name, l.phone, l.email, l.bank_name].some(v => v?.toLowerCase().includes(search.toLowerCase()));
-    const matchType = !typeFilter || l.loan_type === typeFilter;
-    const matchStatus = !statusFilter || l.status === statusFilter;
-    const matchAssignee = !assigneeFilter || String(l.assigned_to) === assigneeFilter;
-    const matchBank = !bankFilter || l.bank_name === bankFilter;
-    return matchSearch && matchType && matchStatus && matchAssignee && matchBank;
-  });
+  // Use loans directly from context (already filtered by backend)
+  const filtered = loans;
+  
+  // Handle search
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    searchLoans(value);
+  };
+  
+  // Handle filter
+  const handleFilter = () => {
+    const filters: any = {};
+    if (statusFilter) filters.status = statusFilter;
+    if (typeFilter) filters.loan_type = typeFilter;
+    if (assigneeFilter) filters.assigned_to = assigneeFilter;
+    filterLoans(filters);
+  };
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -65,19 +98,38 @@ export default function AdminCapitalLoans() {
 
   const fmt = (v?: string) => v ? `₹${Number(v).toLocaleString('en-IN')}` : '—';
 
-  const handleExport = () => {
-    const data = filtered.map(l => ({
-      'Applicant Name': l.applicant_name, Phone: l.phone, Email: l.email || '',
-      Address: l.address || '', 'Loan Type': LOAN_TYPE_LABELS[l.loan_type] || l.loan_type,
-      'Loan Amount': l.loan_amount || '', 'Tenure (Months)': l.tenure_months || '',
-      'Interest Rate': l.interest_rate || '', 'Bank Name': l.bank_name || '',
-      Status: l.status_display || l.status, Notes: l.notes || '',
-      'Assigned To': l.assigned_to_name || '',
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Loans');
-    XLSX.writeFile(wb, `capital-loans-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const handleExport = async () => {
+    try {
+      // Fetch ALL loans with current filters (no pagination limit)
+      const params: any = { page_size: 10000 }; // Large number to get all records
+      
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (typeFilter) params.loan_type = typeFilter;
+      if (assigneeFilter) params.assigned_to = assigneeFilter;
+      
+      const res = await capitalLoanService.list(params) as any;
+      const allLoans = Array.isArray(res) ? res : res.results || [];
+      
+      const data = allLoans.map((l: any) => ({
+        'Applicant Name': l.applicant_name, Phone: l.phone, Email: l.email || '',
+        Address: l.address || '', 'Loan Type': formatLoanType(l.loan_type),
+        'Loan Amount': l.loan_amount || '', 'Tenure (Months)': l.tenure_months || '',
+        'Interest Rate': l.interest_rate || '', 'Bank Name': l.bank_name || '',
+        Status: l.status_display || l.status, Notes: l.notes || '',
+        'Assigned To': l.assigned_to_name || '',
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Loans');
+      XLSX.writeFile(wb, `capital-loans-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      
+      toast.success(`Exported ${data.length} loans`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export loans');
+    }
   };
 
   const downloadTemplate = () => {
@@ -96,10 +148,15 @@ export default function AdminCapitalLoans() {
   const LOAN_TYPE_KEY: Record<string, string> = {
     personal: 'personal', business: 'business', home: 'home',
     vehicle: 'vehicle', education: 'education', gold: 'gold',
-    mortgage: 'mortgage', other: 'other',
+    mortgage: 'mortgage', property: 'property', other: 'other',
     'personal loan': 'personal', 'business loan': 'business', 'home loan': 'home',
     'vehicle loan': 'vehicle', 'education loan': 'education', 'gold loan': 'gold',
-    'mortgage loan': 'mortgage',
+    'mortgage loan': 'mortgage', 'property loan': 'property',
+  };
+
+  // Helper function to format loan type for display
+  const formatLoanType = (type: string) => {
+    return LOAN_TYPE_LABELS[type] || type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,14 +189,16 @@ export default function AdminCapitalLoans() {
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
-            <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
+            <input type="text" placeholder="Search..." value={search} onChange={e => handleSearch(e.target.value)}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-48" />
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Types</option>
-              {Object.entries(LOAN_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {uniqueLoanTypes.sort().map(type => (
+                <option key={type} value={type}>{formatLoanType(type)}</option>
+              ))}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); handleFilter(); }}
               className="px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto">
               <option value="">All Status</option>
               <option value="inquiry">Inquiry</option>
@@ -177,7 +236,7 @@ export default function AdminCapitalLoans() {
             </Button>
             <Button variant="outline" size="sm" className="rounded-full flex-1 sm:flex-none" onClick={handleExport}>
               <Download className="w-3.5 h-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Export ({filtered.length})</span>
+              <span className="hidden sm:inline">Export ({loansTotalCount})</span>
             </Button>
             <Button variant="outline" size="sm" className="rounded-full" onClick={refreshLoans}>
               <RefreshCw className="w-3.5 h-3.5" />
@@ -187,6 +246,16 @@ export default function AdminCapitalLoans() {
             </Button>
           </div>
         </div>
+
+        {/* Pagination - Top */}
+        <Pagination
+          currentPage={loansPage}
+          totalPages={loansTotalPages}
+          totalCount={loansTotalCount}
+          onPageChange={loadLoansPage}
+          loading={loadingLoans}
+          itemName="loans"
+        />
 
         {selected.size > 0 && (
           <div className="flex items-center gap-2">
@@ -222,7 +291,7 @@ export default function AdminCapitalLoans() {
                   <td className="py-3 px-4"><input type="checkbox" className="rounded" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
                   <td className="py-3 px-4 font-medium">{l.applicant_name}</td>
                   <td className="py-3 px-4 text-muted-foreground">{l.phone}</td>
-                  <td className="py-3 px-4 text-muted-foreground">{LOAN_TYPE_LABELS[l.loan_type] || l.loan_type}</td>
+                  <td className="py-3 px-4 text-muted-foreground">{formatLoanType(l.loan_type)}</td>
                   <td className="py-3 px-4 text-muted-foreground">{fmt(l.loan_amount)}</td>
                   <td className="py-3 px-4 text-muted-foreground">{l.bank_name || '—'}</td>
                   <td className="py-3 px-4">
@@ -233,6 +302,7 @@ export default function AdminCapitalLoans() {
                   <td className="py-3 px-4 text-muted-foreground">{l.assigned_to_name || '—'}</td>
                   <td className="py-3 px-4">
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" title="View Details" onClick={() => setViewing(l)}><Eye className="w-3.5 h-3.5" /></Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500" title="Add Task" onClick={() => setTaskLoan(l)}><ClipboardList className="w-3.5 h-3.5" /></Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditing(l); setIsModalOpen(true); }}><Edit className="w-3.5 h-3.5" /></Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDelete(l.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
@@ -263,7 +333,7 @@ export default function AdminCapitalLoans() {
               <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
                 <div>
                   <div className="text-xs text-muted-foreground">Loan Type</div>
-                  <div className="font-medium">{LOAN_TYPE_LABELS[l.loan_type] || l.loan_type}</div>
+                  <div className="font-medium">{formatLoanType(l.loan_type)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">Amount</div>
@@ -290,6 +360,9 @@ export default function AdminCapitalLoans() {
               )}
 
               <div className="flex gap-2 pt-3 border-t border-border">
+                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs rounded-full gap-1" onClick={() => setViewing(l)}>
+                  <Eye className="w-3.5 h-3.5" />View
+                </Button>
                 <Button variant="outline" size="sm" className="flex-1 h-8 text-xs rounded-full gap-1" onClick={() => setTaskLoan(l)}>
                   <ClipboardList className="w-3.5 h-3.5" />Task
                 </Button>
@@ -303,6 +376,16 @@ export default function AdminCapitalLoans() {
             </div>
           ))}
         </div>
+
+        {/* Pagination - Bottom */}
+        <Pagination
+          currentPage={loansPage}
+          totalPages={loansTotalPages}
+          totalCount={loansTotalCount}
+          onPageChange={loadLoansPage}
+          loading={loadingLoans}
+          itemName="loans"
+        />
       </div>
 
       {isModalOpen && (
@@ -311,11 +394,24 @@ export default function AdminCapitalLoans() {
           employees={employees}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
+          allLoanTypes={uniqueLoanTypes}
           onClose={() => { setIsModalOpen(false); setEditing(null); }}
           onSave={async (data) => {
             if (editing) await updateLoan(editing.id, data);
             else await addLoan(data);
             setIsModalOpen(false); setEditing(null);
+          }}
+        />
+      )}
+
+      {viewing && (
+        <CapitalLoanDetailsModal
+          loan={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            setEditing(viewing);
+            setViewing(null);
+            setIsModalOpen(true);
           }}
         />
       )}

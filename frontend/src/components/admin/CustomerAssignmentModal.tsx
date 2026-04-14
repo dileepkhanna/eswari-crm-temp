@@ -159,7 +159,7 @@ export default function CustomerAssignmentModal({
         ? 'unassigned' 
         : employees.find(e => e.id === selectedEmployee)?.name || 'employee';
 
-      toast.success(`${selectedCustomers.size} customers assigned to ${employeeName}`);
+      toast.success(`${selectedCustomers.size} calls assigned to ${employeeName}`);
       
       // Reset selections
       setSelectedCustomers(new Set());
@@ -169,8 +169,8 @@ export default function CustomerAssignmentModal({
       await fetchData();
       onAssignmentComplete();
     } catch (error) {
-      logger.error('Error assigning customers:', error);
-      toast.error('Failed to assign customers');
+      logger.error('Error assigning calls:', error);
+      toast.error('Failed to assign calls');
     } finally {
       setAssigning(false);
     }
@@ -190,10 +190,10 @@ export default function CustomerAssignmentModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
-            Customer Assignment Management
+            Call Assignment Management
           </DialogTitle>
           <DialogDescription>
-            Assign customers to employees for better workload distribution
+            Assign calls to employees for better workload distribution
           </DialogDescription>
         </DialogHeader>
 
@@ -290,7 +290,7 @@ export default function CustomerAssignmentModal({
                   ) : (
                     <User className="w-4 h-4" />
                   )}
-                  Assign {selectedCustomers.size} Customer{selectedCustomers.size !== 1 ? 's' : ''}
+                  Assign {selectedCustomers.size} Call{selectedCustomers.size !== 1 ? 's' : ''}
                 </Button>
               )}
             </div>

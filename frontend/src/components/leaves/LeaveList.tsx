@@ -630,7 +630,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
         </div>
 
         {canCreate && (
-          <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
+          <Button className="btn-primary shrink-0" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Apply Leave
           </Button>

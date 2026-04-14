@@ -57,7 +57,7 @@ def filter_by_user_access(queryset, user, assigned_to_field='assigned_to', creat
     - Admins see all data across all companies
     - HR see all data within their company
     - Managers see their own data + their assigned employees' data only
-    - Employees see only their own data
+    - Employees see ONLY data assigned to them (not data they created)
     
     Args:
         queryset: Django queryset to filter
@@ -85,13 +85,21 @@ def filter_by_user_access(queryset, user, assigned_to_field='assigned_to', creat
     # Build Q objects for filtering
     filters = Q()
     
-    # Filter by assigned_to if field exists
-    if assigned_to_field and hasattr(queryset.model, assigned_to_field):
-        filters |= Q(**{f'{assigned_to_field}__id__in': accessible_user_ids})
-    
-    # Filter by created_by if field exists
-    if created_by_field and hasattr(queryset.model, created_by_field):
-        filters |= Q(**{f'{created_by_field}__id__in': accessible_user_ids})
+    # For employees: ONLY filter by assigned_to (not created_by)
+    # For managers: filter by both assigned_to and created_by
+    if user.role == 'employee':
+        # Employees can ONLY see records assigned to them
+        if assigned_to_field and hasattr(queryset.model, assigned_to_field):
+            filters |= Q(**{f'{assigned_to_field}__id__in': accessible_user_ids})
+    else:
+        # Managers can see records assigned to them OR created by them/their team
+        # Filter by assigned_to if field exists
+        if assigned_to_field and hasattr(queryset.model, assigned_to_field):
+            filters |= Q(**{f'{assigned_to_field}__id__in': accessible_user_ids})
+        
+        # Filter by created_by if field exists
+        if created_by_field and hasattr(queryset.model, created_by_field):
+            filters |= Q(**{f'{created_by_field}__id__in': accessible_user_ids})
     
     # Also filter by company to ensure data isolation
     if hasattr(queryset.model, 'company'):

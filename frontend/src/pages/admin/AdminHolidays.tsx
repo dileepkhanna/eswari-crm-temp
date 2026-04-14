@@ -142,7 +142,7 @@ export default function AdminHolidays() {
             <h2 className="text-xl md:text-2xl font-bold">Holiday Management</h2>
             <p className="text-muted-foreground text-sm">Create and manage company holidays</p>
           </div>
-          <Button onClick={() => setIsFormOpen(true)} className="btn-accent self-start sm:self-auto">
+          <Button onClick={() => setIsFormOpen(true)} className="btn-primary self-start sm:self-auto">
             <Plus className="w-4 h-4 mr-2" />
             Add Holiday
           </Button>

@@ -52,6 +52,37 @@ class CapitalLoanSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'created_by', 'company']
 
+    def validate(self, data):
+        """Check for duplicate loan entries"""
+        phone = data.get('phone')
+        loan_type = data.get('loan_type')
+        
+        # Get company from context (will be set during create) or from instance (during update)
+        company = self.context.get('company')
+        if not company and self.instance:
+            company = self.instance.company
+        
+        # For updates, exclude the current instance
+        instance = self.instance
+        
+        if phone and loan_type and company:
+            queryset = CapitalLoan.objects.filter(
+                phone=phone,
+                loan_type=loan_type,
+                company=company
+            )
+            
+            # Exclude current instance for updates
+            if instance:
+                queryset = queryset.exclude(pk=instance.pk)
+            
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'phone': f'A {loan_type} loan already exists for phone number {phone}.'
+                })
+        
+        return data
+
 
 class CapitalServiceSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.ReadOnlyField()
@@ -66,6 +97,39 @@ class CapitalServiceSerializer(serializers.ModelSerializer):
         model = CapitalService
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'created_by', 'company']
+
+    def validate(self, data):
+        """Check for duplicate service entries"""
+        phone = data.get('phone')
+        service_type = data.get('service_type')
+        financial_year = data.get('financial_year')
+        
+        # Get company from context (will be set during create) or from instance (during update)
+        company = self.context.get('company')
+        if not company and self.instance:
+            company = self.instance.company
+        
+        # For updates, exclude the current instance
+        instance = self.instance
+        
+        if phone and service_type and financial_year and company:
+            queryset = CapitalService.objects.filter(
+                phone=phone,
+                service_type=service_type,
+                financial_year=financial_year,
+                company=company
+            )
+            
+            # Exclude current instance for updates
+            if instance:
+                queryset = queryset.exclude(pk=instance.pk)
+            
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'phone': f'A {service_type} service for FY {financial_year} already exists for phone number {phone}.'
+                })
+        
+        return data
 
 
 

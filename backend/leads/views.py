@@ -30,7 +30,7 @@ class LeadFilter(FilterSet):
 class LeadPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
-    max_page_size = 500
+    max_page_size = 2000  # Increased to support larger datasets
 
 
 class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
@@ -39,7 +39,7 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
     pagination_class = LeadPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = LeadFilter
-    search_fields = ['name', 'email', 'address', 'description']
+    search_fields = ['name', 'email', 'phone', 'address', 'description']
     ordering_fields = ['created_at', 'updated_at', 'name']
     ordering = ['-created_at']
     
@@ -235,3 +235,43 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
             Lead.objects.filter(id__in=queryset.values_list('id', flat=True)).delete()
 
         return Response({'deleted_count': count}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def assignable_users(self, request):
+        """
+        Get list of users that can be assigned leads based on the requesting user's role.
+        - Admin: Returns all employees and managers across all companies
+        - Manager: Returns their team members and themselves
+        - Employee: Returns only themselves
+        """
+        user = request.user
+        from accounts.models import User as UserModel
+        from accounts.serializers import UserSerializer
+        
+        if user.role == 'admin':
+            # Admin can assign to any employee or manager
+            assignable = UserModel.objects.filter(
+                role__in=['employee', 'manager'],
+                is_active=True
+            ).select_related('company').order_by('first_name', 'last_name')
+        
+        elif user.role == 'manager':
+            # Manager can assign to their team members or themselves
+            team_members = UserModel.objects.filter(
+                manager=user,
+                company=user.company,
+                is_active=True
+            )
+            # Include the manager themselves
+            assignable = team_members | UserModel.objects.filter(id=user.id)
+            assignable = assignable.select_related('company').order_by('first_name', 'last_name')
+        
+        elif user.role == 'employee':
+            # Employee can only assign to themselves
+            assignable = UserModel.objects.filter(id=user.id)
+        
+        else:
+            assignable = UserModel.objects.none()
+        
+        serializer = UserSerializer(assignable, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

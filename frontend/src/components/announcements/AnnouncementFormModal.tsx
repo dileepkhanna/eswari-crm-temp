@@ -915,7 +915,7 @@ export default function AnnouncementFormModal({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="btn-accent">
+            <Button type="submit" className="btn-primary">
               {announcement ? 'Update Announcement' : 'Send Announcement'}
             </Button>
           </div>

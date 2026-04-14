@@ -10,11 +10,12 @@ interface Props {
   employees: { id: string; name: string }[];
   currentUserId: string;
   currentUserRole: string;
+  allLoanTypes?: string[]; // All unique loan types from the system
   onClose: () => void;
   onSave: (data: Partial<CapitalLoan>) => Promise<void>;
 }
 
-export default function CapitalLoanModal({ loan, employees, currentUserId, currentUserRole, onClose, onSave }: Props) {
+export default function CapitalLoanModal({ loan, employees, currentUserId, currentUserRole, allLoanTypes = [], onClose, onSave }: Props) {
   const [form, setForm] = useState({
     applicant_name: loan?.applicant_name || '',
     phone: loan?.phone || '',
@@ -31,15 +32,59 @@ export default function CapitalLoanModal({ loan, employees, currentUserId, curre
     assigned_to: loan?.assigned_to?.toString() || currentUserId,
   });
   const [saving, setSaving] = useState(false);
+  const [showCustomLoanType, setShowCustomLoanType] = useState(false);
+  const [customLoanType, setCustomLoanType] = useState('');
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
+  // Predefined loan types
+  const predefinedTypes = [
+    { value: 'personal', label: 'Personal Loan' },
+    { value: 'business', label: 'Business Loan' },
+    { value: 'home', label: 'Home Loan' },
+    { value: 'vehicle', label: 'Vehicle Loan' },
+    { value: 'education', label: 'Education Loan' },
+    { value: 'gold', label: 'Gold Loan' },
+    { value: 'mortgage', label: 'Mortgage Loan' },
+    { value: 'property', label: 'Property Loan' },
+    { value: 'other', label: 'Other' },
+  ];
+
+  // Get custom types (types that exist in system but not in predefined list)
+  const predefinedValues = predefinedTypes.map(t => t.value);
+  const customTypes = allLoanTypes
+    .filter(type => !predefinedValues.includes(type))
+    .map(type => ({
+      value: type,
+      label: type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const handleLoanTypeChange = (value: string) => {
+    if (value === 'custom') {
+      setShowCustomLoanType(true);
+      setCustomLoanType('');
+    } else {
+      setShowCustomLoanType(false);
+      setCustomLoanType('');
+      set('loan_type', value);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If custom loan type is selected, use the custom value
+    const finalLoanType = showCustomLoanType && customLoanType.trim() 
+      ? customLoanType.trim().toLowerCase().replace(/\s+/g, '_')
+      : form.loan_type;
+    
     setSaving(true);
     await onSave({
       ...form,
+      loan_type: finalLoanType,
       email: form.email || undefined,
+      address: form.address || undefined,
       loan_amount: form.loan_amount || undefined,
       tenure_months: form.tenure_months ? Number(form.tenure_months) : undefined,
       interest_rate: form.interest_rate || undefined,
@@ -73,16 +118,47 @@ export default function CapitalLoanModal({ loan, employees, currentUserId, curre
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Loan Type</label>
-              <select className={inp} value={form.loan_type} onChange={e => set('loan_type', e.target.value)}>
-                <option value="personal">Personal Loan</option>
-                <option value="business">Business Loan</option>
-                <option value="home">Home Loan</option>
-                <option value="vehicle">Vehicle Loan</option>
-                <option value="education">Education Loan</option>
-                <option value="gold">Gold Loan</option>
-                <option value="mortgage">Mortgage Loan</option>
-                <option value="other">Other</option>
-              </select>
+              {!showCustomLoanType ? (
+                <select className={inp} value={form.loan_type} onChange={e => handleLoanTypeChange(e.target.value)}>
+                  {/* Predefined types */}
+                  {predefinedTypes.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                  
+                  {/* Custom types from system */}
+                  {customTypes.length > 0 && (
+                    <>
+                      <option disabled>──────────</option>
+                      {customTypes.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </>
+                  )}
+                  
+                  {/* Add new custom type option */}
+                  <option disabled>──────────</option>
+                  <option value="custom">+ Add Custom Type</option>
+                </select>
+              ) : (
+                <div className="flex gap-1">
+                  <input 
+                    required
+                    className={inp} 
+                    value={customLoanType} 
+                    onChange={e => setCustomLoanType(e.target.value)} 
+                    placeholder="Enter custom loan type" 
+                    autoFocus
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => { setShowCustomLoanType(false); set('loan_type', 'personal'); }}
+                    className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                    title="Cancel"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <div>

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContextDjango';
 import { useAppSettings } from '@/contexts/AppSettingsContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { cn } from '@/lib/utils';
+import { apiClient } from '@/lib/api';
 import {
   DashboardIcon,
   UsersIcon,
@@ -21,7 +22,7 @@ import {
   MegaphoneIcon,
 } from '@/components/icons';
 import { UserCircle, BarChart, Share2, FileText, Mail, TrendingUp, Target, Users2, ChevronDown, ChevronRight, Gift, Calculator } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ASECustomerService } from '@/services/ase-customer.service';
 
 interface NavItem {
@@ -55,6 +56,31 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     'Eswari Group': true,
   });
   const [overdueCount, setOverdueCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const savedScrollPosition = sessionStorage.getItem('sidebarScrollPosition');
+    if (savedScrollPosition && navRef.current) {
+      navRef.current.scrollTop = parseInt(savedScrollPosition, 10);
+    }
+  }, []);
+
+  // Save scroll position on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (navRef.current) {
+        sessionStorage.setItem('sidebarScrollPosition', navRef.current.scrollTop.toString());
+      }
+    };
+
+    const navElement = navRef.current;
+    if (navElement) {
+      navElement.addEventListener('scroll', handleScroll);
+      return () => navElement.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
 
   // Fetch overdue follow-up count for ASE users
   useEffect(() => {
@@ -74,6 +100,28 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Fetch pending users count for admins
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    
+    const fetchPendingCount = async () => {
+      try {
+        const data = await apiClient.get('/auth/users/pending/');
+        // The response has a 'users' array
+        const users = data?.users || [];
+        setPendingUsersCount(users.length);
+      } catch (error) {
+        console.error('Error fetching pending users count:', error);
+      }
+    };
+
+    fetchPendingCount();
+    
+    // Refresh every 2 minutes
+    const interval = setInterval(fetchPendingCount, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Get user's company code to determine which menu to show
   const userCompanyCode = user?.company?.code || selectedCompany?.code || '';
   const isASETechnologies = userCompanyCode === 'ASE_TECH' || userCompanyCode === 'ASE';
@@ -82,7 +130,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   // Admin-only items (shown for all companies at the top)
   const adminOnlyItems: NavItem[] = [
-    { label: 'Users', icon: UsersIcon, href: '/users', roles: ['admin'] },
+    { label: 'Employees', icon: UsersIcon, href: '/users', roles: ['admin'] },
+    { label: 'Pending Users', icon: UserCircle, href: '/pending-users', roles: ['admin'] },
     { label: 'Companies', icon: BuildingIcon, href: '/companies', roles: ['admin'] },
     { label: 'Branding', icon: SettingsIcon, href: '/branding', roles: ['admin'] },
   ];
@@ -97,7 +146,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   // ASE Technologies specific sections
   const aseSpecificItems: NavItem[] = [
-    { label: 'Customers', icon: PhoneIcon, href: '/ase-customers', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Employees', icon: UsersIcon, href: '/ase-employees', roles: ['admin'] },
+    { label: 'Calls', icon: PhoneIcon, href: '/ase-customers', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leads', icon: LeadsIcon, href: '/ase-leads', roles: ['admin', 'manager', 'employee'] },
     { label: 'Reports', icon: ReportsIcon, href: '/ase-reports', roles: ['admin', 'manager'] },
     { label: 'Activity', icon: ActivityIcon, href: '/ase-activity', roles: ['admin', 'manager'] },
@@ -105,7 +155,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   // Eswari Group specific sections (CRM + Reports + Activity)
   const eswariSpecificItems: NavItem[] = [
-    { label: 'Customers', icon: PhoneIcon, href: '/customers', roles: ['admin', 'manager', 'employee'] },
+    { label: 'Employees', icon: UsersIcon, href: '/eswari-employees', roles: ['admin'] },
+    { label: 'Calls', icon: PhoneIcon, href: '/customers', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leads', icon: LeadsIcon, href: '/leads', roles: ['admin', 'manager', 'employee'] },
     { label: 'Conversion Analytics', icon: TrendingUp, href: '/conversion-analytics', roles: ['admin', 'manager', 'employee'] },
     { label: 'Tasks', icon: TasksIcon, href: '/tasks', roles: ['admin', 'manager', 'employee'] },
@@ -161,7 +212,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       { label: 'ASE Technologies', items: aseSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'Eswari Group', items: eswariSpecificItems, collapsible: true, defaultOpen: true },
       { label: 'Eswari Capital', items: [
-        { label: 'Customers', icon: PhoneIcon, href: '/capital-customers', roles: ['admin'] },
+        { label: 'Employees', icon: UsersIcon, href: '/capital-employees', roles: ['admin'] },
+        { label: 'Calls', icon: PhoneIcon, href: '/capital-customers', roles: ['admin'] },
         { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin'] },
         { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin'] },
         { label: 'Tasks', icon: TasksIcon, href: '/capital-tasks', roles: ['admin'] },
@@ -186,7 +238,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       companyLabel = 'Eswari Group';
     } else if (isEswariCapital) {
       companySpecific = [
-        { label: 'Customers', icon: PhoneIcon, href: '/capital-customers', roles: ['admin', 'manager', 'employee'] },
+        { label: 'Calls', icon: PhoneIcon, href: '/capital-customers', roles: ['admin', 'manager', 'employee'] },
         { label: 'Loans', icon: BarChart, href: '/capital-loans', roles: ['admin', 'manager', 'employee'] },
         { label: 'Services', icon: FileText, href: '/capital-services', roles: ['admin', 'manager', 'employee'] },
         { label: 'Tasks', icon: TasksIcon, href: '/capital-tasks', roles: ['admin', 'manager', 'employee'] },
@@ -247,7 +299,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={`${selectedCompany.logo_url}?t=${Date.now()}`} 
                 alt={selectedCompany.name} 
                 className="w-10 h-10 object-contain rounded-xl shrink-0" 
-                style={{ padding: 0 }}
                 key={selectedCompany.logo_url}
               />
             ) : user.company?.logo_url ? (
@@ -255,7 +306,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={`${user.company.logo_url}?t=${Date.now()}`} 
                 alt={user.company.name} 
                 className="w-10 h-10 object-contain rounded-xl shrink-0" 
-                style={{ padding: 0 }}
                 key={user.company.logo_url}
               />
             ) : (
@@ -293,7 +343,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 md:p-3 space-y-0.5 overflow-y-auto">
+      <nav ref={navRef} className="flex-1 p-2 md:p-3 space-y-0.5 overflow-y-auto">
         {menuGroups.map((group, groupIndex) => {
           const filteredItems = group.items.filter(item => 
             item.roles.includes(user.role as 'admin' | 'manager' | 'employee' | 'hr')
@@ -316,9 +366,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
                   >
                     {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 shrink-0" style={{ color: '#d4d4d8' }} />
+                      <ChevronDown className="w-4 h-4 shrink-0" color="#d4d4d8" />
                     ) : (
-                      <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#d4d4d8' }} />
+                      <ChevronRight className="w-4 h-4 shrink-0" color="#d4d4d8" />
                     )}
                     <span className="uppercase tracking-wider">{group.label}</span>
                   </button>
@@ -330,6 +380,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 const isActive = location.pathname === `${basePath}${item.href}` || 
                   (item.href === '' && location.pathname === basePath);
                 const showOverdueBadge = item.href === '/ase-customers' && overdueCount > 0;
+                const showPendingBadge = item.href === '/pending-users' && pendingUsersCount > 0;
                 
                 return (
                   <Link
@@ -343,7 +394,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       group.collapsible && !collapsed && "ml-2"
                     )}
                   >
-                    <item.icon className="w-5 h-5 shrink-0" style={{ padding: 0 }} color="#d4d4d8" />
+                    <item.icon className="w-5 h-5 shrink-0" color="#d4d4d8" />
                     {!collapsed && <span className="text-sidebar-foreground/80">{item.label}</span>}
                     {showOverdueBadge && (
                       <span className={cn(
@@ -351,6 +402,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                         collapsed ? "absolute -top-1 -right-1 w-4 h-4 text-[9px]" : "min-w-[18px] h-[18px] px-1 text-[10px]"
                       )}>
                         {overdueCount > 99 ? '99+' : overdueCount}
+                      </span>
+                    )}
+                    {showPendingBadge && (
+                      <span className={cn(
+                        "ml-auto flex items-center justify-center rounded-full bg-yellow-500 text-white font-bold leading-none",
+                        collapsed ? "absolute -top-1 -right-1 w-4 h-4 text-[9px]" : "min-w-[18px] h-[18px] px-1 text-[10px]"
+                      )}>
+                        {pendingUsersCount > 99 ? '99+' : pendingUsersCount}
                       </span>
                     )}
                   </Link>
@@ -365,16 +424,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       <div className="shrink-0 p-3 border-t border-sidebar-border">
         {/* User info row */}
         <div className={cn(
-          "flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent mb-3",
+          "flex items-center gap-3 p-3 rounded-xl sidebar-primary mb-3",
           collapsed && "justify-center"
         )}>
-          <div className="w-10 h-10 rounded-full bg-sidebar-primary flex items-center justify-center shrink-0">
-            <UserCircle className="w-6 h-6 text-sidebar-primary-foreground" />
+          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+            <UserCircle className="w-6 h-6 text-white" />
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
-              <p className="text-xs text-sidebar-foreground/60 capitalize">{user.role}</p>
+              <p className="text-sm font-medium text-white truncate">{user.name}</p>
+              <p className="text-xs text-white/80 capitalize">{user.role}</p>
             </div>
           )}
         </div>
@@ -390,7 +449,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             className="hidden lg:flex nav-link flex-1 justify-center"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRightIcon className="w-5 h-5" style={{ padding: 0 }} color="#d4d4d8" /> : <ChevronLeftIcon className="w-5 h-5" style={{ padding: 0 }} color="#d4d4d8" />}
+            {collapsed ? <ChevronRightIcon className="w-5 h-5" color="#d4d4d8" /> : <ChevronLeftIcon className="w-5 h-5" color="#d4d4d8" />}
           </button>
 
           {/* Settings */}
@@ -404,7 +463,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             )}
             aria-label="Settings"
           >
-            <SettingsIcon className="w-6 h-6" style={{ padding: 0 }} color="#d4d4d8" />
+            <SettingsIcon className="w-6 h-6" color="#d4d4d8" />
           </Link>
 
           {/* Logout */}
@@ -413,7 +472,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             className={cn("nav-link justify-center", collapsed ? "w-full" : "flex-1")}
             aria-label="Logout"
           >
-            <LogoutIcon className="w-6 h-6" style={{ padding: 0 }} color="#d4d4d8" />
+            <LogoutIcon className="w-6 h-6" color="#d4d4d8" />
           </button>
         </div>
       </div>

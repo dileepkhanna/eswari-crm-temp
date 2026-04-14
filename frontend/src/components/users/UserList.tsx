@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2, Building2, TrendingUp } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2, Building2, TrendingUp, Eye } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -41,6 +41,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -55,27 +64,49 @@ interface DBUser {
   email: string | null;
   phone: string | null;
   address: string | null;
+  designation?: string | null; // Job title/designation
+  joining_date?: string | null; // Date when employee joined
   status: string;
   manager_id: string | null;
   manager_name?: string | null; // Manager's name from API
   company?: Company; // Company information
+  company_name?: string | null; // Company name for easy access
   created_at: string;
   updated_at: string;
   role: UserRole;
 }
 
-export default function UserList() {
+interface UserListProps {
+  users?: DBUser[];
+  companies?: any[];
+  loading?: boolean;
+  onRefresh?: () => void;
+  companyFilter?: string;
+}
+
+export default function UserList(props?: UserListProps) {
   const { createUser } = useAuth();
   const { selectedCompany, availableCompanies: contextCompanies } = useCompany();
-  const [users, setUsers] = useState<DBUser[]>([]);
+  
+  // Use props if provided, otherwise use local state
+  const [localUsers, setLocalUsers] = useState<DBUser[]>([]);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localCompanies, setLocalCompanies] = useState<Company[]>([]);
+  
+  const users = props?.users ?? localUsers;
+  const loading = props?.loading ?? localLoading;
+  const companies = props?.companies ?? localCompanies;
+  const setUsers = props?.users ? () => {} : setLocalUsers;  // No-op if using props
+  const setLoading = props?.loading !== undefined ? () => {} : setLocalLoading;
+  const setCompanies = props?.companies ? () => {} : setLocalCompanies;
+  
   const [managers, setManagers] = useState<{ id: string; name: string; company?: number }[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [companyFilter, setCompanyFilter] = useState<string>('all');
+  const [companyFilter, setCompanyFilter] = useState<string>(props?.companyFilter || 'all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<DBUser | null>(null);
+  const [viewingUser, setViewingUser] = useState<DBUser | null>(null);
   const [promotingUser, setPromotingUser] = useState<DBUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -83,12 +114,18 @@ export default function UserList() {
   const [deletingUsers, setDeletingUsers] = useState<Set<string>>(new Set());
   const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set());
 
-  // Fetch users from database
+  // Fetch users from database (only if not using props)
   const fetchUsers = async (showLoader = true) => {
+    // If using props, call the onRefresh callback instead
+    if (props?.users) {
+      props.onRefresh?.();
+      return;
+    }
+    
     try {
       // Only show loader on initial load
-      if (showLoader && users.length === 0) {
-        setLoading(true);
+      if (showLoader && localUsers.length === 0) {
+        setLocalLoading(true);
       }
       
       logger.log('🔄 Fetching users from backend...');
@@ -119,18 +156,21 @@ export default function UserList() {
         email: user.email,
         phone: user.phone || null,
         address: null, // Django User model doesn't have address field
+        designation: user.designation || null,
+        joining_date: user.joining_date || null,
         role: user.role as UserRole,
         status: 'active', // Default status
         manager_id: user.manager?.toString() || null,
         manager_name: user.manager_name || null, // From serializer
         company: user.company_info || user.company, // Company information
+        company_name: user.company_info?.name || null, // Extract company name for easy access
         created_at: user.created_at,
         updated_at: user.created_at, // Use created_at as updated_at for now
       }));
       
       logger.log(`✅ Transformed ${transformedUsers.length} users for UI:`, transformedUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));
       
-      setUsers(transformedUsers);
+      setLocalUsers(transformedUsers);
       
       // Extract managers for the form (include company id for filtering)
       const managersList = transformedUsers
@@ -188,20 +228,30 @@ export default function UserList() {
           updated_at: new Date().toISOString(),
         },
       ];
-      setUsers(placeholderUsers);
+      setLocalUsers(placeholderUsers);
       setManagers([{ id: '2', name: 'Manager User' }]);
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers(true);
-    fetchCompanies();
-  }, []);
+    // Only fetch if not using props
+    if (!props?.users) {
+      fetchUsers(true);
+    }
+    if (!props?.companies) {
+      fetchCompanies();
+    }
+  }, [props?.users, props?.companies]);
 
   // Fetch companies for filter dropdown
   const fetchCompanies = async () => {
+    // If using props, don't fetch
+    if (props?.companies) {
+      return;
+    }
+    
     try {
       logger.log('🔄 Fetching companies for filter...');
       const response = await apiClient.getCompanies();
@@ -211,7 +261,7 @@ export default function UserList() {
       const companiesList = Array.isArray(companiesData) ? companiesData : [];
       
       logger.log(`📊 Fetched ${companiesList.length} companies for filter`);
-      setCompanies(companiesList);
+      setLocalCompanies(companiesList);
     } catch (error: any) {
       logger.error('❌ Error fetching companies:', error);
       // Fallback to context companies if available
@@ -343,8 +393,11 @@ export default function UserList() {
     name: string;
     phone: string;
     address: string;
+    designation?: string;
     role: UserRole;
+    company?: number;
     managerId?: string;
+    joining_date?: string;
   }): Promise<{ success: boolean; userId?: string }> => {
     try {
       setIsSubmitting(true);
@@ -359,7 +412,9 @@ export default function UserList() {
         userData.address,
         userData.role,
         userData.company, // Add company parameter
-        userData.managerId
+        userData.managerId,
+        userData.joining_date,
+        userData.designation
       );
 
       if (result.success) {
@@ -367,14 +422,34 @@ export default function UserList() {
         await fetchUsers(false);
         return { success: true, userId: result.userId };
       } else {
+        // Parse error message for better user feedback
+        let errorMessage = result.error || 'Failed to create user';
+        
+        // Check for specific error patterns
+        if (errorMessage.includes('UNIQUE constraint failed: accounts_user.email')) {
+          errorMessage = 'This email address is already registered. Please use a different email or leave it empty.';
+        } else if (errorMessage.includes('email')) {
+          errorMessage = 'Email error: ' + errorMessage;
+        }
+        
         toast.error('Failed to create user', {
-          description: result.error
+          description: errorMessage
         });
         return { success: false };
       }
     } catch (error: any) {
+      // Parse error message for better user feedback
+      let errorMessage = error.message || 'Unknown error occurred';
+      
+      // Check for specific error patterns
+      if (errorMessage.includes('UNIQUE constraint failed: accounts_user.email')) {
+        errorMessage = 'This email address is already registered. Please use a different email or leave it empty.';
+      } else if (errorMessage.includes('email')) {
+        errorMessage = 'Email error: ' + errorMessage;
+      }
+      
       toast.error('Error creating user', {
-        description: error.message
+        description: errorMessage
       });
       return { success: false };
     } finally {
@@ -384,7 +459,17 @@ export default function UserList() {
 
   const handleUpdateUser = async (
     userId: string,
-    userData: { name: string; phone: string; address: string; managerId?: string; newPassword?: string }
+    userData: { 
+      name: string; 
+      email?: string;
+      phone: string; 
+      address: string; 
+      designation?: string;
+      joining_date?: string;
+      managerId?: string; 
+      company?: number;
+      newPassword?: string;
+    }
   ): Promise<{ success: boolean }> => {
     try {
       setIsSubmitting(true);
@@ -509,7 +594,7 @@ export default function UserList() {
               className="pl-10 input-field"
             />
           </div>
-          <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
+          <Button className="btn-primary shrink-0" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Add User</span>
           </Button>
@@ -599,6 +684,9 @@ export default function UserList() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setViewingUser(user)}>
+                  <Eye className="w-4 h-4 mr-2" />View Details
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEditingUser(user)}>
                   <Edit className="w-4 h-4 mr-2" />Edit User
                 </DropdownMenuItem>
@@ -736,7 +824,9 @@ export default function UserList() {
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(user.created_at), 'MMM dd, yyyy')}
+                    {user.joining_date 
+                      ? format(new Date(user.joining_date), 'MMM dd, yyyy')
+                      : format(new Date(user.created_at), 'MMM dd, yyyy')}
                   </p>
                 </TableCell>
                 <TableCell>
@@ -747,6 +837,9 @@ export default function UserList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setViewingUser(user)}>
+                        <Eye className="w-4 h-4 mr-2" />View Details
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setEditingUser(user)}>
                         <Edit className="w-4 h-4 mr-2" />Edit User
                       </DropdownMenuItem>
@@ -811,6 +904,152 @@ export default function UserList() {
         user={promotingUser}
         onPromote={handlePromoteEmployee}
       />
+
+      {/* View User Modal */}
+      <Dialog open={!!viewingUser} onOpenChange={(open) => !open && setViewingUser(null)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              View complete user information
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingUser && (
+            <div className="space-y-4 py-4">
+              {/* Profile Section */}
+              <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+                <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-xl shrink-0">
+                  {viewingUser.name.split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {viewingUser.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">@{viewingUser.user_id}</p>
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "capitalize mt-1",
+                      viewingUser.role === 'admin' && "bg-purple-100 text-purple-700 border-purple-300",
+                      viewingUser.role === 'hr' && "bg-blue-100 text-blue-700 border-blue-300",
+                      viewingUser.role === 'manager' && "bg-primary/15 text-primary border-primary/30",
+                      viewingUser.role === 'employee' && "bg-info/15 text-info border-info/30"
+                    )}
+                  >
+                    {viewingUser.role}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="text-sm font-medium">{viewingUser.email || 'Not provided'}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Phone</Label>
+                  <p className="text-sm font-medium">{viewingUser.phone || 'Not provided'}</p>
+                </div>
+
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Address</Label>
+                  <p className="text-sm font-medium">{viewingUser.address || 'Not provided'}</p>
+                </div>
+
+                <div class="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Designation</Label>
+                  <p className="text-sm font-medium">{viewingUser.designation || 'Not specified'}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Joining Date</Label>
+                  <p className="text-sm font-medium">
+                    {viewingUser.joining_date 
+                      ? format(new Date(viewingUser.joining_date), 'MMM dd, yyyy')
+                      : 'Not specified'}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Company</Label>
+                  {viewingUser.company ? (
+                    <div className="flex items-center gap-2">
+                      {typeof viewingUser.company === 'object' && (viewingUser.company as any).name ? (
+                        <>
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+                            {((viewingUser.company as any).code || (viewingUser.company as any).name).charAt(0)}
+                          </div>
+                          <span className="text-sm font-medium">{(viewingUser.company as any).name}</span>
+                        </>
+                      ) : (
+                        <p className="text-sm font-medium">{viewingUser.company_name || 'Not assigned'}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium">Not assigned</p>
+                  )}
+                </div>
+
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Manager</Label>
+                  <p className="text-sm font-medium">
+                    {viewingUser.role === 'employee' && viewingUser.manager_name 
+                      ? viewingUser.manager_name 
+                      : viewingUser.role === 'employee' 
+                        ? 'Not assigned' 
+                        : 'Not applicable'}
+                  </p>
+                </div>
+
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">User ID</Label>
+                  <code className="block p-2 bg-muted rounded text-sm font-mono">
+                    {viewingUser.user_id}
+                  </code>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Badge variant={viewingUser.status === 'active' ? 'default' : 'secondary'}>
+                    {viewingUser.status}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Created</Label>
+                  <p className="text-sm font-medium">
+                    {format(new Date(viewingUser.created_at), 'MMM dd, yyyy')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setViewingUser(null)}
+            >
+              Close
+            </Button>
+            {viewingUser && (
+              <Button
+                onClick={() => {
+                  setViewingUser(null);
+                  setEditingUser(viewingUser);
+                }}
+                className="btn-primary"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit User
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
         <AlertDialogContent className="mx-4 sm:mx-auto max-w-md animate-scale-in">

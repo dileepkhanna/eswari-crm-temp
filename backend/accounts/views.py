@@ -109,6 +109,20 @@ def login_view(request):
         print(f"LOGIN DEBUG - Username auth result: {user is not None}")
     
     if user is not None:
+        # Check if user is pending approval
+        if hasattr(user, 'pending_approval') and user.pending_approval:
+            print(f"LOGIN DEBUG - User pending approval: {user.username}")
+            return Response({
+                'error': 'Your account is pending admin approval. Please contact your administrator.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if user is inactive
+        if not user.is_active:
+            print(f"LOGIN DEBUG - User inactive: {user.username}")
+            return Response({
+                'error': 'Your account is inactive. Please contact your administrator.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         # Check if user's company is active (Requirement 2.6)
         # Admin/HR users may have no company assigned (global access)
         if user.company and not user.company.is_active:
@@ -188,6 +202,14 @@ class RegisterView(generics.CreateAPIView):
         if not data.get('company') and request.user.company_id:
             data['company'] = request.user.company_id
         
+        # If HR is creating the user, mark as pending approval and inactive
+        if request.user.role == 'hr':
+            data['pending_approval'] = True
+            data['is_active'] = False  # User cannot log in until approved
+            print(f"DEBUG: HR creating user - Setting pending_approval=True, is_active=False")
+        
+        print(f"DEBUG: User creation data: pending_approval={data.get('pending_approval')}, is_active={data.get('is_active')}")
+        
         serializer = self.get_serializer(data=data)
         
         if not serializer.is_valid():
@@ -198,9 +220,71 @@ class RegisterView(generics.CreateAPIView):
         
         try:
             user = serializer.save()
+            
+            message = 'User created successfully'
+            if user.pending_approval:
+                message = 'User created and pending admin approval'
+                
+                # Create notifications for all admins
+                try:
+                    from notifications.models import Notification
+                    from notifications.utils import send_push_notification
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    
+                    # Get all admin users
+                    admin_users = User.objects.filter(role='admin', is_active=True)
+                    
+                    # Create notification for each admin
+                    user_name = f"{user.first_name} {user.last_name}".strip() or user.username
+                    hr_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+                    
+                    notification_title = 'New User Pending Approval'
+                    notification_message = f'{hr_name} created a new user "{user_name}" ({user.role}) that requires your approval.'
+                    notification_data = {
+                        'user_id': user.id,
+                        'user_name': user_name,
+                        'user_role': user.role,
+                        'created_by': hr_name,
+                        'action_url': '/admin/pending-users'
+                    }
+                    
+                    for admin in admin_users:
+                        # Create in-app notification
+                        Notification.objects.create(
+                            user=admin,
+                            notification_type='system_alert',
+                            title=notification_title,
+                            message=notification_message,
+                            data=notification_data,
+                            company=user.company
+                        )
+                        
+                        # Send browser push notification
+                        try:
+                            send_push_notification(
+                                user=admin,
+                                title=notification_title,
+                                message=notification_message,
+                                notification_type='system_alert',
+                                data=notification_data,
+                                company=user.company
+                            )
+                            print(f"Sent push notification to admin: {admin.username}")
+                        except Exception as push_error:
+                            print(f"Failed to send push notification to {admin.username}: {str(push_error)}")
+                            # Continue even if push notification fails
+                    
+                    print(f"Created approval notifications for {admin_users.count()} admin(s)")
+                    
+                except Exception as e:
+                    print(f"Failed to create approval notifications: {str(e)}")
+                    # Don't fail user creation if notification fails
+            
             return Response({
                 'user': UserSerializer(user).data,
-                'message': 'User created successfully'
+                'message': message,
+                'pending_approval': user.pending_approval
             }, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({
@@ -525,8 +609,11 @@ def admin_update_user_view(request, user_id):
         
         # Get update data
         name = request.data.get('name', '').strip()
+        email = request.data.get('email', '').strip()
         phone = request.data.get('phone', '').strip()
         address = request.data.get('address', '').strip()
+        designation = request.data.get('designation', '').strip()
+        joining_date = request.data.get('joining_date', '').strip()
         new_password = request.data.get('newPassword', '').strip()
         manager_id = request.data.get('managerId')  # New field for manager assignment
         company_id = request.data.get('company')  # Company assignment
@@ -553,6 +640,30 @@ def admin_update_user_view(request, user_id):
         user_to_update.phone = phone
         # Note: Django User model doesn't have address field by default
         # If you need address, you'll need to add it to your custom User model
+        
+        # Update email (optional field)
+        if email:
+            # Validate email uniqueness if provided
+            existing_user = User.objects.filter(email=email).exclude(id=user_to_update.id).first()
+            if existing_user:
+                return Response({
+                    'error': 'Email address is already in use by another user'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            user_to_update.email = email
+        else:
+            user_to_update.email = None
+        
+        # Update designation (optional field)
+        if designation:
+            user_to_update.designation = designation
+        else:
+            user_to_update.designation = None
+        
+        # Update joining_date (optional field)
+        if joining_date:
+            user_to_update.joining_date = joining_date
+        else:
+            user_to_update.joining_date = None
         
         # Update company assignment if provided
         if company_id is not None:
@@ -1029,3 +1140,102 @@ class CompanyViewSet(viewsets.ModelViewSet):
             {'error': 'Company deletion is not allowed. Please deactivate the company instead.'},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def pending_users_view(request):
+    """Get list of users pending approval - Admin only"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can view pending users'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    pending_users = User.objects.filter(pending_approval=True).order_by('-created_at')
+    serializer = UserSerializer(pending_users, many=True, context={'request': request})
+    
+    return Response({
+        'count': pending_users.count(),
+        'users': serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def approve_user_view(request, user_id):
+    """Approve a pending user - Admin only"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can approve users'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from django.utils import timezone
+        
+        user_to_approve = User.objects.get(id=user_id)
+        
+        if not user_to_approve.pending_approval:
+            return Response({
+                'error': 'User is not pending approval'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Approve the user
+        user_to_approve.pending_approval = False
+        user_to_approve.approved_by = request.user
+        user_to_approve.approved_at = timezone.now()
+        user_to_approve.is_active = True
+        user_to_approve.save()
+        
+        user_name = f"{user_to_approve.first_name} {user_to_approve.last_name}".strip() or user_to_approve.username
+        
+        return Response({
+            'message': f'User "{user_name}" has been approved successfully',
+            'user': UserSerializer(user_to_approve, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to approve user',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reject_user_view(request, user_id):
+    """Reject a pending user (delete) - Admin only"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can reject users'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user_to_reject = User.objects.get(id=user_id)
+        
+        if not user_to_reject.pending_approval:
+            return Response({
+                'error': 'User is not pending approval'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_name = f"{user_to_reject.first_name} {user_to_reject.last_name}".strip() or user_to_reject.username
+        
+        # Delete the user
+        user_to_reject.delete()
+        
+        return Response({
+            'message': f'User "{user_name}" has been rejected and removed'
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to reject user',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

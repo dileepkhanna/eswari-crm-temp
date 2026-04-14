@@ -134,6 +134,22 @@ class AnnouncementViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         
         elif user.role == 'hr':
             # HR can see all announcements within their company
+            # If HR user doesn't have a company, show all announcements (like admin)
+            if not user.company:
+                queryset = base_queryset.filter(is_active=True)
+                
+                # If company filter is specified, filter by that company
+                if company_id:
+                    try:
+                        company_id = int(company_id)
+                        queryset = queryset.filter(
+                            models.Q(company_id=company_id) | models.Q(companies__id=company_id)
+                        ).distinct()
+                    except (ValueError, TypeError):
+                        pass
+                
+                return queryset
+            
             # If company filter is specified and it matches their company, use it
             if company_id:
                 try:
@@ -433,8 +449,21 @@ class AnnouncementViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         
         elif user.role == 'hr':
             # HR can see all announcements within their company
+            # If HR user doesn't have a company, show all announcements (like admin)
+            if not user.company:
+                queryset = base_queryset.exclude(id__in=read_announcement_ids)
+                
+                # If company filter is specified, filter by that company
+                if company_id:
+                    try:
+                        company_id = int(company_id)
+                        queryset = queryset.filter(
+                            models.Q(company_id=company_id) | models.Q(companies__id=company_id)
+                        ).distinct()
+                    except (ValueError, TypeError):
+                        pass
             # If company filter is specified and it matches their company, use it
-            if company_id:
+            elif company_id:
                 try:
                     if int(company_id) == user.company.id:
                         queryset = base_queryset.filter(

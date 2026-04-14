@@ -30,7 +30,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithUserId: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (email: string, password: string, name: string, phone: string, address: string) => Promise<{ success: boolean; error?: string }>;
-  createUser: (email: string, password: string, name: string, phone: string, address: string, role: UserRole, managerId?: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
+  createUser: (email: string, password: string, name: string, phone: string, address: string, role: UserRole, company?: number, managerId?: string, joining_date?: string, designation?: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
   createInitialAdmin: (firstName: string, lastName: string, email: string, password: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -340,7 +340,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     address: string,
     role: UserRole,
     company: number,
-    managerId?: string
+    managerId?: string,
+    joining_date?: string,
+    designation?: string
   ): Promise<{ success: boolean; error?: string; userId?: string }> => {
     try {
       logger.log('[AuthContext] createUser called with company:', company);
@@ -358,6 +360,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role,
         company, // Add company field
         ...(managerId && { manager: parseInt(managerId) }), // Add manager if provided
+        ...(joining_date && { joining_date }), // Add joining_date if provided
+        ...(designation && { designation }), // Add designation if provided
       };
 
       logger.log('[AuthContext] Sending userData to API:', userData);

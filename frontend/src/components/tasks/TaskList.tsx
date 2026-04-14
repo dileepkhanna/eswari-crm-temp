@@ -363,7 +363,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             )}
           </div>
           {canCreate && (
-            <Button onClick={handleAddTask} className="btn-accent shrink-0 w-full sm:w-auto">
+            <Button onClick={handleAddTask} className="btn-primary shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Add Task
             </Button>

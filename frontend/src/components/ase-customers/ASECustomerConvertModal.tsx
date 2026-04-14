@@ -92,15 +92,15 @@ export default function ASECustomerConvertModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="convert-description">
         <DialogHeader>
           <DialogTitle>
-            Convert Customer to Lead: {customer.name}
+            Convert Call to Lead: {customer.name}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Add digital marketing information to convert this customer into a qualified lead.
+            Add digital marketing information to convert this call into a qualified lead.
           </p>
         </DialogHeader>
 
         <div id="convert-description" className="sr-only">
-          Convert a simple ASE customer into a qualified lead by adding digital marketing information
+          Convert a simple ASE call into a qualified lead by adding digital marketing information
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

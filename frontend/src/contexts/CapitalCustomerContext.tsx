@@ -18,6 +18,25 @@ interface CapitalContextType {
   loadingTasks: boolean;
   loadingLoans: boolean;
   loadingServices: boolean;
+  // Pagination
+  servicesPage: number;
+  servicesTotalPages: number;
+  servicesTotalCount: number;
+  loansPage: number;
+  loansTotalPages: number;
+  loansTotalCount: number;
+  customersPage: number;
+  customersTotalPages: number;
+  customersTotalCount: number;
+  loadServicesPage: (page: number) => Promise<void>;
+  loadLoansPage: (page: number) => Promise<void>;
+  loadCustomersPage: (page: number) => Promise<void>;
+  filterServices: (filters: any) => Promise<void>;
+  searchServices: (searchTerm: string) => Promise<void>;
+  filterLoans: (filters: any) => Promise<void>;
+  searchLoans: (searchTerm: string) => Promise<void>;
+  filterCustomers: (filters: any) => Promise<void>;
+  searchCustomers: (searchTerm: string) => Promise<void>;
   // customers
   addCustomer: (data: Partial<CapitalCustomer>) => Promise<void>;
   updateCustomer: (id: string, data: Partial<CapitalCustomer>) => Promise<void>;
@@ -67,6 +86,25 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingLoans, setLoadingLoans] = useState(false);
   const [loadingServices, setLoadingServices] = useState(false);
+  
+  // Pagination state
+  const [servicesPage, setServicesPage] = useState(1);
+  const [servicesTotalPages, setServicesTotalPages] = useState(1);
+  const [servicesTotalCount, setServicesTotalCount] = useState(0);
+  const [loansPage, setLoansPage] = useState(1);
+  const [loansTotalPages, setLoansTotalPages] = useState(1);
+  const [loansTotalCount, setLoansTotalCount] = useState(0);
+  const [customersPage, setCustomersPage] = useState(1);
+  const [customersTotalPages, setCustomersTotalPages] = useState(1);
+  const [customersTotalCount, setCustomersTotalCount] = useState(0);
+  
+  // Filter and search state
+  const [servicesFilters, setServicesFilters] = useState<any>({});
+  const [servicesSearch, setServicesSearch] = useState('');
+  const [loansFilters, setLoansFilters] = useState<any>({});
+  const [loansSearch, setLoansSearch] = useState('');
+  const [customersFilters, setCustomersFilters] = useState<any>({});
+  const [customersSearch, setCustomersSearch] = useState('');
 
   const fetchEmployees = async () => {
     if (!user) return;
@@ -114,9 +152,95 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setLoadingCustomers(true);
     try {
-      const res = await capitalCustomerService.list({ page_size: 500 }) as any;
-      setCustomers(Array.isArray(res) ? res : res.results || []);
+      // Build query params with filters and search
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (customersSearch) params.search = customersSearch;
+      if (customersFilters.call_status) params.call_status = customersFilters.call_status;
+      if (customersFilters.interest) params.interest = customersFilters.interest;
+      if (customersFilters.assigned_to) params.assigned_to = customersFilters.assigned_to;
+      if (customersFilters.is_converted !== undefined) params.is_converted = customersFilters.is_converted;
+      
+      const res = await capitalCustomerService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setCustomers(data);
+      setCustomersPage(1);
+      setCustomersTotalCount(res.count || data.length);
+      setCustomersTotalPages(Math.ceil((res.count || data.length) / 100));
+      
+      // Cache first page
+      localStorage.setItem('capital_customers', JSON.stringify(data));
     } catch (e) { logger.error('Capital: fetchCustomers', e); }
+    finally { setLoadingCustomers(false); }
+  };
+  
+  const loadCustomersPage = async (page: number) => {
+    if (!user) return;
+    setLoadingCustomers(true);
+    try {
+      const params: any = { page, page_size: 100 };
+      
+      if (customersSearch) params.search = customersSearch;
+      if (customersFilters.call_status) params.call_status = customersFilters.call_status;
+      if (customersFilters.interest) params.interest = customersFilters.interest;
+      if (customersFilters.assigned_to) params.assigned_to = customersFilters.assigned_to;
+      if (customersFilters.is_converted !== undefined) params.is_converted = customersFilters.is_converted;
+      
+      const res = await capitalCustomerService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setCustomers(data);
+      setCustomersPage(page);
+      setCustomersTotalCount(res.count || data.length);
+      setCustomersTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: loadCustomersPage', e); }
+    finally { setLoadingCustomers(false); }
+  };
+  
+  const filterCustomers = async (filters: any) => {
+    setCustomersFilters(filters);
+    setCustomersPage(1);
+    if (!user) return;
+    setLoadingCustomers(true);
+    try {
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (customersSearch) params.search = customersSearch;
+      if (filters.call_status) params.call_status = filters.call_status;
+      if (filters.interest) params.interest = filters.interest;
+      if (filters.assigned_to) params.assigned_to = filters.assigned_to;
+      if (filters.is_converted !== undefined) params.is_converted = filters.is_converted;
+      
+      const res = await capitalCustomerService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setCustomers(data);
+      setCustomersPage(1);
+      setCustomersTotalCount(res.count || data.length);
+      setCustomersTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: filterCustomers', e); }
+    finally { setLoadingCustomers(false); }
+  };
+  
+  const searchCustomers = async (searchTerm: string) => {
+    setCustomersSearch(searchTerm);
+    setCustomersPage(1);
+    if (!user) return;
+    setLoadingCustomers(true);
+    try {
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (searchTerm) params.search = searchTerm;
+      if (customersFilters.call_status) params.call_status = customersFilters.call_status;
+      if (customersFilters.interest) params.interest = customersFilters.interest;
+      if (customersFilters.assigned_to) params.assigned_to = customersFilters.assigned_to;
+      if (customersFilters.is_converted !== undefined) params.is_converted = customersFilters.is_converted;
+      
+      const res = await capitalCustomerService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setCustomers(data);
+      setCustomersPage(1);
+      setCustomersTotalCount(res.count || data.length);
+      setCustomersTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: searchCustomers', e); }
     finally { setLoadingCustomers(false); }
   };
 
@@ -124,8 +248,11 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setLoadingTasks(true);
     try {
-      const res = await capitalTaskService.list({ page_size: 500 }) as any;
-      setTasks(Array.isArray(res) ? res : res.results || []);
+      const res = await capitalTaskService.list({ page: 1, page_size: 100 }) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setTasks(data);
+      // Cache for instant loading next time
+      localStorage.setItem('capital_tasks', JSON.stringify(data));
     } catch (e) { logger.error('Capital: fetchTasks', e); }
     finally { setLoadingTasks(false); }
   };
@@ -134,9 +261,117 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setLoadingServices(true);
     try {
-      const res = await capitalServiceService.list({ page_size: 500 }) as any;
-      setServices(Array.isArray(res) ? res : res.results || []);
+      // Build query params with filters and search
+      const params: any = { page: 1, page_size: 100 };
+      
+      // Add search if exists
+      if (servicesSearch) {
+        params.search = servicesSearch;
+      }
+      
+      // Add filters if exist
+      if (servicesFilters.status) {
+        params.status = servicesFilters.status;
+      }
+      if (servicesFilters.service_type) {
+        params.service_type = servicesFilters.service_type;
+      }
+      if (servicesFilters.assigned_to) {
+        params.assigned_to = servicesFilters.assigned_to;
+      }
+      
+      const res = await capitalServiceService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setServices(data);
+      setServicesPage(1);
+      setServicesTotalCount(res.count || data.length);
+      setServicesTotalPages(Math.ceil((res.count || data.length) / 100));
+      
+      // Cache first page
+      localStorage.setItem('capital_services', JSON.stringify(data));
+      localStorage.setItem('capital_services_count', res.count?.toString() || '0');
     } catch (e) { logger.error('Capital: fetchServices', e); }
+    finally { setLoadingServices(false); }
+  };
+  
+  const loadServicesPage = async (page: number) => {
+    if (!user) return;
+    setLoadingServices(true);
+    try {
+      // Build query params with filters and search
+      const params: any = { page, page_size: 100 };
+      
+      // Add search if exists
+      if (servicesSearch) {
+        params.search = servicesSearch;
+      }
+      
+      // Add filters if exist
+      if (servicesFilters.status) {
+        params.status = servicesFilters.status;
+      }
+      if (servicesFilters.service_type) {
+        params.service_type = servicesFilters.service_type;
+      }
+      if (servicesFilters.assigned_to) {
+        params.assigned_to = servicesFilters.assigned_to;
+      }
+      
+      const res = await capitalServiceService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setServices(data);
+      setServicesPage(page);
+      setServicesTotalCount(res.count || data.length);
+      setServicesTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: loadServicesPage', e); }
+    finally { setLoadingServices(false); }
+  };
+  
+  const filterServices = async (filters: any) => {
+    setServicesFilters(filters);
+    setServicesPage(1); // Reset to first page
+    // Trigger fetch with new filters
+    if (!user) return;
+    setLoadingServices(true);
+    try {
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (servicesSearch) params.search = servicesSearch;
+      if (filters.status) params.status = filters.status;
+      if (filters.service_type) params.service_type = filters.service_type;
+      if (filters.assigned_to) params.assigned_to = filters.assigned_to;
+      
+      const res = await capitalServiceService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setServices(data);
+      setServicesPage(1);
+      setServicesTotalCount(res.count || data.length);
+      setServicesTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: filterServices', e); }
+    finally { setLoadingServices(false); }
+  };
+  
+  const searchServices = async (searchTerm: string) => {
+    setServicesSearch(searchTerm);
+    setServicesPage(1); // Reset to first page
+    // Trigger fetch with new search
+    if (!user) return;
+    setLoadingServices(true);
+    try {
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (searchTerm) params.search = searchTerm;
+      if (servicesFilters.status) params.status = servicesFilters.status;
+      if (servicesFilters.service_type) params.service_type = servicesFilters.service_type;
+      if (servicesFilters.assigned_to) params.assigned_to = servicesFilters.assigned_to;
+      
+      const res = await capitalServiceService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setServices(data);
+      setServicesPage(1);
+      setServicesTotalCount(res.count || data.length);
+      setServicesTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: searchServices', e); }
     finally { setLoadingServices(false); }
   };
 
@@ -144,19 +379,131 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setLoadingLoans(true);
     try {
-      const res = await capitalLoanService.list({ page_size: 500 }) as any;
-      setLoans(Array.isArray(res) ? res : res.results || []);
+      // Build query params with filters and search
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (loansSearch) params.search = loansSearch;
+      if (loansFilters.status) params.status = loansFilters.status;
+      if (loansFilters.loan_type) params.loan_type = loansFilters.loan_type;
+      if (loansFilters.assigned_to) params.assigned_to = loansFilters.assigned_to;
+      
+      const res = await capitalLoanService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setLoans(data);
+      setLoansPage(1);
+      setLoansTotalCount(res.count || data.length);
+      setLoansTotalPages(Math.ceil((res.count || data.length) / 100));
+      
+      localStorage.setItem('capital_loans', JSON.stringify(data));
     } catch (e) { logger.error('Capital: fetchLoans', e); }
     finally { setLoadingLoans(false); }
   };
+  
+  const loadLoansPage = async (page: number) => {
+    if (!user) return;
+    setLoadingLoans(true);
+    try {
+      const params: any = { page, page_size: 100 };
+      
+      if (loansSearch) params.search = loansSearch;
+      if (loansFilters.status) params.status = loansFilters.status;
+      if (loansFilters.loan_type) params.loan_type = loansFilters.loan_type;
+      if (loansFilters.assigned_to) params.assigned_to = loansFilters.assigned_to;
+      
+      const res = await capitalLoanService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setLoans(data);
+      setLoansPage(page);
+      setLoansTotalCount(res.count || data.length);
+      setLoansTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: loadLoansPage', e); }
+    finally { setLoadingLoans(false); }
+  };
+  
+  const filterLoans = async (filters: any) => {
+    setLoansFilters(filters);
+    setLoansPage(1);
+    if (!user) return;
+    setLoadingLoans(true);
+    try {
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (loansSearch) params.search = loansSearch;
+      if (filters.status) params.status = filters.status;
+      if (filters.loan_type) params.loan_type = filters.loan_type;
+      if (filters.assigned_to) params.assigned_to = filters.assigned_to;
+      
+      const res = await capitalLoanService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setLoans(data);
+      setLoansPage(1);
+      setLoansTotalCount(res.count || data.length);
+      setLoansTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: filterLoans', e); }
+    finally { setLoadingLoans(false); }
+  };
+  
+  const searchLoans = async (searchTerm: string) => {
+    setLoansSearch(searchTerm);
+    setLoansPage(1);
+    if (!user) return;
+    setLoadingLoans(true);
+    try {
+      const params: any = { page: 1, page_size: 100 };
+      
+      if (searchTerm) params.search = searchTerm;
+      if (loansFilters.status) params.status = loansFilters.status;
+      if (loansFilters.loan_type) params.loan_type = loansFilters.loan_type;
+      if (loansFilters.assigned_to) params.assigned_to = loansFilters.assigned_to;
+      
+      const res = await capitalLoanService.list(params) as any;
+      const data = Array.isArray(res) ? res : res.results || [];
+      setLoans(data);
+      setLoansPage(1);
+      setLoansTotalCount(res.count || data.length);
+      setLoansTotalPages(Math.ceil((res.count || data.length) / 100));
+    } catch (e) { logger.error('Capital: searchLoans', e); }
+    finally { setLoadingLoans(false); }
+  };
 
+  // Load cached data immediately on mount
   useEffect(() => {
     if (user) {
-      fetchEmployees();
-      fetchCustomers();
-      fetchTasks();
-      fetchLoans();
-      fetchServices();
+      // Load from cache first for instant display
+      const cachedServices = localStorage.getItem('capital_services');
+      const cachedLoans = localStorage.getItem('capital_loans');
+      const cachedCustomers = localStorage.getItem('capital_customers');
+      const cachedTasks = localStorage.getItem('capital_tasks');
+      
+      if (cachedServices) {
+        try {
+          setServices(JSON.parse(cachedServices));
+        } catch (e) { /* ignore */ }
+      }
+      if (cachedLoans) {
+        try {
+          setLoans(JSON.parse(cachedLoans));
+        } catch (e) { /* ignore */ }
+      }
+      if (cachedCustomers) {
+        try {
+          setCustomers(JSON.parse(cachedCustomers));
+        } catch (e) { /* ignore */ }
+      }
+      if (cachedTasks) {
+        try {
+          setTasks(JSON.parse(cachedTasks));
+        } catch (e) { /* ignore */ }
+      }
+      
+      // Then fetch fresh data in parallel (in background)
+      Promise.all([
+        fetchEmployees(),
+        fetchCustomers(),
+        fetchTasks(),
+        fetchLoans(),
+        fetchServices()
+      ]);
     }
   }, [user?.id]);
 
@@ -248,7 +595,64 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
       const res = await capitalLoanService.create(data) as CapitalLoan;
       setLoans(p => [res, ...p]);
       toast.success('Loan added');
-    } catch { toast.error('Failed to add loan'); }
+    } catch (e: any) {
+      // Parse error message to show specific details
+      const errorMsg = e?.message || '';
+      console.error('Add loan error:', errorMsg, e);
+      
+      try {
+        // Try to parse the error details from the message
+        const detailsMatch = errorMsg.match(/details: ({.*})/);
+        if (detailsMatch) {
+          const errorData = JSON.parse(detailsMatch[1]);
+          
+          // Check for validation errors (from serializer)
+          if (errorData.phone) {
+            toast.error(`Phone: ${errorData.phone}`);
+            return;
+          }
+          
+          if (errorData.loan_type) {
+            toast.error(`Loan Type: ${errorData.loan_type}`);
+            return;
+          }
+          
+          if (errorData.applicant_name) {
+            toast.error(`Name: ${errorData.applicant_name}`);
+            return;
+          }
+          
+          // Check for generic error message
+          if (errorData.error) {
+            toast.error(errorData.error);
+            return;
+          }
+          
+          // Check for any other field errors
+          const firstErrorKey = Object.keys(errorData)[0];
+          if (firstErrorKey) {
+            const firstError = errorData[firstErrorKey];
+            const errorText = Array.isArray(firstError) ? firstError[0] : firstError;
+            toast.error(`${firstErrorKey}: ${errorText}`);
+            return;
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing loan error:', parseError);
+        // If parsing fails, check for common error patterns
+        if (errorMsg.includes('already exists') || errorMsg.includes('duplicate')) {
+          toast.error('A loan of this type already exists for this phone number');
+          return;
+        }
+        if (errorMsg.includes('required')) {
+          toast.error('Please fill in all required fields');
+          return;
+        }
+      }
+      
+      // Fallback to generic error
+      toast.error('Failed to add loan. Please check all fields and try again.');
+    }
   };
 
   const updateLoan = async (id: string, data: Partial<CapitalLoan>) => {
@@ -256,7 +660,37 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
       const res = await capitalLoanService.update(id, data) as CapitalLoan;
       setLoans(p => p.map(l => l.id === id ? res : l));
       toast.success('Loan updated');
-    } catch { toast.error('Failed to update loan'); }
+    } catch (e: any) {
+      // Parse error message to show specific details
+      const errorMsg = e?.message || '';
+      
+      try {
+        // Try to parse the error details from the message
+        const detailsMatch = errorMsg.match(/details: ({.*})/);
+        if (detailsMatch) {
+          const errorData = JSON.parse(detailsMatch[1]);
+          
+          // Check for validation errors (from serializer)
+          if (errorData.phone) {
+            toast.error(errorData.phone);
+            return;
+          }
+          
+          // Check for any field-specific errors
+          const firstError = Object.values(errorData)[0];
+          if (firstError) {
+            toast.error(String(firstError));
+            return;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, show the raw error
+        console.error('Update loan error:', errorMsg);
+      }
+      
+      // Fallback to generic error
+      toast.error('Failed to update loan');
+    }
   };
 
   const deleteLoan = async (id: string) => {
@@ -281,7 +715,69 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
       const res = await capitalServiceService.create(data) as CapitalService;
       setServices(p => [res, ...p]);
       toast.success('Service added');
-    } catch { toast.error('Failed to add service'); }
+    } catch (e: any) {
+      // Parse error message to show specific details
+      const errorMsg = e?.message || '';
+      console.error('Add service error:', errorMsg, e);
+      
+      try {
+        // Try to parse the error details from the message
+        const detailsMatch = errorMsg.match(/details: ({.*})/);
+        if (detailsMatch) {
+          const errorData = JSON.parse(detailsMatch[1]);
+          
+          // Check for validation errors (from serializer)
+          if (errorData.phone) {
+            toast.error(`Phone: ${errorData.phone}`);
+            return;
+          }
+          
+          if (errorData.service_type) {
+            toast.error(`Service Type: ${errorData.service_type}`);
+            return;
+          }
+          
+          if (errorData.client_name) {
+            toast.error(`Name: ${errorData.client_name}`);
+            return;
+          }
+          
+          if (errorData.financial_year) {
+            toast.error(`Financial Year: ${errorData.financial_year}`);
+            return;
+          }
+          
+          // Check for generic error message
+          if (errorData.error) {
+            toast.error(errorData.error);
+            return;
+          }
+          
+          // Check for any other field errors
+          const firstErrorKey = Object.keys(errorData)[0];
+          if (firstErrorKey) {
+            const firstError = errorData[firstErrorKey];
+            const errorText = Array.isArray(firstError) ? firstError[0] : firstError;
+            toast.error(`${firstErrorKey.replace(/_/g, ' ')}: ${errorText}`);
+            return;
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing service error:', parseError);
+        // If parsing fails, check for common error patterns
+        if (errorMsg.includes('already exists') || errorMsg.includes('duplicate')) {
+          toast.error('A service record already exists for this phone number, service type, and financial year');
+          return;
+        }
+        if (errorMsg.includes('required')) {
+          toast.error('Please fill in all required fields');
+          return;
+        }
+      }
+      
+      // Fallback to generic error
+      toast.error('Failed to add service. Please check all fields and try again.');
+    }
   };
 
   const updateService = async (id: string, data: Partial<CapitalService>) => {
@@ -289,7 +785,39 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
       const res = await capitalServiceService.update(id, data) as CapitalService;
       setServices(p => p.map(s => s.id === id ? res : s));
       toast.success('Service updated');
-    } catch { toast.error('Failed to update service'); }
+    } catch (e: any) {
+      // Parse error message to show specific details
+      const errorMsg = e?.message || '';
+      console.error('Update service error:', errorMsg, e);
+      
+      try {
+        // Try to parse the error details from the message
+        const detailsMatch = errorMsg.match(/details: ({.*})/);
+        if (detailsMatch) {
+          const errorData = JSON.parse(detailsMatch[1]);
+          
+          // Check for validation errors (from serializer)
+          if (errorData.phone) {
+            toast.error(errorData.phone);
+            return;
+          }
+          
+          // Check for any field-specific errors
+          const firstErrorKey = Object.keys(errorData)[0];
+          if (firstErrorKey) {
+            const firstError = errorData[firstErrorKey];
+            const errorText = Array.isArray(firstError) ? firstError[0] : firstError;
+            toast.error(`${firstErrorKey.replace(/_/g, ' ')}: ${errorText}`);
+            return;
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing service update error:', parseError);
+      }
+      
+      // Fallback to generic error
+      toast.error('Failed to update service');
+    }
   };
 
   const deleteService = async (id: string) => {
@@ -313,6 +841,13 @@ export function CapitalProvider({ children }: { children: React.ReactNode }) {
       customers, tasks, loans, services, employees,
       currentUserId, currentUserRole,
       loadingCustomers, loadingTasks, loadingLoans, loadingServices,
+      servicesPage, servicesTotalPages, servicesTotalCount,
+      loansPage, loansTotalPages, loansTotalCount,
+      customersPage, customersTotalPages, customersTotalCount,
+      loadServicesPage, loadLoansPage, loadCustomersPage,
+      filterServices, searchServices,
+      filterLoans, searchLoans,
+      filterCustomers, searchCustomers,
       addCustomer, updateCustomer, deleteCustomer, bulkImportCustomers, convertToLead, markCustomerConverted, refreshCustomers: fetchCustomers,
       addTask, updateTask, deleteTask, bulkImportTasks, refreshTasks: fetchTasks,
       addLoan, updateLoan, deleteLoan, bulkImportLoans, refreshLoans: fetchLoans,

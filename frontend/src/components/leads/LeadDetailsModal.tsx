@@ -235,13 +235,24 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
 
             <Separator />
 
-            {/* Created By */}
+            {/* Assigned To & Created By */}
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Created By
+                Assignment
               </h3>
-              <div className="p-3 rounded-lg bg-muted/50">
-                <StaffProfileChip userId={lead.createdBy} userName={lead.createdByName} showDetails={!isManagerView} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground mb-2">Assigned To</p>
+                  {lead.assignedTo ? (
+                    <StaffProfileChip userId={lead.assignedTo} userName={lead.assignedToName} showDetails={!isManagerView} />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Unassigned</span>
+                  )}
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground mb-2">Created By</p>
+                  <StaffProfileChip userId={lead.createdBy} userName={lead.createdByName} showDetails={!isManagerView} />
+                </div>
               </div>
             </div>
             {lead.description && (
