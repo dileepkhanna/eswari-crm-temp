@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { Customer } from '@/types';
-import { useData } from '@/contexts/DataContextDjango';
+import { useData, apiToLead } from '@/contexts/DataContextDjango';
 import { cn } from '@/lib/utils';
 
 import { logger } from '@/lib/logger';
@@ -41,8 +41,11 @@ interface ConversionFormData {
 }
 
 export default function ConversionFormModal({ open, onClose, customer, onConversionComplete }: ConversionFormModalProps) {
-  const { projects } = useData();
+  const { projects, addLeadToState, refreshData } = useData();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [phoneWarning, setPhoneWarning] = useState('');
+  const phoneCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [formData, setFormData] = useState<ConversionFormData>({
     name: '',
     phone: '',
@@ -60,17 +63,35 @@ export default function ConversionFormModal({ open, onClose, customer, onConvers
     notes: '',
   });
 
-  // Pre-fill form with customer data when modal opens
+  // Pre-fill form with customer data when modal opens — no projects pre-selected
   useEffect(() => {
     if (open && customer) {
+      setPhoneWarning('');
       setFormData(prev => ({
         ...prev,
         name: customer.name || '',
         phone: customer.phone || '',
-        email: '', // Customer type doesn't have email, so start with empty string
+        email: '',
+        assigned_projects: [],
       }));
     }
   }, [open, customer]);
+
+  // Check for duplicate lead phone (debounced)
+  const checkPhoneDuplicate = (phone: string) => {
+    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    if (!phone.trim()) { setPhoneWarning(''); return; }
+    phoneCheckTimer.current = setTimeout(async () => {
+      try {
+        const res = await apiClient.getLeads({ search: phone.trim(), page_size: 5 });
+        const results: any[] = Array.isArray(res) ? res : (res as any).results ?? [];
+        const exact = results.find((l: any) => l.phone === phone.trim());
+        setPhoneWarning(exact ? `A lead already exists with this phone number (${exact.name || exact.phone}).` : '');
+      } catch {
+        setPhoneWarning('');
+      }
+    }, 500);
+  };
 
   const handleProjectToggle = (projectId: string) => {
     setFormData(prev => ({
@@ -121,18 +142,35 @@ export default function ConversionFormModal({ open, onClose, customer, onConvers
 
       const response = await apiClient.convertCustomer(customer.id, leadData);
 
+      // Add the newly created lead to state immediately so leads list shows correct data
+      if (response?.lead) {
+        addLeadToState(apiToLead(response.lead));
+      } else {
+        // Fallback: refresh leads from server
+        refreshData(false);
+      }
+
       toast.success('Call converted to lead successfully!');
       onConversionComplete();
       handleClose();
     } catch (error: any) {
       logger.error('Failed to convert call:', error);
-      toast.error('Failed to convert call. Please try again.');
+      const msg: string = error?.message ?? '';
+      if (msg.includes('already exists') || msg.includes('unique')) {
+        toast.error('A lead with this phone number already exists. Please use a different phone number or find the existing lead.');
+      } else if (msg.includes('already been converted')) {
+        toast.error('This customer has already been converted to a lead.');
+      } else {
+        toast.error('Failed to convert call. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => { 
+    setPhoneWarning('');
+    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
     setFormData({
       name: '',
       phone: '',
@@ -186,9 +224,17 @@ export default function ConversionFormModal({ open, onClose, customer, onConvers
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, phone: e.target.value });
+                  checkPhoneDuplicate(e.target.value);
+                }}
                 required
               />
+              {phoneWarning && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  ⚠️ {phoneWarning}
+                </p>
+              )}
             </div>
           </div>
 

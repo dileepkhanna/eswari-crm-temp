@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Task, TaskStatus, Lead, Project } from '@/types';
 import { useAuth } from '@/contexts/AuthContextDjango';
-import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';
-import {
+import { canViewCustomerPhone, maskPhoneNumber } from '@/lib/permissions';import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,6 +33,7 @@ interface TaskFormModalProps {
   isCreating?: boolean;
   availableLeads?: Lead[];
   projects: Project[];
+  convertingLead?: Lead | null;
 }
 
 export default function TaskFormModal({
@@ -44,16 +44,17 @@ export default function TaskFormModal({
   isCreating = false,
   availableLeads = [],
   projects,
+  convertingLead = null,
 }: TaskFormModalProps) {
   const { user } = useAuth();
   
   const [formData, setFormData] = useState({
     status: 'in_progress' as TaskStatus,
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     assignedProject: 'none' as string,
     nextActionDate: null as Date | null,
     notes: '' as string,
     selectedLeadId: '' as string,
-    // Auto-generated lead fields
     leadName: '' as string,
     leadPhone: '' as string,
     leadEmail: '' as string,
@@ -66,6 +67,7 @@ export default function TaskFormModal({
     if (task) {
       setFormData({
         status: task.status,
+        priority: task.priority || 'medium',
         assignedProject: task.assignedProject || 'none',
         nextActionDate: task.nextActionDate || null,
         notes: task.notes.length > 0 ? task.notes[task.notes.length - 1].content : '',
@@ -74,9 +76,25 @@ export default function TaskFormModal({
         leadPhone: '',
         leadEmail: '',
       });
+    } else if (convertingLead) {
+      const projectId = (convertingLead.assignedProjects && convertingLead.assignedProjects.length > 0)
+        ? convertingLead.assignedProjects[0]
+        : convertingLead.assignedProject || 'none';
+      setFormData({
+        status: 'in_progress',
+        priority: 'medium',
+        assignedProject: projectId,
+        nextActionDate: null,
+        notes: '',
+        selectedLeadId: '',
+        leadName: '',
+        leadPhone: '',
+        leadEmail: '',
+      });
     } else {
       setFormData({
         status: 'in_progress',
+        priority: 'medium',
         assignedProject: 'none',
         nextActionDate: null,
         notes: '',
@@ -86,7 +104,7 @@ export default function TaskFormModal({
         leadEmail: '',
       });
     }
-  }, [task, open]);
+  }, [task, convertingLead, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +147,7 @@ export default function TaskFormModal({
       onSave({
         lead: leadToUse,
         status: formData.status,
+        priority: formData.priority,
         assignedProject,
         nextActionDate: formData.nextActionDate || undefined,
         notes: formData.notes ? [{
@@ -144,6 +163,7 @@ export default function TaskFormModal({
       const updatedData: any = {
         ...task,
         status: formData.status,
+        priority: formData.priority,
         assignedProject,
         nextActionDate: formData.nextActionDate || undefined,
         updatedAt: new Date(),
@@ -165,23 +185,41 @@ export default function TaskFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl w-full flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl">
-            {task ? 'Edit Task' : 'Create Task'}
+            {task ? 'Edit Task' : convertingLead ? 'Convert to Task' : 'Create Task'}
           </DialogTitle>
           <DialogDescription>
-            {task ? 'Update task details and status' : 'Create a new task with customer information'}
+            {task
+              ? 'Update task details and status'
+              : convertingLead
+              ? `Fill in the task details for "${convertingLead.name}"`
+              : 'Create a new task with customer information'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+          {/* Show lead info when editing an existing task */}
           {task && (
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Lead</p>
               <p className="font-medium">{task.lead?.name || 'Unknown Lead'}</p>
               {canViewPhone && (
                 <p className="text-sm text-muted-foreground">{task.lead?.phone || '-'}</p>
+              )}
+            </div>
+          )}
+
+          {/* Show lead info when converting a lead to task */}
+          {convertingLead && !task && (
+            <div className="p-4 bg-muted/50 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Converting lead</p>
+              <p className="font-medium">{convertingLead.name}</p>
+              <p className="text-sm text-muted-foreground">{convertingLead.phone}</p>
+              {convertingLead.email && (
+                <p className="text-sm text-muted-foreground">{convertingLead.email}</p>
               )}
             </div>
           )}
@@ -193,7 +231,6 @@ export default function TaskFormModal({
                 <span className="text-xs text-muted-foreground">Required</span>
               </div>
               
-              {/* Option to select existing lead */}
               {availableLeads.length > 0 && (
                 <div className="space-y-2">
                   <Label>Select Existing Customer (Optional)</Label>
@@ -203,7 +240,6 @@ export default function TaskFormModal({
                       setFormData({ 
                         ...formData, 
                         selectedLeadId: value,
-                        // Clear manual fields when selecting existing lead
                         leadName: '',
                         leadPhone: '',
                         leadEmail: ''
@@ -225,7 +261,6 @@ export default function TaskFormModal({
                 </div>
               )}
 
-              {/* Manual lead creation fields - only show if no existing lead selected */}
               {!formData.selectedLeadId && (
                 <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
                   <Label className="text-sm font-medium">Create New Customer</Label>
@@ -308,6 +343,24 @@ export default function TaskFormModal({
           </div>
 
           <div className="space-y-2">
+            <Label>Priority</Label>
+            <Select
+              value={formData.priority}
+              onValueChange={(value: any) => setFormData({ ...formData, priority: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Visit Date</Label>
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
@@ -348,8 +401,9 @@ export default function TaskFormModal({
               placeholder="Add notes about this task..."
             />
           </div>
+          </div>{/* end scrollable area */}
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t shrink-0 mt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -358,7 +412,7 @@ export default function TaskFormModal({
               className="btn-primary"
               disabled={isCreating && !formData.selectedLeadId && (!formData.leadName || !formData.leadPhone)}
             >
-              {task ? 'Update Task' : 'Create Task'}
+              {task ? 'Update Task' : convertingLead ? 'Convert to Task' : 'Create Task'}
             </Button>
           </div>
         </form>

@@ -170,7 +170,6 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     try {
       await updateTask(taskId, { status: newStatus });
-      toast.success("Task status updated");
     } catch (error) {
       // Error already shown by DataContext
     }
@@ -417,13 +416,30 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 <p className="font-medium">{task.nextActionDate ? format(task.nextActionDate, "MMM dd") : "-"}</p>
               </div>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" className="flex-1 min-w-[70px]" onClick={() => setViewingTask(task)}>
+            <div className="flex gap-2 flex-wrap items-center">
+              {canEdit && (
+                <Select value={task.status} onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}>
+                  <SelectTrigger className="flex-1 h-8 text-xs min-w-[130px]">
+                    <TaskStatusChip status={task.status} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="site_visit">Site Visit</SelectItem>
+                    <SelectItem value="family_visit">Family Visit</SelectItem>
+                    {user?.role === 'admin' && (
+                      <SelectItem value="perfect_family_visit">Perfect F. Visit</SelectItem>
+                    )}
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <Button variant="outline" size="sm" className="h-8 px-3" onClick={() => setViewingTask(task)}>
                 <Eye className="w-3.5 h-3.5 mr-1" />
                 View
               </Button>
               {canEdit && (
-                <Button variant="outline" size="sm" className="flex-1 min-w-[70px]" onClick={() => handleEditTask(task)}>
+                <Button variant="outline" size="sm" className="h-8 px-3" onClick={() => handleEditTask(task)}>
                   <Edit className="w-3.5 h-3.5 mr-1" />
                   Edit
                 </Button>

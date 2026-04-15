@@ -4,6 +4,7 @@ import LeadStatusChip from "./LeadStatusChip";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailsModal from "./LeadDetailsModal";
 import ExcelImportExport from "./ExcelImportExport";
+import TaskFormModal from "@/components/tasks/TaskFormModal";
 import StaffProfileChip from "@/components/common/StaffProfileChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ export default function LeadList({
   const [deleteAllMatching, setDeleteAllMatching] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
 
   // Auto-refresh when leads array changes (optimistic updates)
   useEffect(() => {
@@ -109,8 +111,8 @@ export default function LeadList({
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
       const matchesProject = projectFilter === "all" || 
-        (lead.assignedProjects && lead.assignedProjects.includes(projectFilter)) ||
-        lead.assignedProject === projectFilter;
+        (lead.assignedProjects && lead.assignedProjects.map(id => String(id)).includes(projectFilter)) ||
+        String(lead.assignedProject) === projectFilter;
 
       const matchesUser = true; // now server-side via leadsUser
 
@@ -205,30 +207,31 @@ export default function LeadList({
     }
   };
 
-  const handleConvertToTask = async (lead: Lead) => {
+  const handleConvertToTask = (lead: Lead) => {
+    setConvertingLead(lead);
+  };
+
+  const handleConvertToTaskSave = async (taskData: any) => {
+    if (!convertingLead) return;
     try {
-      // Use first assigned project or fallback to single project
-      const projectId = (lead.assignedProjects && lead.assignedProjects.length > 0) 
-        ? lead.assignedProjects[0] 
-        : lead.assignedProject;
-        
       await addTask({
-        leadId: lead.id,
-        lead: lead,
-        status: "in_progress",
-        notes: [],
+        leadId: convertingLead.id,
+        lead: convertingLead,
+        status: taskData.status || 'in_progress',
+        priority: taskData.priority || 'medium',
+        notes: taskData.notes || [],
         attachments: [],
-        assignedTo: user?.id || "unknown",
-        assignedProject: projectId,
+        assignedTo: taskData.assignedTo || user?.id || 'unknown',
+        assignedProject: taskData.assignedProject,
+        nextActionDate: taskData.nextActionDate,
       });
-      toast.success(`Lead "${lead.name}" converted to task`, {
-        description: "You can now track this lead in the Tasks module.",
+      toast.success(`Lead "${convertingLead.name}" converted to task`, {
+        description: 'You can now track this lead in the Tasks module.',
       });
-      
-      // Trigger immediate UI update
+      setConvertingLead(null);
       setLastUpdateTime(new Date());
     } catch (error) {
-      toast.error("Failed to convert lead to task");
+      toast.error('Failed to convert lead to task');
     }
   };
 
@@ -262,35 +265,23 @@ export default function LeadList({
 
   // Helper function to get project names for multiple projects
   const getProjectNames = (assignedProjects?: string[], assignedProject?: string) => {
-    // Handle both new multiple projects and old single project
     let projectIds: string[] = [];
     
     if (assignedProjects && assignedProjects.length > 0) {
-      projectIds = assignedProjects;
+      projectIds = assignedProjects.map(id => String(id));
     } else if (assignedProject && assignedProject !== 'none') {
-      projectIds = [assignedProject];
+      projectIds = [String(assignedProject)];
     }
     
-    if (projectIds.length === 0) {
-      return '-';
-    }
+    if (projectIds.length === 0) return '-';
     
     const projectNames = projectIds
-      .map(id => projects.find(p => p.id === id)?.name)
-      .filter(name => name);
+      .map(id => projects.find(p => String(p.id) === id)?.name)
+      .filter(Boolean);
     
-    if (projectNames.length === 0) {
-      return '-';
-    }
-    
-    if (projectNames.length === 1) {
-      return projectNames[0];
-    }
-    
-    if (projectNames.length <= 2) {
-      return projectNames.join(', ');
-    }
-    
+    if (projectNames.length === 0) return '-';
+    if (projectNames.length === 1) return projectNames[0];
+    if (projectNames.length <= 2) return projectNames.join(', ');
     return `${projectNames[0]} +${projectNames.length - 1} more`;
   };
 
@@ -593,15 +584,22 @@ export default function LeadList({
                 </Button>
               )}
               {canConvert && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1 min-w-[80px] h-7 text-xs"
-                  onClick={() => handleConvertToTask(lead)}
-                >
-                  <CheckSquare className="w-3 h-3 mr-1" />
-                  Convert
-                </Button>
+                tasks.some(t => t.leadId === lead.id) ? (
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-100 text-green-700 text-xs font-medium flex-1 min-w-[80px] h-7 justify-center">
+                    <CheckSquare className="w-3 h-3" />
+                    Task Created
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 min-w-[80px] h-7 text-xs"
+                    onClick={() => handleConvertToTask(lead)}
+                  >
+                    <CheckSquare className="w-3 h-3 mr-1" />
+                    Convert
+                  </Button>
+                )
               )}
             </div>
           </div>
@@ -653,6 +651,12 @@ export default function LeadList({
                   <div>
                     <p className="font-medium text-foreground">{lead.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{lead.source || "Direct"}</p>
+                    {tasks.some(t => t.leadId === lead.id) && (
+                      <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                        <CheckSquare className="w-3 h-3" />
+                        Task Created
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -736,7 +740,7 @@ export default function LeadList({
                           Edit Lead
                         </DropdownMenuItem>
                       )}
-                      {canConvert && (
+                      {canConvert && !tasks.some(t => t.leadId === lead.id) && (
                         <DropdownMenuItem onClick={() => handleConvertToTask(lead)}>
                           <CheckSquare className="w-4 h-4 mr-2" />
                           Convert to Task
@@ -843,6 +847,17 @@ export default function LeadList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Task form modal for converting lead to task */}
+      <TaskFormModal
+        open={!!convertingLead}
+        onClose={() => setConvertingLead(null)}
+        onSave={handleConvertToTaskSave}
+        task={null}
+        isCreating={false}
+        projects={projects}
+        convertingLead={convertingLead}
+      />
     </div>
   );
 }

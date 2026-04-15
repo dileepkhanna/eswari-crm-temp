@@ -90,6 +90,7 @@ export interface Task {
   leadId: string;
   lead: Lead;
   status: TaskStatus;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   nextActionDate?: Date;
   notes: TaskNote[];
   attachments: string[];

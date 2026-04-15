@@ -61,6 +61,7 @@ import type { Customer, CallAllocation } from '@/types';
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -280,41 +281,52 @@ class ApiClient {
   }
 
   private async refreshToken(): Promise<boolean> {
+    // If a refresh is already in flight, wait for it instead of making a second request
+    if (this.refreshPromise) {
+      logger.log('API: Token refresh already in progress, waiting...');
+      return this.refreshPromise;
+    }
+
     const refreshToken = localStorage.getItem('refresh_token');
     logger.log(`API: Attempting token refresh - Refresh token exists: ${!!refreshToken}`);
-    
+
     if (!refreshToken) {
       logger.warn('API: No refresh token available');
       return false;
     }
 
-    try {
-      logger.log('API: Making token refresh request...');
-      const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
+    this.refreshPromise = (async () => {
+      try {
+        logger.log('API: Making token refresh request...');
+        const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
 
-      logger.log(`API: Token refresh response status: ${response.status}`);
+        logger.log(`API: Token refresh response status: ${response.status}`);
 
-      if (response.ok) {
-        const data = await response.json();
-        this.token = data.access;
-        localStorage.setItem('access_token', data.access);
-        logger.log('API: Token refresh successful');
-        return true;
-      } else {
-        logger.error('API: Token refresh failed - invalid refresh token');
-        // Refresh token is invalid
+        if (response.ok) {
+          const data = await response.json();
+          this.token = data.access;
+          localStorage.setItem('access_token', data.access);
+          logger.log('API: Token refresh successful');
+          return true;
+        } else {
+          logger.error('API: Token refresh failed - invalid refresh token');
+          this.logout();
+          return false;
+        }
+      } catch (error) {
+        logger.error('API: Token refresh failed with error:', error);
         this.logout();
         return false;
+      } finally {
+        this.refreshPromise = null;
       }
-    } catch (error) {
-      logger.error('API: Token refresh failed with error:', error);
-      this.logout();
-      return false;
-    }
+    })();
+
+    return this.refreshPromise;
   }
 
   // Auth methods

@@ -293,12 +293,14 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       logger.error('❌ Error adding customer:', error);
       
       // Handle duplicate phone number error
-      if (error instanceof Error && error.message.includes('phone')) {
-        if (error.message.includes('already exists') || error.message.includes('duplicate')) {
-          toast.error('A customer with this phone number already exists');
-        } else {
-          toast.error('Invalid phone number format');
-        }
+      if (error instanceof Error && (
+        error.message.includes('unique set') ||
+        error.message.includes('already exists') ||
+        error.message.includes('duplicate')
+      )) {
+        toast.error('A customer with this phone number already exists');
+      } else if (error instanceof Error && error.message.includes('phone')) {
+        toast.error('Invalid phone number format');
       } else if (error instanceof Error && error.message.includes('Company')) {
         toast.error('Company information is missing. Please try again.');
       } else {

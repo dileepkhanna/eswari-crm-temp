@@ -822,9 +822,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         description: task.notes?.join('\n') || '',
         lead: leadId,
         status: task.status,
-        priority: 'medium',
-        project: parseInt(projects[0].id), // Assign to first project
-        company: user?.company?.id, // Add required company field
+        priority: (task as any).priority || 'medium',
+        project: task.assignedProject ? parseInt(task.assignedProject) : parseInt(projects[0].id),
+        company: user?.company?.id,
         assigned_to: task.assignedTo ? parseInt(task.assignedTo) : null,
         due_date: task.nextActionDate?.toISOString() || null,
       };
@@ -867,32 +867,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [notificationContext, projects, user]);
 
   const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
+    // Optimistic update — reflect change immediately
+    const originalTask = tasks.find(t => t.id === id);
+    setTasks(prev =>
+      prev.map(t => (t.id === id ? { ...t, ...data, updatedAt: new Date() } : t))
+    );
+
     try {
       const updateData: any = {};
       if (data.status !== undefined) updateData.status = data.status;
       if (data.nextActionDate !== undefined) updateData.due_date = data.nextActionDate?.toISOString();
       if (data.assignedProject !== undefined) {
-        // Map assignedProject to project field in backend
         updateData.project = data.assignedProject ? parseInt(data.assignedProject) : null;
       }
       if (data.assignedTo !== undefined) updateData.assigned_to = data.assignedTo;
       
       // Handle notes - map to description field in backend
       if (data.notes !== undefined && data.notes.length > 0) {
-        // Get the latest note content and use it as description
         const latestNote = data.notes[data.notes.length - 1];
         updateData.description = latestNote.content;
       }
 
       await apiClient.updateTask(parseInt(id), updateData);
-      
-      setTasks(prev =>
-        prev.map(t => (t.id === id ? { ...t, ...data, updatedAt: new Date() } : t))
-      );
 
       // Log activity
       if (user && data.status) {
-        const task = tasks.find(t => t.id === id);
+        const task = originalTask;
         const taskDetails = task?.lead?.name ? `for ${task.lead.name}` : 'task';
         try {
           await logTaskActivity(user, 'updated', `${taskDetails} status to ${data.status}`);
@@ -903,6 +903,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Task updated successfully');
     } catch (error) {
+      // Roll back on failure
+      if (originalTask) {
+        setTasks(prev => prev.map(t => (t.id === id ? originalTask : t)));
+      }
       logger.error('Error updating task:', error);
       toast.error('Failed to update task');
       throw error;

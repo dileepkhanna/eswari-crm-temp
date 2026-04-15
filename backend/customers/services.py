@@ -121,12 +121,13 @@ class ValidationService:
         return True, ""
     
     @staticmethod
-    def validate_conversion_eligibility(customer: Customer) -> Tuple[bool, str]:
+    def validate_conversion_eligibility(customer: Customer, effective_phone: str = None) -> Tuple[bool, str]:
         """
         Check if customer can be converted to lead
         
         Args:
             customer: Customer instance to validate
+            effective_phone: Phone number to check for lead duplicates (defaults to customer.phone)
             
         Returns:
             Tuple of (can_convert, reason)
@@ -142,14 +143,17 @@ class ValidationService:
         if customer.is_converted:
             return False, "Customer has already been converted to a lead"
         
+        # Use provided phone or fall back to customer phone
+        phone_to_check = effective_phone or customer.phone
+        
         # Check if phone number is valid
-        is_valid_phone, phone_error = ValidationService.validate_phone_number(customer.phone)
+        is_valid_phone, phone_error = ValidationService.validate_phone_number(phone_to_check)
         if not is_valid_phone:
             return False, f"Invalid phone number: {phone_error}"
         
         # Check if phone already exists as a lead in the same company
         lead_exists = Lead.objects.filter(
-            phone=customer.phone,
+            phone=phone_to_check,
             company_id=customer.company_id
         ).exists()
         
@@ -157,7 +161,7 @@ class ValidationService:
             return False, "A lead with this phone number already exists"
         
         # Check required fields
-        if not customer.phone:
+        if not phone_to_check:
             return False, "Customer must have a phone number"
         
         return True, ""
@@ -570,8 +574,9 @@ class ConversionService:
             )
             raise ValueError(f"Invalid input data: {str(e)}")
         
-        # Validate conversion eligibility
-        can_convert, reason = ValidationService.validate_conversion_eligibility(customer)
+        # Validate conversion eligibility (use phone from form data if provided)
+        effective_phone = sanitized_data.get('phone') or customer.phone
+        can_convert, reason = ValidationService.validate_conversion_eligibility(customer, effective_phone=effective_phone)
         if not can_convert:
             # Log failed conversion
             ConversionService.log_conversion(

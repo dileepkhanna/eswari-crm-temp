@@ -308,6 +308,19 @@ class InputSanitizer:
                 except (ValueError, TypeError):
                     sanitized[field] = None
         
+        # List of integer IDs (e.g. assigned_projects)
+        list_id_fields = ['assigned_projects']
+        for field in list_id_fields:
+            if field in data:
+                raw = data[field]
+                if isinstance(raw, list):
+                    try:
+                        sanitized[field] = [int(v) for v in raw if v is not None]
+                    except (ValueError, TypeError):
+                        sanitized[field] = []
+                else:
+                    sanitized[field] = []
+        
         return sanitized
     
     @staticmethod
