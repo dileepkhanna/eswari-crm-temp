@@ -14,9 +14,9 @@ import { useData } from '@/contexts/DataContextDjango';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useASECustomers } from '@/contexts/ASECustomerContext';
 import { apiClient } from '@/lib/api';
-import { capitalLeadService } from '@/services/capital.service';
+import { capitalLeadService, capitalTaskService, capitalLoanService, capitalServiceService } from '@/services/capital.service';
 import { logger } from '@/lib/logger';
-import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp, Briefcase, PhoneCall, DollarSign } from 'lucide-react';
+import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp, Briefcase, PhoneCall, DollarSign, FileText, Landmark } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { leads, tasks, projects, leaves, leadsTotalCount } = useData();
@@ -25,6 +25,9 @@ export default function AdminDashboard() {
   const [teamCount, setTeamCount] = useState(0);
   const [capitalLeads, setCapitalLeads] = useState<any[]>([]);
   const [capitalLeadsCount, setCapitalLeadsCount] = useState(0);
+  const [capitalTasks, setCapitalTasks] = useState<any[]>([]);
+  const [capitalLoans, setCapitalLoans] = useState<any[]>([]);
+  const [capitalServices, setCapitalServices] = useState<any[]>([]);
   const [hotLeadsCount, setHotLeadsCount] = useState(0);
 
   useEffect(() => {
@@ -42,19 +45,41 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchCapitalLeads = async () => {
+    const fetchAllPages = async (service: { list: (p?: any) => Promise<any> }) => {
+      const all: any[] = [];
+      let page = 1;
+      while (true) {
+        const res = await service.list({ page, page_size: 200 });
+        const results = Array.isArray(res) ? res : (res as any).results || [];
+        all.push(...results);
+        if (Array.isArray(res) || !(res as any).next) break;
+        page++;
+      }
+      return all;
+    };
+
+    const fetchCapitalData = async () => {
       try {
-        const response = await capitalLeadService.list();
-        const leadsData = Array.isArray(response) ? response : (response as any).results || [];
+        const [leadsRes, tasksRes, loansRes, servicesRes] = await Promise.allSettled([
+          fetchAllPages(capitalLeadService),
+          fetchAllPages(capitalTaskService),
+          fetchAllPages(capitalLoanService),
+          fetchAllPages(capitalServiceService),
+        ]);
+        const leadsData   = leadsRes.status    === 'fulfilled' ? leadsRes.value    : [];
+        const tasksData   = tasksRes.status    === 'fulfilled' ? tasksRes.value    : [];
+        const loansData   = loansRes.status    === 'fulfilled' ? loansRes.value    : [];
+        const servicesData = servicesRes.status === 'fulfilled' ? servicesRes.value : [];
         setCapitalLeads(leadsData);
         setCapitalLeadsCount(leadsData.length);
+        setCapitalTasks(tasksData);
+        setCapitalLoans(loansData);
+        setCapitalServices(servicesData);
       } catch (error) {
-        logger.error('Error fetching capital leads:', error);
-        setCapitalLeads([]);
-        setCapitalLeadsCount(0);
+        logger.error('Error fetching capital data:', error);
       }
     };
-    fetchCapitalLeads();
+    fetchCapitalData();
   }, []);
 
   useEffect(() => {
@@ -109,9 +134,15 @@ export default function AdminDashboard() {
           <StatCard title="ASE Calls" value={aseCustomers.length}
             change={aseCustomers.filter(c => c.call_status === 'pending').length > 0 ? `${aseCustomers.filter(c => c.call_status === 'pending').length} pending` : 'All handled'}
             changeType="neutral" icon={PhoneCall} iconColor="bg-teal-500" delay={350} href="/admin/ase-customers" />
-          <StatCard title="Capital Leads" value={capitalLeadsCount}
-            change={capitalLeads.filter(l => l.status === 'new').length > 0 ? `${capitalLeads.filter(l => l.status === 'new').length} new` : 'No new leads'}
-            changeType="neutral" icon={DollarSign} iconColor="bg-indigo-500" delay={400} href="/admin/capital-leads" />
+          <StatCard title="Capital Tasks" value={capitalTasks.length}
+            change={capitalTasks.filter((t: any) => t.status === 'in_progress').length > 0 ? `${capitalTasks.filter((t: any) => t.status === 'in_progress').length} in progress` : 'No active tasks'}
+            changeType="neutral" icon={DollarSign} iconColor="bg-indigo-500" delay={400} href="/admin/capital-tasks" />
+          <StatCard title="Capital Loans" value={capitalLoans.length}
+            change={capitalLoans.filter((l: any) => l.status === 'inquiry').length > 0 ? `${capitalLoans.filter((l: any) => l.status === 'inquiry').length} inquiries` : 'No new inquiries'}
+            changeType="neutral" icon={Landmark} iconColor="bg-indigo-400" delay={420} href="/admin/capital-loans" />
+          <StatCard title="Capital Services" value={capitalServices.length}
+            change={capitalServices.filter((s: any) => s.status === 'pending').length > 0 ? `${capitalServices.filter((s: any) => s.status === 'pending').length} pending` : 'No pending'}
+            changeType="neutral" icon={FileText} iconColor="bg-indigo-300" delay={440} href="/admin/capital-services" />
         </div>
 
         {/* Charts Row — Eswari Group */}
@@ -124,7 +155,107 @@ export default function AdminDashboard() {
         {/* ASE Technologies & Eswari Capital — Leads Pie Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <ASELeadStatusChart leads={aseLeads} totalCount={aseTotalCount} stats={aseStats} title="ASE Technologies — Leads by Status" />
-          <CapitalLeadStatusChart leads={capitalLeads} totalCount={capitalLeadsCount} title="Eswari Capital — Leads by Status" />
+          {/* Eswari Capital Overview — Tasks, Loans, Services */}
+          <div className="glass-card rounded-2xl p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center shrink-0">
+                <DollarSign className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Eswari Capital — Overview</h3>
+                <p className="text-xs text-muted-foreground">{capitalTasks.length + capitalLoans.length + capitalServices.length} total records</p>
+              </div>
+            </div>
+
+            {/* Tasks */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckSquare className="w-4 h-4 text-indigo-500" />
+                <span className="text-sm font-medium">Tasks ({capitalTasks.length})</span>
+              </div>
+              <div className="space-y-1">
+                {[
+                  { label: 'In Progress', key: 'in_progress', color: 'bg-blue-500' },
+                  { label: 'Follow Up', key: 'follow_up', color: 'bg-yellow-500' },
+                  { label: 'Processing', key: 'processing', color: 'bg-purple-500' },
+                  { label: 'Completed', key: 'completed', color: 'bg-green-500' },
+                  { label: 'Rejected', key: 'rejected', color: 'bg-red-500' },
+                ].map(({ label, key, color }) => {
+                  const count = capitalTasks.filter((t: any) => t.status === key).length;
+                  if (count === 0) return null;
+                  const pct = capitalTasks.length > 0 ? Math.round((count / capitalTasks.length) * 100) : 0;
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-xs">
+                      <div className={`w-2 h-2 rounded-full ${color} shrink-0`} />
+                      <span className="flex-1 text-muted-foreground">{label}</span>
+                      <span className="font-medium">{count}</span>
+                      <span className="text-muted-foreground w-8 text-right">{pct}%</span>
+                    </div>
+                  );
+                })}
+                {capitalTasks.length === 0 && <p className="text-xs text-muted-foreground">No tasks</p>}
+              </div>
+            </div>
+
+            {/* Loans */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Landmark className="w-4 h-4 text-indigo-500" />
+                <span className="text-sm font-medium">Loans ({capitalLoans.length})</span>
+              </div>
+              <div className="space-y-1">
+                {[
+                  { label: 'Inquiry', key: 'inquiry', color: 'bg-blue-400' },
+                  { label: 'Under Review', key: 'under_review', color: 'bg-yellow-500' },
+                  { label: 'Approved', key: 'approved', color: 'bg-green-500' },
+                  { label: 'Disbursed', key: 'disbursed', color: 'bg-emerald-600' },
+                  { label: 'Rejected', key: 'rejected', color: 'bg-red-500' },
+                ].map(({ label, key, color }) => {
+                  const count = capitalLoans.filter((l: any) => l.status === key).length;
+                  if (count === 0) return null;
+                  const pct = capitalLoans.length > 0 ? Math.round((count / capitalLoans.length) * 100) : 0;
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-xs">
+                      <div className={`w-2 h-2 rounded-full ${color} shrink-0`} />
+                      <span className="flex-1 text-muted-foreground">{label}</span>
+                      <span className="font-medium">{count}</span>
+                      <span className="text-muted-foreground w-8 text-right">{pct}%</span>
+                    </div>
+                  );
+                })}
+                {capitalLoans.length === 0 && <p className="text-xs text-muted-foreground">No loans</p>}
+              </div>
+            </div>
+
+            {/* Services */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-indigo-500" />
+                <span className="text-sm font-medium">Services ({capitalServices.length})</span>
+              </div>
+              <div className="space-y-1">
+                {[
+                  { label: 'Pending', key: 'pending', color: 'bg-yellow-500' },
+                  { label: 'In Progress', key: 'in_progress', color: 'bg-blue-500' },
+                  { label: 'Completed', key: 'completed', color: 'bg-green-500' },
+                  { label: 'Rejected', key: 'rejected', color: 'bg-red-500' },
+                ].map(({ label, key, color }) => {
+                  const count = capitalServices.filter((s: any) => s.status === key).length;
+                  if (count === 0) return null;
+                  const pct = capitalServices.length > 0 ? Math.round((count / capitalServices.length) * 100) : 0;
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-xs">
+                      <div className={`w-2 h-2 rounded-full ${color} shrink-0`} />
+                      <span className="flex-1 text-muted-foreground">{label}</span>
+                      <span className="font-medium">{count}</span>
+                      <span className="text-muted-foreground w-8 text-right">{pct}%</span>
+                    </div>
+                  );
+                })}
+                {capitalServices.length === 0 && <p className="text-xs text-muted-foreground">No services</p>}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Reminders + Birthday Widget */}        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

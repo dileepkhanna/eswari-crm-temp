@@ -480,7 +480,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addLead = useCallback(async (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
-    // Generate temporary ID for optimistic update
     const tempId = `temp-${Date.now()}`;
     const tempLead: Lead = {
       ...lead,
@@ -488,9 +487,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    let leadCreatedOnServer = false;
 
     try {
-      // Optimistic update - add lead immediately to UI
       setLeads(prev => [tempLead, ...prev]);
 
       const leadData: any = {
@@ -510,97 +509,76 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         assigned_projects: lead.assignedProjects || [],
         assigned_project: lead.assignedProject || null,
         follow_up_date: lead.followUpDate?.toISOString() || null,
-        // Auto-assign the logged-in user's company
         company: (lead as any).company || (user?.company as any)?.id || user?.company || null,
       };
 
-      // Create lead on server
       const newLead = await apiClient.createLead(leadData);
+      leadCreatedOnServer = true; // API succeeded — don't remove optimistic update on any subsequent error
       const convertedLead = apiToLead(newLead);
-      
-      // Replace temporary lead with real lead
       setLeads(prev => prev.map(l => l.id === tempId ? convertedLead : l));
 
-      // Background tasks (don't await these to avoid blocking UI)
-      Promise.all([
-        // Log activity in background
-        user ? logLeadActivity(user, 'created', lead.name).catch(err => 
+      // Background tasks — isolated, cannot affect success flow
+      if (user) {
+        logLeadActivity(user, 'created', lead.name).catch(err =>
           logger.error('Failed to log lead activity:', err)
-        ) : Promise.resolve(),
-        
-        // Add notification in background
-        notificationContext?.addNotification ? Promise.resolve(
-          notificationContext.addNotification({
-            title: 'New Lead Created',
-            message: `Lead "${lead.name}" has been created${lead.followUpDate ? ` with follow-up on ${lead.followUpDate.toLocaleDateString()}` : ''}`,
-            type: 'lead',
-            createdAt: new Date(),
-          })
-        ) : Promise.resolve()
-      ]);
+        );
+      }
+      try {
+        notificationContext?.addNotification?.({
+          title: 'New Lead Created',
+          message: `Lead "${lead.name}" has been created${lead.followUpDate ? ` with follow-up on ${lead.followUpDate.toLocaleDateString()}` : ''}`,
+          type: 'lead',
+          createdAt: new Date(),
+        });
+      } catch (notifErr) {
+        logger.error('Failed to add notification:', notifErr);
+      }
 
       toast.success('Lead created successfully');
     } catch (error: any) {
       logger.error('Error adding lead:', error);
-      
-      // Remove optimistic update on error
+
+      if (leadCreatedOnServer) {
+        // Lead exists on server — just refresh to get the real record, don't show error
+        logger.warn('Lead was created on server but post-processing failed. Refreshing...');
+        fetchLeads();
+        return;
+      }
+
+      // Lead was NOT created — remove optimistic update and show error
       setLeads(prev => prev.filter(l => l.id !== tempId));
-      
-      // Parse error message for better user feedback
+
       let errorMessage = 'Failed to add lead';
-      
       if (error?.message) {
         try {
-          // Try to parse the error message
           const errorStr = error.message;
-          
-          // Check for duplicate phone number error
-          if (errorStr.includes('UNIQUE constraint failed') || errorStr.includes('unique_together') || errorStr.includes('duplicate')) {
+          if (errorStr.includes('UNIQUE constraint failed') || errorStr.includes('unique_together') || errorStr.includes('duplicate') || errorStr.includes('unique set')) {
             errorMessage = `A lead with phone number "${lead.phone}" already exists in this company`;
-          }
-          // Check for validation errors
-          else if (errorStr.includes('HTTP error! status: 400')) {
-            // Try to extract the actual error details
+          } else if (errorStr.includes('HTTP error! status: 400')) {
             const match = errorStr.match(/details: ({.*})/);
             if (match) {
               try {
                 const details = JSON.parse(match[1]);
-                if (details.phone) {
-                  errorMessage = `Phone: ${Array.isArray(details.phone) ? details.phone[0] : details.phone}`;
-                } else if (details.error) {
-                  errorMessage = details.error;
-                } else if (details.detail) {
-                  errorMessage = details.detail;
-                } else {
-                  errorMessage = JSON.stringify(details);
-                }
-              } catch (parseError) {
-                errorMessage = 'Invalid data provided. Please check all fields.';
-              }
-            } else {
-              errorMessage = 'Invalid data provided. Please check all fields.';
-            }
-          }
-          // Check for permission errors
-          else if (errorStr.includes('HTTP error! status: 403')) {
+                if (details.phone) errorMessage = `Phone: ${Array.isArray(details.phone) ? details.phone[0] : details.phone}`;
+                else if (details.non_field_errors) errorMessage = Array.isArray(details.non_field_errors) ? details.non_field_errors[0] : details.non_field_errors;
+                else if (details.error) errorMessage = details.error;
+                else if (details.detail) errorMessage = details.detail;
+                else errorMessage = JSON.stringify(details);
+              } catch { errorMessage = 'Invalid data provided. Please check all fields.'; }
+            } else { errorMessage = 'Invalid data provided. Please check all fields.'; }
+          } else if (errorStr.includes('HTTP error! status: 403')) {
             errorMessage = 'You do not have permission to create leads';
-          }
-          // Check for authentication errors
-          else if (errorStr.includes('HTTP error! status: 401')) {
+          } else if (errorStr.includes('HTTP error! status: 401')) {
             errorMessage = 'Session expired. Please login again';
-          }
-          // Generic server error
-          else if (errorStr.includes('HTTP error! status: 500')) {
+          } else if (errorStr.includes('HTTP error! status: 500')) {
             errorMessage = 'Server error. Please try again later';
           }
-        } catch (parseError) {
-          logger.error('Error parsing error message:', parseError);
-        }
+        } catch { /* ignore parse errors */ }
       }
-      
+
       toast.error(errorMessage, {
         duration: 5000,
-        description: 'Please check the information and try again'
+        description: 'Please check the information and try again',
       });
       throw error;
     }
