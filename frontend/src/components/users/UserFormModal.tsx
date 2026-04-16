@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -38,47 +39,60 @@ import { CompanyFormField } from '@/components/forms';
 import { logger } from '@/lib/logger';
 const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  email: z.string().email('Invalid email address').min(1, 'Email is required'),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
-  address: z.string().max(500).optional(),
-  designation: z.string().max(100).optional(),
+  designation: z.string().min(1, 'Designation is required').max(100),
   role: z.enum(['admin', 'manager', 'employee', 'hr'] as const),
   company: z.number().positive('Company is required').optional(),
   managerId: z.string().optional(),
-  joining_date: z.string().optional(),
+  joining_date: z.string().min(1, 'Joining date is required'),
+  present_address: z.string().min(1, 'Present address is required'),
+  permanent_address: z.string().min(1, 'Permanent address is required'),
+  bank_name: z.string().min(1, 'Bank name is required'),
+  bank_account_number: z.string().min(1, 'Account number is required'),
+  bank_ifsc: z.string().min(1, 'IFSC code is required'),
+  blood_group: z.string().min(1, 'Blood group is required'),
+  aadhar_number: z.string().length(12, 'Aadhar number must be exactly 12 digits').regex(/^\d+$/, 'Aadhar must contain only digits'),
+  emergency_contact1_name: z.string().min(1, 'Contact 1 name is required'),
+  emergency_contact1_phone: z.string().min(10, 'Contact 1 phone must be at least 10 digits'),
+  emergency_contact1_relation: z.string().min(1, 'Contact 1 relation is required'),
+  emergency_contact2_name: z.string().min(1, 'Contact 2 name is required'),
+  emergency_contact2_phone: z.string().min(10, 'Contact 2 phone must be at least 10 digits'),
+  emergency_contact2_relation: z.string().min(1, 'Contact 2 relation is required'),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^(?=.*[a-zA-Z])/, 'Password must contain at least one letter')
     .regex(/^(?=.*\d)/, 'Password must contain at least one number'),
 }).refine((data) => {
-  // Manager is required for employees
-  if (data.role === 'employee' && !data.managerId) {
-    return false;
-  }
+  if (data.role === 'employee' && !data.managerId) return false;
   return true;
-}, {
-  message: "Manager must be assigned for employees",
-  path: ["managerId"],
-}).refine((data) => {
-  // Company is required for manager and employee roles
-  if ((data.role === 'manager' || data.role === 'employee') && !data.company) {
-    return false;
-  }
+}, { message: "Manager must be assigned for employees", path: ["managerId"] })
+.refine((data) => {
+  if ((data.role === 'manager' || data.role === 'employee') && !data.company) return false;
   return true;
-}, {
-  message: "Company is required for manager and employee roles",
-  path: ["company"],
-});
+}, { message: "Company is required for manager and employee roles", path: ["company"] });
 
 const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  email: z.string().email('Invalid email address').min(1, 'Email is required'),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
-  address: z.string().max(500).optional(),
-  designation: z.string().max(100).optional(),
-  joining_date: z.string().optional(),
+  designation: z.string().min(1, 'Designation is required').max(100),
+  joining_date: z.string().min(1, 'Joining date is required'),
   managerId: z.string().optional(),
   company: z.number().positive('Company is required').optional(),
+  present_address: z.string().min(1, 'Present address is required'),
+  permanent_address: z.string().min(1, 'Permanent address is required'),
+  bank_name: z.string().min(1, 'Bank name is required'),
+  bank_account_number: z.string().min(1, 'Account number is required'),
+  bank_ifsc: z.string().min(1, 'IFSC code is required'),
+  blood_group: z.string().min(1, 'Blood group is required'),
+  aadhar_number: z.string().length(12, 'Aadhar number must be exactly 12 digits').regex(/^\d+$/, 'Aadhar must contain only digits'),
+  emergency_contact1_name: z.string().min(1, 'Contact 1 name is required'),
+  emergency_contact1_phone: z.string().min(10, 'Contact 1 phone must be at least 10 digits'),
+  emergency_contact1_relation: z.string().min(1, 'Contact 1 relation is required'),
+  emergency_contact2_name: z.string().min(1, 'Contact 2 name is required'),
+  emergency_contact2_phone: z.string().min(10, 'Contact 2 phone must be at least 10 digits'),
+  emergency_contact2_relation: z.string().min(1, 'Contact 2 relation is required'),
   newPassword: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^(?=.*[a-zA-Z])/, 'Password must contain at least one letter')
@@ -98,33 +112,39 @@ interface EditUser {
   role?: string;
   manager_id?: string | null;
   company?: { id: number; name: string; code: string } | null;
+  permanent_address?: string | null;
+  present_address?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  blood_group?: string | null;
+  aadhar_number?: string | null;
+  emergency_contact1_name?: string | null;
+  emergency_contact1_phone?: string | null;
+  emergency_contact1_relation?: string | null;
+  emergency_contact2_name?: string | null;
+  emergency_contact2_phone?: string | null;
+  emergency_contact2_relation?: string | null;
 }
 
 interface UserFormModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (userData: {
-    email: string;
-    password: string;
-    name: string;
-    phone: string;
-    address: string;
-    designation?: string;
-    role: UserRole;
-    company?: number; // Made optional for admin/HR
-    managerId?: string;
-    joining_date?: string;
+    email: string; password: string; name: string; phone: string; address: string;
+    designation?: string; role: UserRole; company?: number; managerId?: string; joining_date?: string;
+    permanent_address?: string; present_address?: string; bank_name?: string;
+    bank_account_number?: string; bank_ifsc?: string; blood_group?: string; aadhar_number?: string;
+    emergency_contact1_name?: string; emergency_contact1_phone?: string; emergency_contact1_relation?: string;
+    emergency_contact2_name?: string; emergency_contact2_phone?: string; emergency_contact2_relation?: string;
   }) => Promise<{ success: boolean; userId?: string }>;
   onUpdate?: (userId: string, userData: {
-    name: string;
-    email?: string;
-    phone: string;
-    address: string;
-    designation?: string;
-    joining_date?: string;
-    managerId?: string;
-    company?: number;
-    newPassword?: string;
+    name: string; email?: string; phone: string; address: string;
+    designation?: string; joining_date?: string; managerId?: string; company?: number; newPassword?: string;
+    permanent_address?: string; present_address?: string; bank_name?: string;
+    bank_account_number?: string; bank_ifsc?: string; blood_group?: string; aadhar_number?: string;
+    emergency_contact1_name?: string; emergency_contact1_phone?: string; emergency_contact1_relation?: string;
+    emergency_contact2_name?: string; emergency_contact2_phone?: string; emergency_contact2_relation?: string;
   }) => Promise<{ success: boolean }>;
   managers?: { id: string; name: string; company?: number }[];
   isSubmitting?: boolean;
@@ -142,6 +162,8 @@ export default function UserFormModal({
 }: UserFormModalProps) {
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [sameAsPresent, setSameAsPresent] = useState(false);
+  const [declared, setDeclared] = useState(false);
   const { user } = useAuth();
   const { canSelectCompany } = useCompany();
   
@@ -153,15 +175,13 @@ export default function UserFormModal({
   const createForm = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-      designation: '',
-      role: 'employee',
-      company: defaultCompanyId as any, // Will be undefined for admin/hr, which is correct
-      managerId: '',
-      joining_date: new Date().toISOString().split('T')[0], // Default to today
+      name: '', email: '', phone: '', designation: '', role: 'employee',
+      company: defaultCompanyId as any, managerId: '',
+      joining_date: new Date().toISOString().split('T')[0],
+      present_address: '', permanent_address: '',
+      bank_name: '', bank_account_number: '', bank_ifsc: '', blood_group: '', aadhar_number: '',
+      emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+      emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
       password: '',
     },
   });
@@ -169,14 +189,12 @@ export default function UserFormModal({
   const editForm = useForm<EditUserFormData>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-      designation: '',
-      joining_date: '',
-      managerId: 'none',
-      company: 0,
+      name: '', email: '', phone: '', designation: '', joining_date: '',
+      managerId: 'none', company: 0,
+      present_address: '', permanent_address: '',
+      bank_name: '', bank_account_number: '', bank_ifsc: '', blood_group: '', aadhar_number: '',
+      emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+      emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
       newPassword: '',
     },
   });
@@ -213,32 +231,46 @@ export default function UserFormModal({
     if (open) {
       if (editUser) {
         editForm.reset({
-          name: editUser.name,
-          email: (editUser as any).email || '',
-          phone: editUser.phone || '',
-          address: editUser.address || '',
-          designation: (editUser as any).designation || '',
+          name: editUser.name, email: (editUser as any).email || '',
+          phone: editUser.phone || '', designation: (editUser as any).designation || '',
           joining_date: (editUser as any).joining_date || '',
           managerId: editUser.manager_id || 'none',
           company: editUser.company?.id || (user?.company as any)?.id || (user?.company as any) || 0,
           newPassword: '',
+          present_address: editUser.present_address || '',
+          permanent_address: editUser.permanent_address || '',
+          bank_name: editUser.bank_name || '',
+          bank_account_number: editUser.bank_account_number || '',
+          bank_ifsc: editUser.bank_ifsc || '',
+          blood_group: editUser.blood_group || '',
+          aadhar_number: editUser.aadhar_number || '',
+          emergency_contact1_name: editUser.emergency_contact1_name || '',
+          emergency_contact1_phone: editUser.emergency_contact1_phone || '',
+          emergency_contact1_relation: editUser.emergency_contact1_relation || '',
+          emergency_contact2_name: editUser.emergency_contact2_name || '',
+          emergency_contact2_phone: editUser.emergency_contact2_phone || '',
+          emergency_contact2_relation: editUser.emergency_contact2_relation || '',
         });
+        setSameAsPresent(
+          !!editUser.present_address &&
+          editUser.present_address === editUser.permanent_address
+        );
       } else {
         createForm.reset({
-          name: '',
-          email: '',
-          phone: '',
-          address: '',
-          designation: '',
-          role: 'employee',
-          company: defaultCompanyId as any,
-          managerId: '',
+          name: '', email: '', phone: '', designation: '', role: 'employee',
+          company: defaultCompanyId as any, managerId: '',
           joining_date: new Date().toISOString().split('T')[0],
+          present_address: '', permanent_address: '',
+          bank_name: '', bank_account_number: '', bank_ifsc: '', blood_group: '', aadhar_number: '',
+          emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+          emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
           password: '',
         });
+        setSameAsPresent(false);
       }
       setCreatedUserId(null);
       setCopied(false);
+      setDeclared(false);
     }
   }, [open, editUser, createForm, editForm, defaultCompanyId]);
 
@@ -262,16 +294,18 @@ export default function UserFormModal({
     }
     
     const result = await onSave({
-      email: data.email || '', // Handle empty email
-      password: data.password,
-      name: data.name,
-      phone: data.phone,
-      address: data.address || '',
-      designation: data.designation || undefined,
-      role: data.role as UserRole,
-      company: companyValue,
-      managerId: data.managerId || undefined,
-      joining_date: data.joining_date || undefined,
+      email: data.email || '', password: data.password, name: data.name, phone: data.phone, address: '',
+      designation: data.designation || undefined, role: data.role as UserRole,
+      company: companyValue, managerId: data.managerId || undefined, joining_date: data.joining_date || undefined,
+      permanent_address: data.permanent_address, present_address: data.present_address,
+      bank_name: data.bank_name, bank_account_number: data.bank_account_number,
+      bank_ifsc: data.bank_ifsc, blood_group: data.blood_group, aadhar_number: data.aadhar_number,
+      emergency_contact1_name: data.emergency_contact1_name,
+      emergency_contact1_phone: data.emergency_contact1_phone,
+      emergency_contact1_relation: data.emergency_contact1_relation,
+      emergency_contact2_name: data.emergency_contact2_name,
+      emergency_contact2_phone: data.emergency_contact2_phone,
+      emergency_contact2_relation: data.emergency_contact2_relation,
     });
 
     if (result.success && result.userId) {
@@ -283,15 +317,19 @@ export default function UserFormModal({
     if (!editUser || !onUpdate) return;
     
     const result = await onUpdate(editUser.id, {
-      name: data.name,
-      email: data.email || undefined,
-      phone: data.phone,
-      address: data.address || '',
-      designation: data.designation || undefined,
-      joining_date: data.joining_date || undefined,
+      name: data.name, email: data.email || undefined, phone: data.phone, address: '',
+      designation: data.designation || undefined, joining_date: data.joining_date || undefined,
       managerId: data.managerId === 'none' ? undefined : data.managerId,
-      company: data.company,
-      newPassword: data.newPassword || undefined,
+      company: data.company, newPassword: data.newPassword || undefined,
+      permanent_address: data.permanent_address, present_address: data.present_address,
+      bank_name: data.bank_name, bank_account_number: data.bank_account_number,
+      bank_ifsc: data.bank_ifsc, blood_group: data.blood_group, aadhar_number: data.aadhar_number,
+      emergency_contact1_name: data.emergency_contact1_name,
+      emergency_contact1_phone: data.emergency_contact1_phone,
+      emergency_contact1_relation: data.emergency_contact1_relation,
+      emergency_contact2_name: data.emergency_contact2_name,
+      emergency_contact2_phone: data.emergency_contact2_phone,
+      emergency_contact2_relation: data.emergency_contact2_relation,
     });
 
     if (result.success) {
@@ -419,13 +457,10 @@ export default function UserFormModal({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="Enter email address (optional)" {...field} />
+                        <Input type="email" placeholder="Enter email address" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Email is optional
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -447,30 +482,13 @@ export default function UserFormModal({
 
                 <FormField
                   control={editForm.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={editForm.control}
                   name="designation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Designation</FormLabel>
+                      <FormLabel>Designation <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., Software Engineer, Manager, etc." {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Job title or designation (optional)
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -481,13 +499,10 @@ export default function UserFormModal({
                   name="joining_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Joining Date</FormLabel>
+                      <FormLabel>Joining Date <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Date when the user joined the company
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -552,11 +567,163 @@ export default function UserFormModal({
                   )}
                 />
 
+                {/* Personal & Banking Details */}
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-semibold mb-3">Personal & Banking Details</p>
+
+                  <div className="space-y-4">
+                    <FormField control={editForm.control} name="present_address" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Present Address <span className="text-destructive">*</span></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter present/current address" {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              if (sameAsPresent) editForm.setValue('permanent_address', e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="edit-same-as-present"
+                        checked={sameAsPresent}
+                        onCheckedChange={(checked) => {
+                          setSameAsPresent(!!checked);
+                          if (checked) editForm.setValue('permanent_address', editForm.getValues('present_address'), { shouldValidate: true });
+                        }}
+                      />
+                      <label htmlFor="edit-same-as-present" className="text-sm text-muted-foreground cursor-pointer select-none">
+                        Permanent address same as present address
+                      </label>
+                    </div>
+
+                    <FormField control={editForm.control} name="permanent_address" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Permanent Address <span className="text-destructive">*</span></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter permanent address" {...field} disabled={sameAsPresent} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField control={editForm.control} name="blood_group" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Blood Group <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="e.g. A+, O-" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={editForm.control} name="aadhar_number" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Aadhar Number <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="12-digit Aadhar" maxLength={12} {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <FormField control={editForm.control} name="bank_name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Name <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="Enter bank name" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField control={editForm.control} name="bank_account_number" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Account Number <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="Account number" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={editForm.control} name="bank_ifsc" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IFSC Code <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="IFSC code" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Emergency Contacts */}
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-semibold mb-3">Emergency Contacts</p>
+                  <div className="space-y-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact 1</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField control={editForm.control} name="emergency_contact1_name" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="Contact name" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={editForm.control} name="emergency_contact1_relation" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Relation <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="e.g. Father, Spouse" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                    <FormField control={editForm.control} name="emergency_contact1_phone" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="Contact phone number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">Contact 2</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField control={editForm.control} name="emergency_contact2_name" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="Contact name" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={editForm.control} name="emergency_contact2_relation" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Relation <span className="text-destructive">*</span></FormLabel>
+                          <FormControl><Input placeholder="e.g. Mother, Sibling" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                    <FormField control={editForm.control} name="emergency_contact2_phone" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="Contact phone number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                {/* Declaration */}
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+                  <Checkbox id="edit-declaration" checked={declared} onCheckedChange={c => setDeclared(!!c)} className="mt-0.5 shrink-0" />
+                  <label htmlFor="edit-declaration" className="text-xs text-muted-foreground cursor-pointer leading-relaxed select-none">
+                    I hereby declare that all the details furnished by me in this form are true, complete, and correct to the best of my knowledge, and I understand that any discrepancy may lead to appropriate action.
+                  </label>
+                </div>
+
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                     Cancel
                   </Button>
-                  <Button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  <Button type="submit" className="btn-primary" disabled={isSubmitting || !declared}>
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -618,13 +785,10 @@ export default function UserFormModal({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter email address (optional)" {...field} />
+                      <Input type="email" placeholder="Enter email address" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Email is optional. Staff/managers will login with their User ID.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -663,30 +827,13 @@ export default function UserFormModal({
 
               <FormField
                 control={createForm.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter address" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={createForm.control}
                 name="joining_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Joining Date</FormLabel>
+                    <FormLabel>Joining Date <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Date when the user joined the company
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -697,13 +844,10 @@ export default function UserFormModal({
                 name="designation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Designation</FormLabel>
+                    <FormLabel>Designation <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Software Engineer, Manager, etc." {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Job title or designation (optional)
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -777,6 +921,149 @@ export default function UserFormModal({
                 />
               )}
 
+              {/* Personal & Banking Details */}
+              <div className="pt-2 border-t">
+                <p className="text-sm font-semibold mb-3">Personal & Banking Details</p>
+                <div className="space-y-4">
+                  <FormField control={createForm.control} name="present_address" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Present Address <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter present/current address" {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            if (sameAsPresent) createForm.setValue('permanent_address', e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="create-same-as-present"
+                      checked={sameAsPresent}
+                      onCheckedChange={(checked) => {
+                        setSameAsPresent(!!checked);
+                        if (checked) createForm.setValue('permanent_address', createForm.getValues('present_address'), { shouldValidate: true });
+                      }}
+                    />
+                    <label htmlFor="create-same-as-present" className="text-sm text-muted-foreground cursor-pointer select-none">
+                      Permanent address same as present address
+                    </label>
+                  </div>
+
+                  <FormField control={createForm.control} name="permanent_address" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Permanent Address <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter permanent address" {...field} disabled={sameAsPresent} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={createForm.control} name="blood_group" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Blood Group <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="e.g. A+, O-" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="aadhar_number" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Aadhar Number <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="12-digit Aadhar" maxLength={12} {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={createForm.control} name="bank_name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Name <span className="text-destructive">*</span></FormLabel>
+                      <FormControl><Input placeholder="Enter bank name" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={createForm.control} name="bank_account_number" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Number <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="Account number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="bank_ifsc" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>IFSC Code <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="IFSC code" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Contacts */}
+              <div className="pt-2 border-t">
+                <p className="text-sm font-semibold mb-3">Emergency Contacts</p>
+                <div className="space-y-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact 1</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={createForm.control} name="emergency_contact1_name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="Contact name" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="emergency_contact1_relation" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Relation <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="e.g. Father, Spouse" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={createForm.control} name="emergency_contact1_phone" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
+                      <FormControl><Input placeholder="Contact phone number" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">Contact 2</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={createForm.control} name="emergency_contact2_name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="Contact name" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="emergency_contact2_relation" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Relation <span className="text-destructive">*</span></FormLabel>
+                        <FormControl><Input placeholder="e.g. Mother, Sibling" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={createForm.control} name="emergency_contact2_phone" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
+                      <FormControl><Input placeholder="Contact phone number" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </div>
+
               <div className="p-4 rounded-lg bg-muted/50 space-y-2">
                 <p className="text-sm font-medium">Login Instructions</p>
                 <p className="text-xs text-muted-foreground">
@@ -785,11 +1072,19 @@ export default function UserFormModal({
                 </p>
               </div>
 
+              {/* Declaration */}
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+                <Checkbox id="create-declaration" checked={declared} onCheckedChange={c => setDeclared(!!c)} className="mt-0.5 shrink-0" />
+                <label htmlFor="create-declaration" className="text-xs text-muted-foreground cursor-pointer leading-relaxed select-none">
+                  I hereby declare that all the details furnished by me in this form are true, complete, and correct to the best of my knowledge, and I understand that any discrepancy may lead to appropriate action.
+                </label>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit" className="btn-primary" disabled={isSubmitting}>
+                <Button type="submit" className="btn-primary" disabled={isSubmitting || !declared}>
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

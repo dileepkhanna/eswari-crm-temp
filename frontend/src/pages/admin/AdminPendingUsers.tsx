@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useNotifications } from '@/contexts/NotificationContext';
 import TopBar from '@/components/layout/TopBar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckIcon, XIcon, UserIcon, MailIcon, PhoneIcon, BriefcaseIcon, CalendarIcon } from 'lucide-react';
+import { CheckIcon, XIcon, UserIcon, MailIcon, PhoneIcon, BriefcaseIcon, CalendarIcon, Bell, BellOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 
@@ -27,28 +28,33 @@ interface PendingUser {
 
 export default function AdminPendingUsers() {
   const { user } = useAuth();
+  const { isSupported, isEnabled, enableNotifications } = useNotifications();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
-  const fetchPendingUsers = async () => {
+  const fetchPendingUsers = async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
       const data = await apiClient.get('/auth/users/pending/');
       console.log('Pending users response:', data);
       setPendingUsers(data?.users || []);
     } catch (error) {
       console.error('Error fetching pending users:', error);
-      toast.error('Failed to load pending users');
+      if (showLoader) toast.error('Failed to load pending users');
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchPendingUsers();
-    }
+    if (user?.role !== 'admin') return;
+
+    fetchPendingUsers(true);
+
+    // Poll every 10 seconds so new registrations appear without manual refresh
+    const interval = setInterval(() => fetchPendingUsers(false), 10000);
+    return () => clearInterval(interval);
   }, [user]);
 
   const handleApprove = async (userId: string) => {
@@ -56,7 +62,8 @@ export default function AdminPendingUsers() {
     try {
       await apiClient.post(`/auth/users/${userId}/approve/`);
       toast.success('User approved successfully');
-      fetchPendingUsers();
+      fetchPendingUsers(false);
+      window.dispatchEvent(new Event('pendingUsersUpdated'));
     } catch (error: any) {
       console.error('Error approving user:', error);
       toast.error(error.response?.data?.error || 'Failed to approve user');
@@ -78,7 +85,8 @@ export default function AdminPendingUsers() {
     try {
       await apiClient.post(`/auth/users/${userId}/reject/`);
       toast.success('User rejected and removed');
-      fetchPendingUsers();
+      fetchPendingUsers(false);
+      window.dispatchEvent(new Event('pendingUsersUpdated'));
     } catch (error: any) {
       console.error('Error rejecting user:', error);
       toast.error(error.response?.data?.error || 'Failed to reject user');
@@ -119,6 +127,37 @@ export default function AdminPendingUsers() {
       <TopBar title="Pending User Approvals" />
       
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+
+        {/* Push notification prompt — only show if supported and not yet enabled */}
+        {isSupported && !isEnabled && (
+          <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+            <div className="flex items-center gap-3">
+              <Bell className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">Enable push notifications</p>
+                <p className="text-xs text-amber-700">Get notified instantly when a new user registers via invite link.</p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100"
+              onClick={async () => {
+                try {
+                  await enableNotifications();
+                  toast.success('Push notifications enabled!');
+                } catch {
+                  toast.error('Could not enable notifications. Please allow them in browser settings.');
+                }
+              }}>
+              Enable
+            </Button>
+          </div>
+        )}
+
+        {isEnabled && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
+            <Bell className="w-4 h-4" />
+            Push notifications active — you'll be notified when new users register.
+          </div>
+        )}
         <div className="glass-card p-4 md:p-6">
           <div className="flex justify-between items-center mb-6">
             <div>

@@ -246,6 +246,21 @@ class User(AbstractUser):
         blank=True,
         help_text='When this user was approved'
     )
+    # Personal & banking details
+    permanent_address = models.TextField(blank=True, null=True, help_text='Permanent address')
+    present_address = models.TextField(blank=True, null=True, help_text='Present/current address')
+    bank_name = models.CharField(max_length=100, blank=True, null=True, help_text='Bank name')
+    bank_account_number = models.CharField(max_length=30, blank=True, null=True, help_text='Bank account number')
+    bank_ifsc = models.CharField(max_length=20, blank=True, null=True, help_text='IFSC code')
+    blood_group = models.CharField(max_length=5, blank=True, null=True, help_text='Blood group (e.g. A+, O-)')
+    aadhar_number = models.CharField(max_length=12, blank=True, null=True, help_text='12-digit Aadhar card number')
+    # Emergency contacts
+    emergency_contact1_name = models.CharField(max_length=100, blank=True, null=True)
+    emergency_contact1_phone = models.CharField(max_length=15, blank=True, null=True)
+    emergency_contact1_relation = models.CharField(max_length=50, blank=True, null=True)
+    emergency_contact2_name = models.CharField(max_length=100, blank=True, null=True)
+    emergency_contact2_phone = models.CharField(max_length=15, blank=True, null=True)
+    emergency_contact2_relation = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -299,3 +314,46 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+import uuid as _uuid
+from django.utils import timezone as _tz
+
+class InviteToken(models.Model):
+    """One-time invite link for self-registration."""
+    ROLE_CHOICES = [
+        ('manager', 'Manager'),
+        ('employee', 'Employee'),
+    ]
+
+    token = models.UUIDField(default=_uuid.uuid4, unique=True, editable=False)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee')
+    company = models.ForeignKey(
+        'Company', on_delete=models.CASCADE, related_name='invite_tokens',
+        null=True, blank=True
+    )
+    created_by = models.ForeignKey(
+        'User', on_delete=models.CASCADE, related_name='created_invites'
+    )
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    used_by = models.ForeignKey(
+        'User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='used_invite'
+    )
+    manager = models.ForeignKey(
+        'User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='invite_manager',
+        limit_choices_to={'role': 'manager'},
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Invite({self.role}, expires={self.expires_at.date()}, used={self.used})"
+
+    @property
+    def is_valid(self):
+        return not self.used and self.expires_at > _tz.now()

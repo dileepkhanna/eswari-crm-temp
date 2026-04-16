@@ -615,8 +615,23 @@ def admin_update_user_view(request, user_id):
         designation = request.data.get('designation', '').strip()
         joining_date = request.data.get('joining_date', '').strip()
         new_password = request.data.get('newPassword', '').strip()
-        manager_id = request.data.get('managerId')  # New field for manager assignment
-        company_id = request.data.get('company')  # Company assignment
+        manager_id = request.data.get('managerId')
+        company_id = request.data.get('company')
+        # New personal/banking fields
+        permanent_address = request.data.get('permanent_address', '').strip()
+        present_address = request.data.get('present_address', '').strip()
+        bank_name = request.data.get('bank_name', '').strip()
+        bank_account_number = request.data.get('bank_account_number', '').strip()
+        bank_ifsc = request.data.get('bank_ifsc', '').strip()
+        blood_group = request.data.get('blood_group', '').strip()
+        aadhar_number = request.data.get('aadhar_number', '').strip()
+        # Emergency contacts
+        emergency_contact1_name = request.data.get('emergency_contact1_name', '').strip()
+        emergency_contact1_phone = request.data.get('emergency_contact1_phone', '').strip()
+        emergency_contact1_relation = request.data.get('emergency_contact1_relation', '').strip()
+        emergency_contact2_name = request.data.get('emergency_contact2_name', '').strip()
+        emergency_contact2_phone = request.data.get('emergency_contact2_phone', '').strip()
+        emergency_contact2_relation = request.data.get('emergency_contact2_relation', '').strip()
         
         # Validate required fields
         if not name:
@@ -664,6 +679,22 @@ def admin_update_user_view(request, user_id):
             user_to_update.joining_date = joining_date
         else:
             user_to_update.joining_date = None
+
+        # Update personal/banking fields
+        user_to_update.permanent_address = permanent_address or None
+        user_to_update.present_address = present_address or None
+        user_to_update.bank_name = bank_name or None
+        user_to_update.bank_account_number = bank_account_number or None
+        user_to_update.bank_ifsc = bank_ifsc or None
+        user_to_update.blood_group = blood_group or None
+        user_to_update.aadhar_number = aadhar_number or None
+        # Update emergency contacts
+        user_to_update.emergency_contact1_name = emergency_contact1_name or None
+        user_to_update.emergency_contact1_phone = emergency_contact1_phone or None
+        user_to_update.emergency_contact1_relation = emergency_contact1_relation or None
+        user_to_update.emergency_contact2_name = emergency_contact2_name or None
+        user_to_update.emergency_contact2_phone = emergency_contact2_phone or None
+        user_to_update.emergency_contact2_relation = emergency_contact2_relation or None
         
         # Update company assignment if provided
         if company_id is not None:
@@ -1239,3 +1270,193 @@ def reject_user_view(request, user_id):
             'error': 'Failed to reject user',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─── Invite Link Views ────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_invite_view(request):
+    """Admin or HR generates a one-time invite link."""
+    if request.user.role not in ['admin', 'hr']:
+        return Response({'error': 'Only admin or HR can generate invite links'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    from .models import InviteToken, Company
+    from django.utils import timezone
+    import datetime
+
+    role = request.data.get('role', 'employee')
+    if role not in ['manager', 'employee']:
+        return Response({'error': 'Role must be manager or employee'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    company_id = request.data.get('company')
+    company = None
+    if company_id:
+        try:
+            company = Company.objects.get(id=company_id, is_active=True)
+        except Company.DoesNotExist:
+            return Response({'error': 'Company not found'}, status=status.HTTP_400_BAD_REQUEST)
+    elif request.user.company:
+        company = request.user.company
+
+    # Default expiry: 7 days
+    expires_hours = int(request.data.get('expires_hours', 168))
+    expires_at = timezone.now() + datetime.timedelta(hours=expires_hours)
+
+    # Optional manager assignment
+    manager_id = request.data.get('manager_id')
+    manager = None
+    if manager_id:
+        try:
+            manager = User.objects.get(id=manager_id, role='manager')
+        except User.DoesNotExist:
+            return Response({'error': 'Manager not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+    invite = InviteToken.objects.create(
+        role=role,
+        company=company,
+        created_by=request.user,
+        expires_at=expires_at,
+        manager=manager,
+    )
+
+    return Response({
+        'token': str(invite.token),
+        'role': invite.role,
+        'company': company.name if company else None,
+        'manager': manager.get_full_name() or manager.username if manager else None,
+        'expires_at': invite.expires_at.isoformat(),
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([])
+def validate_invite_view(request):
+    """Validate an invite token (public endpoint)."""
+    from .models import InviteToken
+    token = request.query_params.get('token')
+    if not token:
+        return Response({'valid': False, 'error': 'Token is required'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    try:
+        invite = InviteToken.objects.select_related('company').get(token=token)
+    except (InviteToken.DoesNotExist, Exception):
+        return Response({'valid': False, 'error': 'Invalid token'},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if not invite.is_valid:
+        reason = 'Token has already been used' if invite.used else 'Token has expired'
+        return Response({'valid': False, 'error': reason}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        'valid': True,
+        'role': invite.role,
+        'company_id': invite.company.id if invite.company else None,
+        'company_name': invite.company.name if invite.company else None,
+        'manager_id': invite.manager.id if invite.manager else None,
+        'manager_name': (invite.manager.get_full_name() or invite.manager.username) if invite.manager else None,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([])
+def invite_register_view(request):
+    """User self-registers using an invite token."""
+    from .models import InviteToken
+    from django.utils import timezone
+
+    token_str = request.data.get('token')
+    if not token_str:
+        return Response({'error': 'Token is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        invite = InviteToken.objects.select_related('company').get(token=token_str)
+    except (InviteToken.DoesNotExist, Exception):
+        return Response({'error': 'Invalid token'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not invite.is_valid:
+        reason = 'Token has already been used' if invite.used else 'Token has expired'
+        return Response({'error': reason}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Required fields
+    required = ['first_name', 'last_name', 'phone', 'password',
+                'present_address', 'permanent_address',
+                'bank_name', 'bank_account_number', 'bank_ifsc',
+                'blood_group', 'aadhar_number',
+                'emergency_contact1_name', 'emergency_contact1_phone', 'emergency_contact1_relation',
+                'emergency_contact2_name', 'emergency_contact2_phone', 'emergency_contact2_relation',
+                'designation', 'joining_date', 'email']
+    missing = [f for f in required if not request.data.get(f, '').strip()]
+    if missing:
+        return Response({'error': f'Missing required fields: {", ".join(missing)}'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    email = request.data.get('email', '').strip()
+    if User.objects.filter(email=email).exists():
+        return Response({'error': 'Email already in use'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        first_name = request.data['first_name'].strip()
+        last_name = request.data['last_name'].strip()
+
+        user = User(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=request.data.get('phone', '').strip(),
+            role=invite.role,
+            company=invite.company,
+            manager=invite.manager,
+            designation=request.data.get('designation', '').strip(),
+            joining_date=request.data.get('joining_date') or None,
+            present_address=request.data.get('present_address', '').strip(),
+            permanent_address=request.data.get('permanent_address', '').strip(),
+            bank_name=request.data.get('bank_name', '').strip(),
+            bank_account_number=request.data.get('bank_account_number', '').strip(),
+            bank_ifsc=request.data.get('bank_ifsc', '').strip(),
+            blood_group=request.data.get('blood_group', '').strip(),
+            aadhar_number=request.data.get('aadhar_number', '').strip(),
+            emergency_contact1_name=request.data.get('emergency_contact1_name', '').strip(),
+            emergency_contact1_phone=request.data.get('emergency_contact1_phone', '').strip(),
+            emergency_contact1_relation=request.data.get('emergency_contact1_relation', '').strip(),
+            emergency_contact2_name=request.data.get('emergency_contact2_name', '').strip(),
+            emergency_contact2_phone=request.data.get('emergency_contact2_phone', '').strip(),
+            emergency_contact2_relation=request.data.get('emergency_contact2_relation', '').strip(),
+            pending_approval=True,
+            is_active=False,
+        )
+        user.username = user.generate_username()
+        user.set_password(request.data['password'])
+        user.save()
+
+        # Mark invite as used
+        invite.used = True
+        invite.used_by = user
+        invite.save(update_fields=['used', 'used_by'])
+
+        # Notify all admins via web push
+        try:
+            from notifications.utils import send_push_notification
+            admins = User.objects.filter(role='admin', is_active=True)
+            full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+            for admin in admins:
+                send_push_notification(
+                    user=admin,
+                    title='New User Pending Approval',
+                    message=f'{full_name} has registered and is awaiting your approval.',
+                    notification_type='system_alert',
+                    data={'url': '/admin/pending-users', 'user_id': str(user.id)},
+                )
+        except Exception as e:
+            pass  # Don't fail registration if notification fails
+
+        return Response({
+            'message': 'Registration successful! Your account is pending admin approval.',
+            'username': user.username,
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': 'Registration failed', 'details': str(e)},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)

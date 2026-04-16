@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Loader2, Plus, Pencil, Trash2, Building2, Eye } from 'lucide-react';
+import { Search, Loader2, Plus, Pencil, Trash2, Building2, Eye, Link } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -114,6 +114,14 @@ export default function HREmployees() {
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [copiedUserId, setCopiedUserId] = useState(false);
+
+  // Invite link state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteRole, setInviteRole] = useState('employee');
+  const [inviteCompany, setInviteCompany] = useState<number | ''>('');
+  const [inviteManager, setInviteManager] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteGenerating, setInviteGenerating] = useState(false);
 
   // Fetch employees from API
   const fetchEmployees = async () => {
@@ -354,6 +362,27 @@ export default function HREmployees() {
       joining_date: new Date().toISOString().split('T')[0],
     });
     setIsCreateModalOpen(true);
+  };
+
+  const handleGenerateInvite = async () => {
+    setInviteGenerating(true);
+    try {
+      const payload: { role: string; company?: number; manager_id?: number } = { role: inviteRole };
+      if (inviteCompany) payload.company = inviteCompany as number;
+      else if (user?.company?.id) payload.company = user.company.id;
+      if (inviteManager) payload.manager_id = parseInt(inviteManager);
+      const res: any = await apiClient.generateInvite(payload);
+      setInviteLink(`${window.location.origin}/register?token=${res.token}`);
+    } catch {
+      toast.error('Failed to generate invite link');
+    } finally {
+      setInviteGenerating(false);
+    }
+  };
+
+  const handleCopyInvite = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success('Invite link copied!');
   };
 
   // Handle open edit modal
@@ -630,15 +659,24 @@ export default function HREmployees() {
                 </SelectContent>
               </Select>
 
-              {/* Create Employee Button */}
-              <Button 
-                onClick={handleOpenCreateModal}
-                className="btn-primary w-full"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">New Employee</span>
-                <span className="sm:hidden">Add</span>
-              </Button>
+              {/* Create Employee + Invite Link Buttons */}
+              <div className="flex gap-2 col-span-2 sm:col-span-1">
+                <Button
+                  onClick={handleOpenCreateModal}
+                  className="btn-primary flex-1"
+                >
+                  <Plus className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">New</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setShowInviteModal(true); }}
+                  className="flex-1"
+                >
+                  <Link className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Invite</span>
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -1706,6 +1744,85 @@ export default function HREmployees() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Invite Link Modal */}
+      {showInviteModal && (
+        <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Generate Invite Link</DialogTitle>
+              <DialogDescription>
+                Create a one-time link for a new user to self-register. Expires in 7 days.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select value={inviteCompany === '' ? 'none' : String(inviteCompany)} onValueChange={v => { setInviteCompany(v === 'none' ? '' : Number(v)); setInviteManager(''); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No specific company</SelectItem>
+                    {companies.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {inviteRole === 'employee' && (
+                <div className="space-y-2">
+                  <Label>Assign Manager <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <Select value={inviteManager || 'none'} onValueChange={v => setInviteManager(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No manager</SelectItem>
+                      {managers
+                        .filter((m: any) => !inviteCompany || m.company === inviteCompany || (m as any).company?.id === inviteCompany)
+                        .map((m: any) => (
+                          <SelectItem key={m.id} value={String(m.id)}>
+                            {m.first_name} {m.last_name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Button className="w-full" onClick={handleGenerateInvite} disabled={inviteGenerating}>
+                {inviteGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</> : 'Generate Link'}
+              </Button>
+
+              {inviteLink && (
+                <div className="space-y-2">
+                  <Label>Invite Link</Label>
+                  <div className="flex gap-2">
+                    <Input value={inviteLink} readOnly className="text-xs font-mono" />
+                    <Button variant="outline" size="sm" onClick={handleCopyInvite}>Copy</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">One-time use, expires in 7 days.</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

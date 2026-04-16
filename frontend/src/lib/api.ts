@@ -525,10 +525,42 @@ class ApiClient {
     newPassword?: string;
     managerId?: string;
     company?: number;
+    permanent_address?: string;
+    present_address?: string;
+    bank_name?: string;
+    bank_account_number?: string;
+    bank_ifsc?: string;
+    blood_group?: string;
+    aadhar_number?: string;
+    emergency_contact1_name?: string;
+    emergency_contact1_phone?: string;
+    emergency_contact1_relation?: string;
+    emergency_contact2_name?: string;
+    emergency_contact2_phone?: string;
+    emergency_contact2_relation?: string;
   }) {
     return this.request(`/auth/users/${userId}/update/`, {
       method: 'PUT',
       body: JSON.stringify(userData),
+    });
+  }
+
+  // Invite link methods
+  async generateInvite(data: { role: string; company?: number; expires_hours?: number }) {
+    return this.request('/auth/invite/generate/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async validateInvite(token: string) {
+    return this.request(`/auth/invite/validate/?token=${token}`);
+  }
+
+  async inviteRegister(data: Record<string, string>) {
+    return this.request('/auth/invite/register/', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

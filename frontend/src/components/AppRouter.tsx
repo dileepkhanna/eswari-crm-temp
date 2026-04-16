@@ -115,6 +115,7 @@ import HRBirthdays from '@/pages/hr/HRBirthdays';
 import SettingsPage from '@/pages/settings/SettingsPage';
 import EmployeeSettings from '@/pages/staff/EmployeeSettings';
 import NotFound from '@/pages/NotFound';
+import InviteRegister from '@/pages/InviteRegister';
 
 const AppRouter = () => {
   const { adminExists, isLoading } = useAuth();
@@ -144,6 +145,7 @@ const AppRouter = () => {
       {/* Public Routes - redirect root to login when admin exists */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<InviteRegister />} />
       
       {/* Redirect setup to login if admin already exists */}
       <Route path="/setup" element={<Navigate to="/login" replace />} />

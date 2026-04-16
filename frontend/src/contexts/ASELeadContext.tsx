@@ -273,6 +273,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
 
   // Reset page to 1 when filters or company change, then fetch
   useEffect(() => {
+    if (window.location.pathname.startsWith('/register')) return;
     if (needsCompanyId && !aseCompanyId) return;
     if (currentPage === 1) {
       fetchLeads();
@@ -283,12 +284,14 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
 
   // Fetch when page changes (pagination clicks or reset to 1)
   useEffect(() => {
+    if (window.location.pathname.startsWith('/register')) return;
     if (needsCompanyId && !aseCompanyId) return;
     fetchLeads();
   }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial stats fetch + re-fetch on company change
   useEffect(() => {
+    if (window.location.pathname.startsWith('/register')) return;
     if (needsCompanyId && !aseCompanyId) return;
     fetchStats();
     fetchCreators();

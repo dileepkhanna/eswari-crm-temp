@@ -29,6 +29,11 @@ urlpatterns = [
     path('users/simple-delete/', views.simple_delete_user_view, name='simple_delete_user'),
     path('users/pending/', views.pending_users_view, name='pending_users'),
     path('managers/', views.managers_list_view, name='managers_list'),
+
+    # Invite link endpoints
+    path('invite/generate/', views.generate_invite_view, name='generate_invite'),
+    path('invite/validate/', views.validate_invite_view, name='validate_invite'),
+    path('invite/register/', views.invite_register_view, name='invite_register'),
     
     # Include router URLs for ViewSets
     path('', include(router.urls)),

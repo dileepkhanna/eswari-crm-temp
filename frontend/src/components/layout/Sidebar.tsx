@@ -117,9 +117,17 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
     fetchPendingCount();
     
-    // Refresh every 2 minutes
-    const interval = setInterval(fetchPendingCount, 2 * 60 * 1000);
-    return () => clearInterval(interval);
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPendingCount, 30 * 1000);
+
+    // Also refresh immediately when a user is approved/rejected
+    const handlePendingUpdate = () => fetchPendingCount();
+    window.addEventListener('pendingUsersUpdated', handlePendingUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pendingUsersUpdated', handlePendingUpdate);
+    };
   }, [user]);
 
   // Get user's company code to determine which menu to show

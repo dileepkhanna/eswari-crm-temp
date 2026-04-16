@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2, Building2, TrendingUp, Eye } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2, Building2, TrendingUp, Eye, Link } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -64,13 +64,26 @@ interface DBUser {
   email: string | null;
   phone: string | null;
   address: string | null;
-  designation?: string | null; // Job title/designation
-  joining_date?: string | null; // Date when employee joined
+  designation?: string | null;
+  joining_date?: string | null;
+  permanent_address?: string | null;
+  present_address?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  blood_group?: string | null;
+  aadhar_number?: string | null;
+  emergency_contact1_name?: string | null;
+  emergency_contact1_phone?: string | null;
+  emergency_contact1_relation?: string | null;
+  emergency_contact2_name?: string | null;
+  emergency_contact2_phone?: string | null;
+  emergency_contact2_relation?: string | null;
   status: string;
   manager_id: string | null;
-  manager_name?: string | null; // Manager's name from API
-  company?: Company; // Company information
-  company_name?: string | null; // Company name for easy access
+  manager_name?: string | null;
+  company?: Company;
+  company_name?: string | null;
   created_at: string;
   updated_at: string;
   role: UserRole;
@@ -105,6 +118,12 @@ export default function UserList(props?: UserListProps) {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [companyFilter, setCompanyFilter] = useState<string>(props?.companyFilter || 'all');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteRole, setInviteRole] = useState('employee');
+  const [inviteCompany, setInviteCompany] = useState<number | ''>('');
+  const [inviteManager, setInviteManager] = useState<string>('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteGenerating, setInviteGenerating] = useState(false);
   const [editingUser, setEditingUser] = useState<DBUser | null>(null);
   const [viewingUser, setViewingUser] = useState<DBUser | null>(null);
   const [promotingUser, setPromotingUser] = useState<DBUser | null>(null);
@@ -155,17 +174,32 @@ export default function UserList(props?: UserListProps) {
         name: `${user.first_name} ${user.last_name}`.trim() || user.username,
         email: user.email,
         phone: user.phone || null,
-        address: null, // Django User model doesn't have address field
+        address: null,
         designation: user.designation || null,
         joining_date: user.joining_date || null,
         role: user.role as UserRole,
-        status: 'active', // Default status
+        status: user.is_active ? 'active' : (user.pending_approval ? 'pending' : 'inactive'),
         manager_id: user.manager?.toString() || null,
-        manager_name: user.manager_name || null, // From serializer
-        company: user.company_info || user.company, // Company information
-        company_name: user.company_info?.name || null, // Extract company name for easy access
+        manager_name: user.manager_name || null,
+        company: user.company_info || user.company,
+        company_name: user.company_info?.name || null,
         created_at: user.created_at,
-        updated_at: user.created_at, // Use created_at as updated_at for now
+        updated_at: user.created_at,
+        // Personal & banking details
+        permanent_address: user.permanent_address || null,
+        present_address: user.present_address || null,
+        bank_name: user.bank_name || null,
+        bank_account_number: user.bank_account_number || null,
+        bank_ifsc: user.bank_ifsc || null,
+        blood_group: user.blood_group || null,
+        aadhar_number: user.aadhar_number || null,
+        // Emergency contacts
+        emergency_contact1_name: user.emergency_contact1_name || null,
+        emergency_contact1_phone: user.emergency_contact1_phone || null,
+        emergency_contact1_relation: user.emergency_contact1_relation || null,
+        emergency_contact2_name: user.emergency_contact2_name || null,
+        emergency_contact2_phone: user.emergency_contact2_phone || null,
+        emergency_contact2_relation: user.emergency_contact2_relation || null,
       }));
       
       logger.log(`✅ Transformed ${transformedUsers.length} users for UI:`, transformedUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));
@@ -469,6 +503,19 @@ export default function UserList(props?: UserListProps) {
       managerId?: string; 
       company?: number;
       newPassword?: string;
+      permanent_address?: string;
+      present_address?: string;
+      bank_name?: string;
+      bank_account_number?: string;
+      bank_ifsc?: string;
+      blood_group?: string;
+      aadhar_number?: string;
+      emergency_contact1_name?: string;
+      emergency_contact1_phone?: string;
+      emergency_contact1_relation?: string;
+      emergency_contact2_name?: string;
+      emergency_contact2_phone?: string;
+      emergency_contact2_relation?: string;
     }
   ): Promise<{ success: boolean }> => {
     try {
@@ -516,6 +563,27 @@ export default function UserList(props?: UserListProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGenerateInvite = async () => {
+    setInviteGenerating(true);
+    try {
+      const payload: { role: string; company?: number; manager_id?: number } = { role: inviteRole };
+      if (inviteCompany) payload.company = inviteCompany as number;
+      if (inviteManager) payload.manager_id = parseInt(inviteManager);
+      const res: any = await apiClient.generateInvite(payload);
+      const base = window.location.origin;
+      setInviteLink(`${base}/register?token=${res.token}`);
+    } catch (err: any) {
+      toast.error('Failed to generate invite link');
+    } finally {
+      setInviteGenerating(false);
+    }
+  };
+
+  const handleCopyInvite = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success('Invite link copied to clipboard!');
   };
 
   const handlePromoteEmployee = async (userId: string): Promise<{ success: boolean; message?: string; newUsername?: string }> => {
@@ -597,6 +665,10 @@ export default function UserList(props?: UserListProps) {
           <Button className="btn-primary shrink-0" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Add User</span>
+          </Button>
+          <Button variant="outline" className="shrink-0" onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setShowInviteModal(true); }}>
+            <Link className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Invite Link</span>
           </Button>
         </div>
 
@@ -814,12 +886,14 @@ export default function UserList(props?: UserListProps) {
                   <Badge 
                     variant="outline"
                     className={cn(
-                      user.status === 'active' 
-                        ? 'bg-success/15 text-success border-success/30' 
+                      user.status === 'active'
+                        ? 'bg-success/15 text-success border-success/30'
+                        : user.status === 'pending'
+                        ? 'bg-yellow-50 text-yellow-700 border-yellow-400'
                         : 'bg-muted text-muted-foreground'
                     )}
                   >
-                    {user.status}
+                    {user.status === 'pending' ? 'Pending' : user.status}
                   </Badge>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
@@ -1013,8 +1087,13 @@ export default function UserList(props?: UserListProps) {
 
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Badge variant={viewingUser.status === 'active' ? 'default' : 'secondary'}>
-                    {viewingUser.status}
+                  <Badge variant={
+                    viewingUser.status === 'active' ? 'default' :
+                    viewingUser.status === 'pending' ? 'outline' : 'secondary'
+                  } className={
+                    viewingUser.status === 'pending' ? 'border-yellow-400 text-yellow-700 bg-yellow-50' : ''
+                  }>
+                    {viewingUser.status === 'pending' ? 'Pending Approval' : viewingUser.status}
                   </Badge>
                 </div>
 
@@ -1025,6 +1104,96 @@ export default function UserList(props?: UserListProps) {
                   </p>
                 </div>
               </div>
+
+              {/* Address */}
+              {(viewingUser.present_address || viewingUser.permanent_address) && (
+                <div className="pt-3 border-t space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingUser.present_address && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Present Address</Label>
+                        <p className="text-sm font-medium">{viewingUser.present_address}</p>
+                      </div>
+                    )}
+                    {viewingUser.permanent_address && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Permanent Address</Label>
+                        <p className="text-sm font-medium">{viewingUser.permanent_address}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Personal Details */}
+              {(viewingUser.blood_group || viewingUser.aadhar_number) && (
+                <div className="pt-3 border-t space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Personal Details</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingUser.blood_group && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Blood Group</Label>
+                        <p className="text-sm font-medium">{viewingUser.blood_group}</p>
+                      </div>
+                    )}
+                    {viewingUser.aadhar_number && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Aadhar Number</Label>
+                        <p className="text-sm font-medium">{viewingUser.aadhar_number}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Bank Details */}
+              {(viewingUser.bank_name || viewingUser.bank_account_number || viewingUser.bank_ifsc) && (
+                <div className="pt-3 border-t space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bank Details</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingUser.bank_name && (
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs text-muted-foreground">Bank Name</Label>
+                        <p className="text-sm font-medium">{viewingUser.bank_name}</p>
+                      </div>
+                    )}
+                    {viewingUser.bank_account_number && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Account Number</Label>
+                        <p className="text-sm font-medium">{viewingUser.bank_account_number}</p>
+                      </div>
+                    )}
+                    {viewingUser.bank_ifsc && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">IFSC Code</Label>
+                        <p className="text-sm font-medium">{viewingUser.bank_ifsc}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Emergency Contacts */}
+              {(viewingUser.emergency_contact1_name || viewingUser.emergency_contact2_name) && (
+                <div className="pt-3 border-t space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emergency Contacts</p>
+                  {viewingUser.emergency_contact1_name && (
+                    <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                      <p className="text-xs text-muted-foreground">Contact 1</p>
+                      <p className="text-sm font-medium">{viewingUser.emergency_contact1_name} — {viewingUser.emergency_contact1_relation}</p>
+                      <p className="text-sm text-muted-foreground">{viewingUser.emergency_contact1_phone}</p>
+                    </div>
+                  )}
+                  {viewingUser.emergency_contact2_name && (
+                    <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                      <p className="text-xs text-muted-foreground">Contact 2</p>
+                      <p className="text-sm font-medium">{viewingUser.emergency_contact2_name} — {viewingUser.emergency_contact2_relation}</p>
+                      <p className="text-sm text-muted-foreground">{viewingUser.emergency_contact2_phone}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1078,6 +1247,83 @@ export default function UserList(props?: UserListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite Link Modal */}
+      {showInviteModal && (
+        <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Generate Invite Link</DialogTitle>
+              <DialogDescription>
+                Create a one-time link for a new user to self-register. The link expires in 7 days.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select value={inviteCompany === '' ? 'none' : String(inviteCompany)} onValueChange={v => { setInviteCompany(v === 'none' ? '' : Number(v)); setInviteManager(''); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No specific company</SelectItem>
+                    {companies.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {inviteRole === 'employee' && (
+                <div className="space-y-2">
+                  <Label>Assign Manager <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <Select value={inviteManager || 'none'} onValueChange={v => setInviteManager(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No manager</SelectItem>
+                      {managers
+                        .filter(m => !inviteCompany || m.company === inviteCompany)
+                        .map(m => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Button className="w-full" onClick={handleGenerateInvite} disabled={inviteGenerating}>
+                {inviteGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</> : 'Generate Link'}
+              </Button>
+
+              {inviteLink && (
+                <div className="space-y-2">
+                  <Label>Invite Link</Label>
+                  <div className="flex gap-2">
+                    <Input value={inviteLink} readOnly className="text-xs font-mono" />
+                    <Button variant="outline" size="sm" onClick={handleCopyInvite}>Copy</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Share this link with the user. It can only be used once and expires in 7 days.</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

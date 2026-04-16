@@ -15,7 +15,10 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'company', 'company_info', 'joining_date', 'designation', 'pending_approval', 'approved_by', 'approved_by_name', 'approved_at', 'is_active', 'created_at']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'company', 'company_info', 'joining_date', 'designation', 'pending_approval', 'approved_by', 'approved_by_name', 'approved_at', 'is_active', 'created_at',
+                  'permanent_address', 'present_address', 'bank_name', 'bank_account_number', 'bank_ifsc', 'blood_group', 'aadhar_number',
+                  'emergency_contact1_name', 'emergency_contact1_phone', 'emergency_contact1_relation',
+                  'emergency_contact2_name', 'emergency_contact2_phone', 'emergency_contact2_relation']
         read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count', 'employees_names', 'company_info', 'approved_by_name', 'approved_by', 'approved_at', 'is_active']
     
     def get_manager_name(self, obj):
