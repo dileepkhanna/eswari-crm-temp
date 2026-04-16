@@ -443,6 +443,19 @@ class ApiClient {
     manager?: number;
     joining_date?: string;
     designation?: string;
+    present_address?: string;
+    permanent_address?: string;
+    bank_name?: string;
+    bank_account_number?: string;
+    bank_ifsc?: string;
+    blood_group?: string;
+    aadhar_number?: string;
+    emergency_contact1_name?: string;
+    emergency_contact1_phone?: string;
+    emergency_contact1_relation?: string;
+    emergency_contact2_name?: string;
+    emergency_contact2_phone?: string;
+    emergency_contact2_relation?: string;
   }) {
     logger.log('[API] createUser called with data:', userData);
     return this.request('/auth/register/', {

@@ -134,6 +134,9 @@ export default function HREmployees() {
   const [inviteLink, setInviteLink] = useState('');
   const [inviteGenerating, setInviteGenerating] = useState(false);
 
+  // Declaration checkbox state
+  const [declared, setDeclared] = useState(false);
+
   // Fetch employees from API
   const fetchEmployees = async () => {
     try {
@@ -219,39 +222,18 @@ export default function HREmployees() {
 
   // Handle create employee
   const handleCreateEmployee = async () => {
-    // Validation
-    if (!createFormData.first_name.trim()) {
-      toast.error('First name is required');
-      return;
-    }
-    if (!createFormData.last_name.trim()) {
-      toast.error('Last name is required');
-      return;
-    }
-    if (!createFormData.phone.trim()) {
-      toast.error('Phone is required');
-      return;
-    }
-    if (!createFormData.password) {
-      toast.error('Password is required');
-      return;
-    }
-    if (createFormData.password !== createFormData.password_confirm) {
-      toast.error('Passwords do not match');
-      return;
-    }
-    if (createFormData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-    if (!createFormData.company || createFormData.company === 0) {
-      toast.error('Company is required');
-      return;
-    }
-    if (createFormData.role === 'employee' && !createFormData.manager) {
-      toast.error('Manager is required for employees');
-      return;
-    }
+    if (!createFormData.first_name.trim()) { toast.error('First name is required'); return; }
+    if (!createFormData.last_name.trim()) { toast.error('Last name is required'); return; }
+    if (!createFormData.email.trim()) { toast.error('Email is required'); return; }
+    if (!createFormData.phone.trim()) { toast.error('Phone is required'); return; }
+    if (!createFormData.designation.trim()) { toast.error('Designation is required'); return; }
+    if (!createFormData.joining_date) { toast.error('Joining date is required'); return; }
+    if (!createFormData.password) { toast.error('Password is required'); return; }
+    if (createFormData.password !== createFormData.password_confirm) { toast.error('Passwords do not match'); return; }
+    if (createFormData.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (!createFormData.company || createFormData.company === 0) { toast.error('Company is required'); return; }
+    if (createFormData.role === 'employee' && !createFormData.manager) { toast.error('Manager is required for employees'); return; }
+    if (!declared) { toast.error('Please accept the declaration'); return; }
 
     try {
       setIsCreating(true);
@@ -282,7 +264,6 @@ export default function HREmployees() {
         last_name: createFormData.last_name.trim(),
         email: createFormData.email.trim() || undefined,
         phone: createFormData.phone.trim(),
-        address: createFormData.address.trim() || undefined,
         password: createFormData.password,
         password_confirm: createFormData.password_confirm,
         role: createFormData.role,
@@ -369,19 +350,17 @@ export default function HREmployees() {
 
   const handleOpenCreateModal = () => {
     setCreateFormData({
-      first_name: '',
-      last_name: '',
-      email: '',
-      phone: '',
-      address: '',
-      designation: '',
-      password: '',
-      password_confirm: '',
-      role: 'employee',
-      manager: '',
-      company: user?.company?.id || 0,
+      first_name: '', last_name: '', email: '', phone: '', address: '',
+      designation: '', password: '', password_confirm: '',
+      role: 'employee', manager: '', company: user?.company?.id || 0,
       joining_date: new Date().toISOString().split('T')[0],
+      present_address: '', permanent_address: '',
+      bank_name: '', bank_account_number: '', bank_ifsc: '',
+      blood_group: '', aadhar_number: '',
+      emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+      emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
     });
+    setDeclared(false);
     setIsCreateModalOpen(true);
   };
 
@@ -441,6 +420,7 @@ export default function HREmployees() {
       emergency_contact2_phone: employee.emergency_contact2_phone || '',
       emergency_contact2_relation: employee.emergency_contact2_relation || '',
     });
+    setDeclared(false);
     setIsEditModalOpen(true);
   };
 
@@ -448,23 +428,14 @@ export default function HREmployees() {
   const handleUpdateEmployee = async () => {
     if (!editingEmployee) return;
 
-    // Validation
-    if (!editFormData.first_name.trim()) {
-      toast.error('First name is required');
-      return;
-    }
-    if (!editFormData.last_name.trim()) {
-      toast.error('Last name is required');
-      return;
-    }
-    if (!editFormData.phone.trim()) {
-      toast.error('Phone is required');
-      return;
-    }
-    if (editFormData.role === 'employee' && !editFormData.manager) {
-      toast.error('Manager is required for employees');
-      return;
-    }
+    if (!editFormData.first_name.trim()) { toast.error('First name is required'); return; }
+    if (!editFormData.last_name.trim()) { toast.error('Last name is required'); return; }
+    if (!editFormData.email.trim()) { toast.error('Email is required'); return; }
+    if (!editFormData.phone.trim()) { toast.error('Phone is required'); return; }
+    if (!editFormData.designation.trim()) { toast.error('Designation is required'); return; }
+    if (!editFormData.joining_date) { toast.error('Joining date is required'); return; }
+    if (editFormData.role === 'employee' && !editFormData.manager) { toast.error('Manager is required for employees'); return; }
+    if (!declared) { toast.error('Please accept the declaration'); return; }
 
     try {
       setIsUpdating(true);
@@ -1010,16 +981,26 @@ export default function HREmployees() {
               </div>
             </div>
 
+            {/* User ID Preview */}
+            {createFormData.first_name.trim() && (
+              <div className="p-3 rounded-lg bg-muted">
+                <label className="text-xs font-medium text-muted-foreground">Generated User ID (Preview)</label>
+                <p className="font-mono text-sm mt-1">
+                  {`${createFormData.first_name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}_${createFormData.role}_XX`}
+                </p>
+              </div>
+            )}
+
             {/* Contact Fields - Side by Side */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
                 <Input
                   id="email"
                   type="email"
                   value={createFormData.email}
                   onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
-                  placeholder="Enter email address (optional)"
+                  placeholder="Enter email address"
                   disabled={isCreating}
                   className="h-11"
                 />
@@ -1040,28 +1021,10 @@ export default function HREmployees() {
                 />
               </div>
             </div>
-            
-            {/* Email helper text - separate row */}
-            <div className="text-xs text-muted-foreground -mt-2">
-              Email is optional
-            </div>
-
-            {/* Address Field - Full Width */}
-            <div className="grid gap-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={createFormData.address}
-                onChange={(e) => setCreateFormData({ ...createFormData, address: e.target.value })}
-                placeholder="Enter address (optional)"
-                disabled={isCreating}
-                className="h-11"
-              />
-            </div>
 
             {/* Joining Date Field - Full Width */}
             <div className="grid gap-2">
-              <Label htmlFor="joining_date">Joining Date</Label>
+              <Label htmlFor="joining_date">Joining Date <span className="text-red-500">*</span></Label>
               <Input
                 id="joining_date"
                 type="date"
@@ -1070,14 +1033,11 @@ export default function HREmployees() {
                 disabled={isCreating}
                 className="h-11"
               />
-              <p className="text-xs text-muted-foreground">
-                Optional: Date when the user joined the company
-              </p>
             </div>
 
             {/* Designation Field - Full Width */}
             <div className="grid gap-2">
-              <Label htmlFor="designation">Designation</Label>
+              <Label htmlFor="designation">Designation <span className="text-red-500">*</span></Label>
               <Input
                 id="designation"
                 value={createFormData.designation}
@@ -1086,9 +1046,6 @@ export default function HREmployees() {
                 disabled={isCreating}
                 className="h-11"
               />
-              <p className="text-xs text-muted-foreground">
-                Optional: Job title or designation
-              </p>
             </div>
 
             {/* Role Field - Full Width */}
@@ -1232,14 +1189,33 @@ export default function HREmployees() {
               <div className="grid gap-2">
                 <Label htmlFor="c_present_address">Present Address <span className="text-red-500">*</span></Label>
                 <Input id="c_present_address" value={createFormData.present_address}
-                  onChange={e => setCreateFormData({ ...createFormData, present_address: e.target.value })}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCreateFormData(prev => ({
+                      ...prev,
+                      present_address: val,
+                      permanent_address: declared ? prev.permanent_address : (prev.present_address === prev.permanent_address ? val : prev.permanent_address),
+                    }));
+                  }}
                   placeholder="Current address" disabled={isCreating} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="hr-same-address"
+                  checked={createFormData.present_address !== '' && createFormData.present_address === createFormData.permanent_address}
+                  onChange={e => {
+                    if (e.target.checked) setCreateFormData(prev => ({ ...prev, permanent_address: prev.present_address }));
+                  }}
+                  className="w-4 h-4 cursor-pointer" />
+                <label htmlFor="hr-same-address" className="text-sm text-muted-foreground cursor-pointer select-none">
+                  Permanent address same as present address
+                </label>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="c_permanent_address">Permanent Address <span className="text-red-500">*</span></Label>
                 <Input id="c_permanent_address" value={createFormData.permanent_address}
                   onChange={e => setCreateFormData({ ...createFormData, permanent_address: e.target.value })}
-                  placeholder="Permanent address" disabled={isCreating} />
+                  placeholder="Permanent address" disabled={isCreating}
+                  className={createFormData.present_address !== '' && createFormData.present_address === createFormData.permanent_address ? 'bg-muted' : ''} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -1332,29 +1308,26 @@ export default function HREmployees() {
                 They can login using the "Staff / Manager" tab on the login page.
               </p>
             </div>
+
+            {/* Declaration */}
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+              <input type="checkbox" id="hr-create-declaration" checked={declared}
+                onChange={e => setDeclared(e.target.checked)}
+                className="mt-0.5 shrink-0 w-4 h-4 cursor-pointer" />
+              <label htmlFor="hr-create-declaration" className="text-xs text-muted-foreground cursor-pointer leading-relaxed select-none">
+                I hereby declare that all the details furnished by me in this form are true, complete, and correct to the best of my knowledge, and I understand that any discrepancy may lead to appropriate action.
+              </label>
+            </div>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsCreateModalOpen(false)}
-              disabled={isCreating}
-            >
+            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} disabled={isCreating}>
               Cancel
             </Button>
-            <Button
-              onClick={handleCreateEmployee}
-              disabled={isCreating}
-              className="btn-primary"
-            >
+            <Button onClick={handleCreateEmployee} disabled={isCreating || !declared} className="btn-primary">
               {isCreating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Employee'
-              )}
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</>
+              ) : 'Create Employee'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1401,18 +1374,15 @@ export default function HREmployees() {
 
             {/* Email */}
             <div className="grid gap-2">
-              <Label htmlFor="edit_email">Email</Label>
+              <Label htmlFor="edit_email">Email <span className="text-red-500">*</span></Label>
               <Input
                 id="edit_email"
                 type="email"
                 value={editFormData.email}
                 onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                placeholder="Enter email address (optional)"
+                placeholder="Enter email address"
                 disabled={isUpdating}
               />
-              <p className="text-xs text-muted-foreground">
-                Email is optional
-              </p>
             </div>
 
             {/* Phone */}
@@ -1430,21 +1400,9 @@ export default function HREmployees() {
               />
             </div>
 
-            {/* Address */}
-            <div className="grid gap-2">
-              <Label htmlFor="edit_address">Address</Label>
-              <Input
-                id="edit_address"
-                value={editFormData.address}
-                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                placeholder="Enter address (optional)"
-                disabled={isUpdating}
-              />
-            </div>
-
             {/* Designation */}
             <div className="grid gap-2">
-              <Label htmlFor="edit_designation">Designation</Label>
+              <Label htmlFor="edit_designation">Designation <span className="text-red-500">*</span></Label>
               <Input
                 id="edit_designation"
                 value={editFormData.designation}
@@ -1452,14 +1410,11 @@ export default function HREmployees() {
                 placeholder="e.g., Software Engineer, Manager, etc."
                 disabled={isUpdating}
               />
-              <p className="text-xs text-muted-foreground">
-                Job title or designation (optional)
-              </p>
             </div>
 
             {/* Joining Date */}
             <div className="grid gap-2">
-              <Label htmlFor="edit_joining_date">Joining Date</Label>
+              <Label htmlFor="edit_joining_date">Joining Date <span className="text-red-500">*</span></Label>
               <Input
                 id="edit_joining_date"
                 type="date"
@@ -1467,9 +1422,6 @@ export default function HREmployees() {
                 onChange={(e) => setEditFormData({ ...editFormData, joining_date: e.target.value })}
                 disabled={isUpdating}
               />
-              <p className="text-xs text-muted-foreground">
-                Date when the user joined the company
-              </p>
             </div>
 
             {/* Company */}
@@ -1588,14 +1540,33 @@ export default function HREmployees() {
               <div className="grid gap-2">
                 <Label>Present Address <span className="text-red-500">*</span></Label>
                 <Input value={editFormData.present_address}
-                  onChange={e => setEditFormData({ ...editFormData, present_address: e.target.value })}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setEditFormData(prev => ({
+                      ...prev,
+                      present_address: val,
+                      permanent_address: prev.present_address === prev.permanent_address ? val : prev.permanent_address,
+                    }));
+                  }}
                   placeholder="Current address" disabled={isUpdating} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="hr-edit-same-address"
+                  checked={editFormData.present_address !== '' && editFormData.present_address === editFormData.permanent_address}
+                  onChange={e => {
+                    if (e.target.checked) setEditFormData(prev => ({ ...prev, permanent_address: prev.present_address }));
+                  }}
+                  className="w-4 h-4 cursor-pointer" />
+                <label htmlFor="hr-edit-same-address" className="text-sm text-muted-foreground cursor-pointer select-none">
+                  Permanent address same as present address
+                </label>
               </div>
               <div className="grid gap-2">
                 <Label>Permanent Address <span className="text-red-500">*</span></Label>
                 <Input value={editFormData.permanent_address}
                   onChange={e => setEditFormData({ ...editFormData, permanent_address: e.target.value })}
-                  placeholder="Permanent address" disabled={isUpdating} />
+                  placeholder="Permanent address" disabled={isUpdating}
+                  className={editFormData.present_address !== '' && editFormData.present_address === editFormData.permanent_address ? 'bg-muted' : ''} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -1679,6 +1650,16 @@ export default function HREmployees() {
                   placeholder="Phone number" disabled={isUpdating} />
               </div>
             </div>
+
+            {/* Declaration */}
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+              <input type="checkbox" id="hr-edit-declaration" checked={declared}
+                onChange={e => setDeclared(e.target.checked)}
+                className="mt-0.5 shrink-0 w-4 h-4 cursor-pointer" />
+              <label htmlFor="hr-edit-declaration" className="text-xs text-muted-foreground cursor-pointer leading-relaxed select-none">
+                I hereby declare that all the details furnished by me in this form are true, complete, and correct to the best of my knowledge, and I understand that any discrepancy may lead to appropriate action.
+              </label>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1694,7 +1675,7 @@ export default function HREmployees() {
             </Button>
             <Button
               onClick={handleUpdateEmployee}
-              disabled={isUpdating}
+              disabled={isUpdating || !declared}
               className="btn-primary"
             >
               {isUpdating ? (
@@ -1823,9 +1804,18 @@ export default function HREmployees() {
                   <p className="text-sm font-medium">{viewingEmployee.phone || 'Not provided'}</p>
                 </div>
 
-                <div className="space-y-1 col-span-2">
+                <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Designation</Label>
-                  <p className="text-sm font-medium">{(viewingEmployee as any).designation || 'Not specified'}</p>
+                  <p className="text-sm font-medium">{viewingEmployee.designation || 'Not specified'}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Joining Date</Label>
+                  <p className="text-sm font-medium">
+                    {viewingEmployee.joining_date
+                      ? format(new Date(viewingEmployee.joining_date), 'MMM dd, yyyy')
+                      : 'Not provided'}
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -1833,7 +1823,7 @@ export default function HREmployees() {
                   {viewingEmployee.company_info ? (
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-                        {viewingEmployee.company_info.code.charAt(0)}
+                        {viewingEmployee.company_info.code?.charAt(0) || 'C'}
                       </div>
                       <span className="text-sm font-medium">{viewingEmployee.company_info.name}</span>
                     </div>
@@ -1845,9 +1835,9 @@ export default function HREmployees() {
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Manager</Label>
                   <p className="text-sm font-medium">
-                    {viewingEmployee.role === 'employee' && viewingEmployee.manager_name 
-                      ? viewingEmployee.manager_name 
-                      : 'Not applicable'}
+                    {viewingEmployee.role === 'employee' && viewingEmployee.manager_name
+                      ? viewingEmployee.manager_name
+                      : viewingEmployee.role === 'employee' ? 'Not assigned' : 'Not applicable'}
                   </p>
                 </div>
 
@@ -1857,104 +1847,79 @@ export default function HREmployees() {
                     {viewingEmployee.username}
                   </code>
                 </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Joined</Label>
-                  <p className="text-sm font-medium">
-                    {format(new Date(viewingEmployee.created_at), 'MMM dd, yyyy')}
-                  </p>
-                </div>
               </div>
 
               {/* Address */}
-              {(viewingEmployee.present_address || viewingEmployee.permanent_address) && (
-                <div className="border-t pt-3 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    {viewingEmployee.present_address && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Present Address</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.present_address}</p>
-                      </div>
-                    )}
-                    {viewingEmployee.permanent_address && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Permanent Address</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.permanent_address}</p>
-                      </div>
-                    )}
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Present Address</Label>
+                    <p className="text-sm font-medium">{viewingEmployee.present_address || 'Not provided'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Permanent Address</Label>
+                    <p className="text-sm font-medium">{viewingEmployee.permanent_address || 'Not provided'}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Personal */}
-              {(viewingEmployee.blood_group || viewingEmployee.aadhar_number) && (
-                <div className="border-t pt-3 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Personal Details</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    {viewingEmployee.blood_group && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Blood Group</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.blood_group}</p>
-                      </div>
-                    )}
-                    {viewingEmployee.aadhar_number && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Aadhar Number</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.aadhar_number}</p>
-                      </div>
-                    )}
+              {/* Personal Details */}
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Personal Details</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Blood Group</Label>
+                    <p className="text-sm font-medium">{viewingEmployee.blood_group || 'Not provided'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Aadhar Number</Label>
+                    <p className="text-sm font-medium">{viewingEmployee.aadhar_number || 'Not provided'}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Bank */}
-              {(viewingEmployee.bank_name || viewingEmployee.bank_account_number) && (
-                <div className="border-t pt-3 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bank Details</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    {viewingEmployee.bank_name && (
-                      <div className="space-y-1 col-span-2">
-                        <Label className="text-xs text-muted-foreground">Bank Name</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.bank_name}</p>
-                      </div>
-                    )}
-                    {viewingEmployee.bank_account_number && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Account Number</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.bank_account_number}</p>
-                      </div>
-                    )}
-                    {viewingEmployee.bank_ifsc && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">IFSC Code</Label>
-                        <p className="text-sm font-medium">{viewingEmployee.bank_ifsc}</p>
-                      </div>
-                    )}
+              {/* Bank Details */}
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bank Details</p>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Bank Name</Label>
+                  <p className="text-sm font-medium">{viewingEmployee.bank_name || 'Not provided'}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Account Number</Label>
+                    <p className="text-sm font-medium">{viewingEmployee.bank_account_number || 'Not provided'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">IFSC Code</Label>
+                    <p className="text-sm font-medium">{viewingEmployee.bank_ifsc || 'Not provided'}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Emergency Contacts */}
-              {(viewingEmployee.emergency_contact1_name || viewingEmployee.emergency_contact2_name) && (
-                <div className="border-t pt-3 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emergency Contacts</p>
-                  {viewingEmployee.emergency_contact1_name && (
-                    <div className="p-3 rounded-lg bg-muted/50 space-y-1">
-                      <p className="text-xs text-muted-foreground">Contact 1</p>
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emergency Contacts</p>
+                <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                  <p className="text-xs text-muted-foreground">Contact 1</p>
+                  {viewingEmployee.emergency_contact1_name ? (
+                    <>
                       <p className="text-sm font-medium">{viewingEmployee.emergency_contact1_name} — {viewingEmployee.emergency_contact1_relation}</p>
                       <p className="text-sm text-muted-foreground">{viewingEmployee.emergency_contact1_phone}</p>
-                    </div>
-                  )}
-                  {viewingEmployee.emergency_contact2_name && (
-                    <div className="p-3 rounded-lg bg-muted/50 space-y-1">
-                      <p className="text-xs text-muted-foreground">Contact 2</p>
+                    </>
+                  ) : <p className="text-sm text-muted-foreground">Not provided</p>}
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                  <p className="text-xs text-muted-foreground">Contact 2</p>
+                  {viewingEmployee.emergency_contact2_name ? (
+                    <>
                       <p className="text-sm font-medium">{viewingEmployee.emergency_contact2_name} — {viewingEmployee.emergency_contact2_relation}</p>
                       <p className="text-sm text-muted-foreground">{viewingEmployee.emergency_contact2_phone}</p>
-                    </div>
-                  )}
+                    </>
+                  ) : <p className="text-sm text-muted-foreground">Not provided</p>}
                 </div>
-              )}
+              </div>
             </div>
           )}
 

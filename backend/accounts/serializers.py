@@ -98,7 +98,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'phone', 'role', 'manager', 'company', 'joining_date', 'designation', 'pending_approval', 'is_active']
+        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'phone', 'role', 'manager', 'company', 'joining_date', 'designation', 'pending_approval', 'is_active',
+                  'present_address', 'permanent_address', 'bank_name', 'bank_account_number', 'bank_ifsc', 'blood_group', 'aadhar_number',
+                  'emergency_contact1_name', 'emergency_contact1_phone', 'emergency_contact1_relation',
+                  'emergency_contact2_name', 'emergency_contact2_phone', 'emergency_contact2_relation']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
