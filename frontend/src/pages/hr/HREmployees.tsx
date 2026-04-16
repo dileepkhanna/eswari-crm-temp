@@ -50,6 +50,21 @@ interface Employee {
   manager_name?: string | null;
   company_info?: Company;
   created_at: string;
+  designation?: string | null;
+  joining_date?: string | null;
+  present_address?: string | null;
+  permanent_address?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  blood_group?: string | null;
+  aadhar_number?: string | null;
+  emergency_contact1_name?: string | null;
+  emergency_contact1_phone?: string | null;
+  emergency_contact1_relation?: string | null;
+  emergency_contact2_name?: string | null;
+  emergency_contact2_phone?: string | null;
+  emergency_contact2_relation?: string | null;
 }
 
 export default function HREmployees() {
@@ -69,18 +84,16 @@ export default function HREmployees() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createFormData, setCreateFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    address: '',
-    designation: '',
-    password: '',
-    password_confirm: '',
+    first_name: '', last_name: '', email: '', phone: '', address: '',
+    designation: '', password: '', password_confirm: '',
     role: 'employee' as 'manager' | 'employee',
-    manager: '' as string,
-    company: user?.company?.id || 0,
-    joining_date: new Date().toISOString().split('T')[0], // Default to today
+    manager: '' as string, company: user?.company?.id || 0,
+    joining_date: new Date().toISOString().split('T')[0],
+    present_address: '', permanent_address: '',
+    bank_name: '', bank_account_number: '', bank_ifsc: '',
+    blood_group: '', aadhar_number: '',
+    emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+    emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
   });
 
   // Edit employee modal state
@@ -88,17 +101,15 @@ export default function HREmployees() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [editFormData, setEditFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    address: '',
-    designation: '',
-    joining_date: '',
+    first_name: '', last_name: '', email: '', phone: '', address: '',
+    designation: '', joining_date: '',
     role: 'employee' as 'manager' | 'employee',
-    manager: '' as string,
-    company: 0,
-    newPassword: '',
+    manager: '' as string, company: 0, newPassword: '',
+    present_address: '', permanent_address: '',
+    bank_name: '', bank_account_number: '', bank_ifsc: '',
+    blood_group: '', aadhar_number: '',
+    emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+    emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
   });
 
   // Delete employee modal state
@@ -278,6 +289,19 @@ export default function HREmployees() {
         company: createFormData.company,
         joining_date: createFormData.joining_date,
         designation: createFormData.designation.trim() || undefined,
+        present_address: createFormData.present_address.trim() || undefined,
+        permanent_address: createFormData.permanent_address.trim() || undefined,
+        bank_name: createFormData.bank_name.trim() || undefined,
+        bank_account_number: createFormData.bank_account_number.trim() || undefined,
+        bank_ifsc: createFormData.bank_ifsc.trim() || undefined,
+        blood_group: createFormData.blood_group.trim() || undefined,
+        aadhar_number: createFormData.aadhar_number.trim() || undefined,
+        emergency_contact1_name: createFormData.emergency_contact1_name.trim() || undefined,
+        emergency_contact1_phone: createFormData.emergency_contact1_phone.trim() || undefined,
+        emergency_contact1_relation: createFormData.emergency_contact1_relation.trim() || undefined,
+        emergency_contact2_name: createFormData.emergency_contact2_name.trim() || undefined,
+        emergency_contact2_phone: createFormData.emergency_contact2_phone.trim() || undefined,
+        emergency_contact2_relation: createFormData.emergency_contact2_relation.trim() || undefined,
         ...(createFormData.role === 'employee' && createFormData.manager && {
           manager: parseInt(createFormData.manager)
         })
@@ -310,18 +334,15 @@ export default function HREmployees() {
       
       // Reset form
       setCreateFormData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        address: '',
-        designation: '',
-        password: '',
-        password_confirm: '',
-        role: 'employee',
-        manager: '',
-        company: user?.company?.id || 0,
+        first_name: '', last_name: '', email: '', phone: '', address: '',
+        designation: '', password: '', password_confirm: '',
+        role: 'employee', manager: '', company: user?.company?.id || 0,
         joining_date: new Date().toISOString().split('T')[0],
+        present_address: '', permanent_address: '',
+        bank_name: '', bank_account_number: '', bank_ifsc: '',
+        blood_group: '', aadhar_number: '',
+        emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
+        emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
       });
       
       // Refresh employee list
@@ -400,12 +421,25 @@ export default function HREmployees() {
       email: employee.email,
       phone: employee.phone || '',
       address: (employee as any).address || '',
-      designation: (employee as any).designation || '',
-      joining_date: (employee as any).joining_date || '',
+      designation: employee.designation || '',
+      joining_date: employee.joining_date || '',
       role: employee.role as 'manager' | 'employee',
       manager: employee.manager ? employee.manager.toString() : '',
       company: employee.company_info?.id || 0,
       newPassword: '',
+      present_address: employee.present_address || '',
+      permanent_address: employee.permanent_address || '',
+      bank_name: employee.bank_name || '',
+      bank_account_number: employee.bank_account_number || '',
+      bank_ifsc: employee.bank_ifsc || '',
+      blood_group: employee.blood_group || '',
+      aadhar_number: employee.aadhar_number || '',
+      emergency_contact1_name: employee.emergency_contact1_name || '',
+      emergency_contact1_phone: employee.emergency_contact1_phone || '',
+      emergency_contact1_relation: employee.emergency_contact1_relation || '',
+      emergency_contact2_name: employee.emergency_contact2_name || '',
+      emergency_contact2_phone: employee.emergency_contact2_phone || '',
+      emergency_contact2_relation: employee.emergency_contact2_relation || '',
     });
     setIsEditModalOpen(true);
   };
@@ -446,10 +480,23 @@ export default function HREmployees() {
         designation: editFormData.designation.trim() || undefined,
         joining_date: editFormData.joining_date || undefined,
         company: editFormData.company,
-        managerId: editFormData.role === 'employee' && editFormData.manager 
-          ? editFormData.manager 
+        managerId: editFormData.role === 'employee' && editFormData.manager
+          ? editFormData.manager
           : undefined,
         newPassword: editFormData.newPassword.trim() || undefined,
+        present_address: editFormData.present_address.trim() || undefined,
+        permanent_address: editFormData.permanent_address.trim() || undefined,
+        bank_name: editFormData.bank_name.trim() || undefined,
+        bank_account_number: editFormData.bank_account_number.trim() || undefined,
+        bank_ifsc: editFormData.bank_ifsc.trim() || undefined,
+        blood_group: editFormData.blood_group.trim() || undefined,
+        aadhar_number: editFormData.aadhar_number.trim() || undefined,
+        emergency_contact1_name: editFormData.emergency_contact1_name.trim() || undefined,
+        emergency_contact1_phone: editFormData.emergency_contact1_phone.trim() || undefined,
+        emergency_contact1_relation: editFormData.emergency_contact1_relation.trim() || undefined,
+        emergency_contact2_name: editFormData.emergency_contact2_name.trim() || undefined,
+        emergency_contact2_phone: editFormData.emergency_contact2_phone.trim() || undefined,
+        emergency_contact2_relation: editFormData.emergency_contact2_relation.trim() || undefined,
       };
 
       await apiClient.adminUpdateUser(editingEmployee.id, userData);
@@ -1178,6 +1225,105 @@ export default function HREmployees() {
               </div>
             </div>
 
+            {/* Personal & Banking Details */}
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-sm font-semibold">Personal & Banking Details</p>
+
+              <div className="grid gap-2">
+                <Label htmlFor="c_present_address">Present Address <span className="text-red-500">*</span></Label>
+                <Input id="c_present_address" value={createFormData.present_address}
+                  onChange={e => setCreateFormData({ ...createFormData, present_address: e.target.value })}
+                  placeholder="Current address" disabled={isCreating} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="c_permanent_address">Permanent Address <span className="text-red-500">*</span></Label>
+                <Input id="c_permanent_address" value={createFormData.permanent_address}
+                  onChange={e => setCreateFormData({ ...createFormData, permanent_address: e.target.value })}
+                  placeholder="Permanent address" disabled={isCreating} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="c_blood_group">Blood Group <span className="text-red-500">*</span></Label>
+                  <Input id="c_blood_group" value={createFormData.blood_group}
+                    onChange={e => setCreateFormData({ ...createFormData, blood_group: e.target.value })}
+                    placeholder="e.g. A+, O-" disabled={isCreating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="c_aadhar">Aadhar Number <span className="text-red-500">*</span></Label>
+                  <Input id="c_aadhar" value={createFormData.aadhar_number} maxLength={12}
+                    onChange={e => setCreateFormData({ ...createFormData, aadhar_number: e.target.value })}
+                    placeholder="12-digit Aadhar" disabled={isCreating} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="c_bank_name">Bank Name <span className="text-red-500">*</span></Label>
+                <Input id="c_bank_name" value={createFormData.bank_name}
+                  onChange={e => setCreateFormData({ ...createFormData, bank_name: e.target.value })}
+                  placeholder="Bank name" disabled={isCreating} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="c_bank_acc">Account Number <span className="text-red-500">*</span></Label>
+                  <Input id="c_bank_acc" value={createFormData.bank_account_number}
+                    onChange={e => setCreateFormData({ ...createFormData, bank_account_number: e.target.value })}
+                    placeholder="Account number" disabled={isCreating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="c_ifsc">IFSC Code <span className="text-red-500">*</span></Label>
+                  <Input id="c_ifsc" value={createFormData.bank_ifsc}
+                    onChange={e => setCreateFormData({ ...createFormData, bank_ifsc: e.target.value })}
+                    placeholder="IFSC code" disabled={isCreating} />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contacts */}
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-sm font-semibold">Emergency Contacts</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase">Contact 1</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Name <span className="text-red-500">*</span></Label>
+                  <Input value={createFormData.emergency_contact1_name}
+                    onChange={e => setCreateFormData({ ...createFormData, emergency_contact1_name: e.target.value })}
+                    placeholder="Contact name" disabled={isCreating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Relation <span className="text-red-500">*</span></Label>
+                  <Input value={createFormData.emergency_contact1_relation}
+                    onChange={e => setCreateFormData({ ...createFormData, emergency_contact1_relation: e.target.value })}
+                    placeholder="e.g. Father" disabled={isCreating} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Phone <span className="text-red-500">*</span></Label>
+                <Input value={createFormData.emergency_contact1_phone}
+                  onChange={e => setCreateFormData({ ...createFormData, emergency_contact1_phone: e.target.value })}
+                  placeholder="Phone number" disabled={isCreating} />
+              </div>
+              <p className="text-xs text-muted-foreground font-medium uppercase pt-2">Contact 2</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Name <span className="text-red-500">*</span></Label>
+                  <Input value={createFormData.emergency_contact2_name}
+                    onChange={e => setCreateFormData({ ...createFormData, emergency_contact2_name: e.target.value })}
+                    placeholder="Contact name" disabled={isCreating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Relation <span className="text-red-500">*</span></Label>
+                  <Input value={createFormData.emergency_contact2_relation}
+                    onChange={e => setCreateFormData({ ...createFormData, emergency_contact2_relation: e.target.value })}
+                    placeholder="e.g. Mother" disabled={isCreating} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Phone <span className="text-red-500">*</span></Label>
+                <Input value={createFormData.emergency_contact2_phone}
+                  onChange={e => setCreateFormData({ ...createFormData, emergency_contact2_phone: e.target.value })}
+                  placeholder="Phone number" disabled={isCreating} />
+              </div>
+            </div>
+
             {/* Login Instructions */}
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
               <p className="text-sm font-semibold mb-2">Login Instructions</p>
@@ -1435,6 +1581,104 @@ export default function HREmployees() {
                 Enter a new password only if you want to change it
               </p>
             </div>
+
+            {/* Personal & Banking Details */}
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-sm font-semibold">Personal & Banking Details</p>
+              <div className="grid gap-2">
+                <Label>Present Address <span className="text-red-500">*</span></Label>
+                <Input value={editFormData.present_address}
+                  onChange={e => setEditFormData({ ...editFormData, present_address: e.target.value })}
+                  placeholder="Current address" disabled={isUpdating} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Permanent Address <span className="text-red-500">*</span></Label>
+                <Input value={editFormData.permanent_address}
+                  onChange={e => setEditFormData({ ...editFormData, permanent_address: e.target.value })}
+                  placeholder="Permanent address" disabled={isUpdating} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Blood Group <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.blood_group}
+                    onChange={e => setEditFormData({ ...editFormData, blood_group: e.target.value })}
+                    placeholder="e.g. A+, O-" disabled={isUpdating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Aadhar Number <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.aadhar_number} maxLength={12}
+                    onChange={e => setEditFormData({ ...editFormData, aadhar_number: e.target.value })}
+                    placeholder="12-digit Aadhar" disabled={isUpdating} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Bank Name <span className="text-red-500">*</span></Label>
+                <Input value={editFormData.bank_name}
+                  onChange={e => setEditFormData({ ...editFormData, bank_name: e.target.value })}
+                  placeholder="Bank name" disabled={isUpdating} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Account Number <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.bank_account_number}
+                    onChange={e => setEditFormData({ ...editFormData, bank_account_number: e.target.value })}
+                    placeholder="Account number" disabled={isUpdating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>IFSC Code <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.bank_ifsc}
+                    onChange={e => setEditFormData({ ...editFormData, bank_ifsc: e.target.value })}
+                    placeholder="IFSC code" disabled={isUpdating} />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contacts */}
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-sm font-semibold">Emergency Contacts</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase">Contact 1</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Name <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.emergency_contact1_name}
+                    onChange={e => setEditFormData({ ...editFormData, emergency_contact1_name: e.target.value })}
+                    placeholder="Contact name" disabled={isUpdating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Relation <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.emergency_contact1_relation}
+                    onChange={e => setEditFormData({ ...editFormData, emergency_contact1_relation: e.target.value })}
+                    placeholder="e.g. Father" disabled={isUpdating} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Phone <span className="text-red-500">*</span></Label>
+                <Input value={editFormData.emergency_contact1_phone}
+                  onChange={e => setEditFormData({ ...editFormData, emergency_contact1_phone: e.target.value })}
+                  placeholder="Phone number" disabled={isUpdating} />
+              </div>
+              <p className="text-xs text-muted-foreground font-medium uppercase pt-2">Contact 2</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Name <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.emergency_contact2_name}
+                    onChange={e => setEditFormData({ ...editFormData, emergency_contact2_name: e.target.value })}
+                    placeholder="Contact name" disabled={isUpdating} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Relation <span className="text-red-500">*</span></Label>
+                  <Input value={editFormData.emergency_contact2_relation}
+                    onChange={e => setEditFormData({ ...editFormData, emergency_contact2_relation: e.target.value })}
+                    placeholder="e.g. Mother" disabled={isUpdating} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Phone <span className="text-red-500">*</span></Label>
+                <Input value={editFormData.emergency_contact2_phone}
+                  onChange={e => setEditFormData({ ...editFormData, emergency_contact2_phone: e.target.value })}
+                  placeholder="Phone number" disabled={isUpdating} />
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1621,6 +1865,96 @@ export default function HREmployees() {
                   </p>
                 </div>
               </div>
+
+              {/* Address */}
+              {(viewingEmployee.present_address || viewingEmployee.permanent_address) && (
+                <div className="border-t pt-3 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingEmployee.present_address && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Present Address</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.present_address}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.permanent_address && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Permanent Address</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.permanent_address}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Personal */}
+              {(viewingEmployee.blood_group || viewingEmployee.aadhar_number) && (
+                <div className="border-t pt-3 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Personal Details</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingEmployee.blood_group && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Blood Group</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.blood_group}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.aadhar_number && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Aadhar Number</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.aadhar_number}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Bank */}
+              {(viewingEmployee.bank_name || viewingEmployee.bank_account_number) && (
+                <div className="border-t pt-3 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bank Details</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingEmployee.bank_name && (
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs text-muted-foreground">Bank Name</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.bank_name}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.bank_account_number && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Account Number</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.bank_account_number}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.bank_ifsc && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">IFSC Code</Label>
+                        <p className="text-sm font-medium">{viewingEmployee.bank_ifsc}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Emergency Contacts */}
+              {(viewingEmployee.emergency_contact1_name || viewingEmployee.emergency_contact2_name) && (
+                <div className="border-t pt-3 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emergency Contacts</p>
+                  {viewingEmployee.emergency_contact1_name && (
+                    <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                      <p className="text-xs text-muted-foreground">Contact 1</p>
+                      <p className="text-sm font-medium">{viewingEmployee.emergency_contact1_name} — {viewingEmployee.emergency_contact1_relation}</p>
+                      <p className="text-sm text-muted-foreground">{viewingEmployee.emergency_contact1_phone}</p>
+                    </div>
+                  )}
+                  {viewingEmployee.emergency_contact2_name && (
+                    <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                      <p className="text-xs text-muted-foreground">Contact 2</p>
+                      <p className="text-sm font-medium">{viewingEmployee.emergency_contact2_name} — {viewingEmployee.emergency_contact2_relation}</p>
+                      <p className="text-sm text-muted-foreground">{viewingEmployee.emergency_contact2_phone}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
