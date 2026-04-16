@@ -3,6 +3,7 @@ import TopBar from '@/components/layout/TopBar';
 import UserList from '@/components/users/UserList';
 import { apiClient } from '@/lib/api';
 import { DBUser } from '@/types/user';
+import { transformUser } from '@/lib/transformUser';
 import { toast } from 'sonner';
 
 export default function AdminASEEmployees() {
@@ -40,25 +41,7 @@ export default function AdminASEEmployees() {
       // Fetch users filtered by ASE company using API parameter
       const response = await apiClient.getUsers({ company: aseCompany.id });
       
-      // Transform Django user data to match frontend interface
-      const transformedUsers: DBUser[] = response.map((user: any) => ({
-        id: user.id.toString(),
-        user_id: user.username,
-        name: `${user.first_name} ${user.last_name}`.trim() || user.username,
-        email: user.email,
-        phone: user.phone || null,
-        address: null,
-        designation: user.designation || null,
-        joining_date: user.joining_date || null,
-        role: user.role,
-        status: 'active',
-        manager_id: user.manager?.toString() || null,
-        manager_name: user.manager_name || null,
-        company: user.company_info || user.company,
-        company_name: user.company_info?.name || null,
-        created_at: user.created_at,
-        updated_at: user.created_at,
-      }));
+      const transformedUsers: DBUser[] = response.map(transformUser);
       
       setUsers(transformedUsers);
       setCompanies([aseCompany]);
