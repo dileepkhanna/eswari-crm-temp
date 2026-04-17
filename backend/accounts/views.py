@@ -598,10 +598,10 @@ def managers_list_view(request):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def admin_update_user_view(request, user_id):
-    """Admin endpoint to update user information and password"""
-    if request.user.role != 'admin':
+    """Admin and HR endpoint to update user information and password"""
+    if request.user.role not in ['admin', 'hr']:
         return Response({
-            'error': 'Only administrators can update users'
+            'error': 'Only administrators and HR can update users'
         }, status=status.HTTP_403_FORBIDDEN)
     
     try:

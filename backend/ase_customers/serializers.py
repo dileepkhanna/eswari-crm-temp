@@ -40,7 +40,10 @@ class ASECustomerSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'company_name_display', 'company_code']
+        extra_kwargs = {
+            'company': {'required': False, 'allow_null': True},  # Make company optional - will be auto-assigned
+        }
     
     def validate_phone(self, value):
         request = self.context.get('request')
