@@ -14,6 +14,9 @@ class ASELeadSerializer(serializers.ModelSerializer):
     company_name_display = serializers.CharField(source='company.name', read_only=True)
     company_code = serializers.CharField(source='company.code', read_only=True)
     
+    # Make email optional
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    
     class Meta:
         model = ASELead
         fields = [
@@ -95,6 +98,16 @@ class ASELeadSerializer(serializers.ModelSerializer):
                     f"A lead with phone number '{value}' already exists in your company."
                 )
         return value
+    
+    def validate_email(self, value):
+        """
+        Custom email validation to handle empty strings and None values.
+        """
+        # If email is None, empty string, or just whitespace, return None
+        if not value or not value.strip():
+            return None
+        # Otherwise, let the EmailField validator handle it
+        return value.strip()
 
     def create(self, validated_data):
         """
@@ -118,6 +131,9 @@ class ASELeadListSerializer(serializers.ModelSerializer):
     created_by_name = serializers.ReadOnlyField()
     service_interests_display = serializers.ReadOnlyField()
     company_name_display = serializers.CharField(source='company.name', read_only=True)
+    
+    # Make email optional
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     
     class Meta:
         model = ASELead

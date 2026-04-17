@@ -63,11 +63,51 @@ export class ASELeadService {
   }
 
   async createLead(leadData: ASELeadFormData): Promise<ASELead> {
-    return await apiClient.post(`${this.baseUrl}/`, leadData);
+    // Clean the data before sending
+    const cleanedData: any = { ...leadData };
+    
+    // Remove or clean email if it's empty
+    if (cleanedData.email && typeof cleanedData.email === 'string') {
+      if (cleanedData.email.trim() === '') {
+        delete cleanedData.email; // Remove empty email
+      } else {
+        cleanedData.email = cleanedData.email.trim(); // Trim whitespace
+      }
+    }
+    
+    // Clean up other empty strings
+    Object.keys(cleanedData).forEach(key => {
+      const value = cleanedData[key];
+      if (typeof value === 'string' && value.trim() === '') {
+        delete cleanedData[key];
+      }
+    });
+    
+    return await apiClient.post(`${this.baseUrl}/`, cleanedData);
   }
 
   async updateLead(id: string, leadData: Partial<ASELeadFormData>): Promise<ASELead> {
-    return await apiClient.patch(`${this.baseUrl}/${id}/`, leadData);
+    // Clean the data before sending
+    const cleanedData: any = { ...leadData };
+    
+    // Remove or clean email if it's empty
+    if (cleanedData.email && typeof cleanedData.email === 'string') {
+      if (cleanedData.email.trim() === '') {
+        delete cleanedData.email; // Remove empty email
+      } else {
+        cleanedData.email = cleanedData.email.trim(); // Trim whitespace
+      }
+    }
+    
+    // Clean up other empty strings
+    Object.keys(cleanedData).forEach(key => {
+      const value = cleanedData[key];
+      if (typeof value === 'string' && value.trim() === '') {
+        delete cleanedData[key];
+      }
+    });
+    
+    return await apiClient.patch(`${this.baseUrl}/${id}/`, cleanedData);
   }
 
   async deleteLead(id: string): Promise<void> {

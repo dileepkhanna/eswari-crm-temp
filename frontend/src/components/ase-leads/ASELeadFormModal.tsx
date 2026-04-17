@@ -192,11 +192,6 @@ export default function ASELeadFormModal({
       return;
     }
     
-    if (!formData.email.trim()) {
-      alert('Email is required');
-      return;
-    }
-    
     if (!formData.phone.trim()) {
       alert('Phone is required');
       return;
@@ -292,13 +287,13 @@ export default function ASELeadFormModal({
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  required
+                  placeholder="Optional"
                 />
               </div>
               <div>

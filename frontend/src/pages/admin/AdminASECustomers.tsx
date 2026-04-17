@@ -51,6 +51,8 @@ export default function AdminASECustomers() {
   const [viewCustomer, setViewCustomer] = useState<ASECustomer | null>(null);
   const [detailTab, setDetailTab] = useState<'calls' | 'notes'>('calls');
   const [followUpCount, setFollowUpCount] = useState<number>(0);
+  const [allFilteredCustomers, setAllFilteredCustomers] = useState<ASECustomer[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
   
   const { 
     customers, 
@@ -114,6 +116,63 @@ export default function AdminASECustomers() {
       .then(res => setFollowUpCount(res.count))
       .catch(() => {});
   }, []);
+
+  // Fetch ALL filtered customers for accurate stats (not paginated)
+  useEffect(() => {
+    const fetchAllForStats = async () => {
+      try {
+        setLoadingStats(true);
+        const apiParams: any = {
+          page: 1,
+          page_size: 10000, // Fetch all matching customers
+          company: aseCompanyId || undefined,
+        };
+        
+        // Apply server-side filters
+        if (searchTerm) apiParams.search = searchTerm;
+        if (statusFilter !== 'all') apiParams.call_status = statusFilter;
+        if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned') {
+          apiParams.assigned_to = assigneeFilter;
+        }
+        if (conversionFilter === 'converted') apiParams.is_converted = 'true';
+        else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+        
+        const res = await ASECustomerService.getCustomers(apiParams);
+        let allCustomers = res.results;
+        
+        // Apply client-side filters
+        const now = new Date();
+        allCustomers = allCustomers.filter(c => {
+          // Unassigned filter
+          if (assigneeFilter === 'unassigned' && c.assigned_to) return false;
+          
+          // Date filter
+          if (selectedDate) {
+            const filterDateStr = new Date(selectedDate).toDateString();
+            if (new Date(c.created_at).toDateString() !== filterDateStr) return false;
+          }
+          
+          // Overdue filter
+          if (overdueFilter) {
+            const isOverdue = c.scheduled_date && 
+              new Date(c.scheduled_date) < now && 
+              c.call_status === 'pending';
+            if (!isOverdue) return false;
+          }
+          
+          return true;
+        });
+        
+        setAllFilteredCustomers(allCustomers);
+      } catch (error) {
+        logger.error('Error fetching all customers for stats:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    
+    fetchAllForStats();
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, aseCompanyId]);
 
   const handleCreateCustomer = async (customerData: any) => {
     try {
@@ -426,7 +485,7 @@ export default function AdminASECustomers() {
     setSelectedIds(new Set());
   }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter]);
 
-  // Calculate today's stats
+  // Calculate today's stats from ALL filtered customers (across all pages)
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
     const selectedDateStr = selectedDate ? new Date(selectedDate).toDateString() : today;
@@ -436,11 +495,14 @@ export default function AdminASECustomers() {
       displayDate = new Date(selectedDate).toLocaleDateString();
     }
     
+    // Use allFilteredCustomers for accurate counts across all pages
+    const displayCount = allFilteredCustomers.length;
+    
     let todayCalls = 0;
     let answered = 0;
     let converted = 0;
     
-    for (const customer of filteredCustomers) {
+    for (const customer of allFilteredCustomers) {
       const createdDate = new Date(customer.created_at);
       
       // Count customers created on the selected date as "calls"
@@ -458,12 +520,12 @@ export default function AdminASECustomers() {
     
     return {
       displayDate,
-      displayCount: filteredCustomers.length,
+      displayCount,
       todayCalls,
       answered,
       converted
     };
-  }, [filteredCustomers, selectedDate]);
+  }, [allFilteredCustomers, selectedDate]);
 
   const getCallStatusColor = (status: string) => {
     switch (status) {

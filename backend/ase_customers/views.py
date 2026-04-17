@@ -1068,9 +1068,9 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             'lead_source': 'customer_conversion',
         }
         
-        # Only add email if customer has one
-        if customer.email:
-            lead_data['email'] = customer.email
+        # Only add email if customer has one and it's valid
+        if customer.email and customer.email.strip():
+            lead_data['email'] = customer.email.strip()
         
         # Only add website if it's a valid URL
         website = request.data.get('website', '').strip()

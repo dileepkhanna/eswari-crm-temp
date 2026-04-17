@@ -207,7 +207,23 @@ export class ASECustomerService {
     priority?: string;
   }): Promise<{ success: boolean; lead_id: string; message: string }> {
     try {
-      const response = await apiClient.post(`${this.baseUrl}/${customerId}/convert_to_lead/`, leadData);
+      // Clean the data - remove any email field and ensure no empty strings
+      const cleanedData: any = { ...leadData };
+      
+      // Remove email if it exists (shouldn't be there, but just in case)
+      if ('email' in cleanedData) {
+        delete cleanedData.email;
+      }
+      
+      // Clean up empty strings - convert to null or remove
+      Object.keys(cleanedData).forEach(key => {
+        const value = cleanedData[key];
+        if (typeof value === 'string' && value.trim() === '') {
+          delete cleanedData[key]; // Remove empty strings entirely
+        }
+      });
+      
+      const response = await apiClient.post(`${this.baseUrl}/${customerId}/convert_to_lead/`, cleanedData);
       return response;
     } catch (error) {
       logger.error('Error converting customer to lead:', error);
