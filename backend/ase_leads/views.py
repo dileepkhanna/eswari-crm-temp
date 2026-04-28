@@ -126,10 +126,20 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 serializer.save(created_by=user)
         elif user.role == 'employee':
             # Employee leads are ALWAYS assigned to themselves — no override allowed
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
             serializer.save(created_by=user, company=user.company, assigned_to=user)
         elif user.role == 'manager':
             # Default assigned_to to manager themselves if not explicitly provided
             if not serializer.validated_data.get('assigned_to'):
+                # Remove assigned_to from validated_data if present
+                validated_data = serializer.validated_data
+                if 'assigned_to' in validated_data:
+                    validated_data.pop('assigned_to')
+                
                 serializer.save(created_by=user, company=user.company, assigned_to=user)
             else:
                 serializer.save(created_by=user, company=user.company)

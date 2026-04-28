@@ -119,8 +119,25 @@ class CapitalCustomerViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        company = get_capital_company(self.request.user)
-        serializer.save(created_by=self.request.user, company=company)
+        """
+        Set created_by and company when creating Capital customer.
+        Employees are auto-assigned to themselves.
+        """
+        user = self.request.user
+        company = get_capital_company(user)
+        if user.role in ['manager', 'employee']:
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
+            serializer.save(
+                created_by=user,
+                company=company,
+                assigned_to=user,  # auto-assign to creator
+            )
+        else:
+            serializer.save(created_by=user, company=company)
 
     def create(self, request, *args, **kwargs):
         try:
@@ -198,8 +215,25 @@ class CapitalLeadViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        company = get_capital_company(self.request.user)
-        serializer.save(created_by=self.request.user, company=company)
+        """
+        Set created_by and company when creating Capital lead.
+        Employees are auto-assigned to themselves.
+        """
+        user = self.request.user
+        company = get_capital_company(user)
+        if user.role in ['manager', 'employee']:
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
+            serializer.save(
+                created_by=user,
+                company=company,
+                assigned_to=user,  # auto-assign to creator
+            )
+        else:
+            serializer.save(created_by=user, company=company)
 
     @action(detail=False, methods=['post'])
     def bulk_import(self, request):
@@ -244,8 +278,25 @@ class CapitalTaskViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        company = get_capital_company(self.request.user)
-        serializer.save(created_by=self.request.user, company=company)
+        """
+        Set created_by and company when creating Capital task.
+        Employees are auto-assigned to themselves.
+        """
+        user = self.request.user
+        company = get_capital_company(user)
+        if user.role in ['manager', 'employee']:
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
+            serializer.save(
+                created_by=user,
+                company=company,
+                assigned_to=user,  # auto-assign to creator
+            )
+        else:
+            serializer.save(created_by=user, company=company)
 
     @action(detail=False, methods=['post'])
     def bulk_import(self, request):
@@ -294,8 +345,25 @@ class CapitalLoanViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        company = get_capital_company(self.request.user)
-        serializer.save(created_by=self.request.user, company=company)
+        """
+        Set created_by and company when creating Capital loan.
+        Employees are auto-assigned to themselves.
+        """
+        user = self.request.user
+        company = get_capital_company(user)
+        if user.role in ['manager', 'employee']:
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
+            serializer.save(
+                created_by=user,
+                company=company,
+                assigned_to=user,  # auto-assign to creator
+            )
+        else:
+            serializer.save(created_by=user, company=company)
 
     def get_serializer_context(self):
         """Add company to serializer context for validation"""
@@ -364,8 +432,25 @@ class CapitalServiceViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        company = get_capital_company(self.request.user)
-        serializer.save(created_by=self.request.user, company=company)
+        """
+        Set created_by and company when creating Capital service.
+        Employees are auto-assigned to themselves.
+        """
+        user = self.request.user
+        company = get_capital_company(user)
+        if user.role in ['manager', 'employee']:
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
+            serializer.save(
+                created_by=user,
+                company=company,
+                assigned_to=user,  # auto-assign to creator
+            )
+        else:
+            serializer.save(created_by=user, company=company)
 
     def get_serializer_context(self):
         """Add company to serializer context for validation"""

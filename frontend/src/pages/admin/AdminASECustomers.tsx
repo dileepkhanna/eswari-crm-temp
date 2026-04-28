@@ -53,6 +53,8 @@ export default function AdminASECustomers() {
   const [followUpCount, setFollowUpCount] = useState<number>(0);
   const [allFilteredCustomers, setAllFilteredCustomers] = useState<ASECustomer[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [backendFilteredCustomers, setBackendFilteredCustomers] = useState<ASECustomer[]>([]);
+  const [useBackendFiltered, setUseBackendFiltered] = useState(false);
   
   const { 
     customers, 
@@ -174,6 +176,68 @@ export default function AdminASECustomers() {
     fetchAllForStats();
   }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, aseCompanyId]);
 
+  // Fetch paginated customers with backend filters when assignee filter is active
+  useEffect(() => {
+    const fetchBackendFiltered = async () => {
+      // Only use backend filtering when assignee filter is active
+      if (assigneeFilter === 'all') {
+        setUseBackendFiltered(false);
+        return;
+      }
+
+      try {
+        const apiParams: any = {
+          page: currentPage,
+          page_size: 50,
+          company: aseCompanyId || undefined,
+        };
+        
+        // Apply server-side filters
+        if (searchTerm) apiParams.search = searchTerm;
+        if (statusFilter !== 'all') apiParams.call_status = statusFilter;
+        if (assigneeFilter !== 'unassigned') {
+          apiParams.assigned_to = assigneeFilter;
+        }
+        if (conversionFilter === 'converted') apiParams.is_converted = 'true';
+        else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+        
+        const res = await ASECustomerService.getCustomers(apiParams);
+        let results = res.results;
+        
+        // Apply client-side filters
+        const now = new Date();
+        results = results.filter(c => {
+          // Unassigned filter
+          if (assigneeFilter === 'unassigned' && c.assigned_to) return false;
+          
+          // Date filter
+          if (selectedDate) {
+            const filterDateStr = new Date(selectedDate).toDateString();
+            if (new Date(c.created_at).toDateString() !== filterDateStr) return false;
+          }
+          
+          // Overdue filter
+          if (overdueFilter) {
+            const isOverdue = c.scheduled_date && 
+              new Date(c.scheduled_date) < now && 
+              c.call_status === 'pending';
+            if (!isOverdue) return false;
+          }
+          
+          return true;
+        });
+        
+        setBackendFilteredCustomers(results);
+        setUseBackendFiltered(true);
+      } catch (error) {
+        logger.error('Error fetching backend filtered customers:', error);
+        setUseBackendFiltered(false);
+      }
+    };
+    
+    fetchBackendFiltered();
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, aseCompanyId, currentPage]);
+
   const handleCreateCustomer = async (customerData: any) => {
     try {
       logger.log('📄 ASE Customers: Creating customer with data:', customerData);
@@ -233,7 +297,10 @@ export default function AdminASECustomers() {
     const filterDateStr = selectedDate ? new Date(selectedDate).toDateString() : null;
     const now = new Date();
 
-    return customers.filter(customer => {
+    // Use backend-filtered results when assignee filter is active
+    const sourceCustomers = useBackendFiltered ? backendFilteredCustomers : customers;
+    
+    return sourceCustomers.filter(customer => {
       // Overdue filter: scheduled_date in the past + still pending
       if (overdueFilter) {
         const isOverdue = customer.scheduled_date &&
@@ -247,10 +314,18 @@ export default function AdminASECustomers() {
       if (conversionFilter === 'converted') matchesConversion = customer.is_converted;
       else if (conversionFilter === 'not_converted') matchesConversion = !customer.is_converted;
 
-      // Assignee filter
+      // Assignee filter (only apply if not using backend filtered results)
       let matchesAssignee = true;
-      if (assigneeFilter === 'unassigned') matchesAssignee = !customer.assigned_to;
-      else if (assigneeFilter !== 'all') matchesAssignee = customer.assigned_to?.toString() === assigneeFilter;
+      if (!useBackendFiltered) {
+        if (assigneeFilter === 'unassigned') {
+          matchesAssignee = !customer.assigned_to;
+        } else if (assigneeFilter !== 'all') {
+          // Compare as numbers to handle both string and number IDs
+          const customerAssignedId = customer.assigned_to ? parseInt(customer.assigned_to.toString()) : null;
+          const filterAssignedId = parseInt(assigneeFilter);
+          matchesAssignee = customerAssignedId === filterAssignedId;
+        }
+      }
 
       // Date filter
       let matchesDate = true;
@@ -260,7 +335,7 @@ export default function AdminASECustomers() {
 
       return matchesConversion && matchesAssignee && matchesDate;
     });
-  }, [customers, conversionFilter, assigneeFilter, selectedDate, overdueFilter]);
+  }, [customers, backendFilteredCustomers, useBackendFiltered, conversionFilter, assigneeFilter, selectedDate, overdueFilter]);
 
   // Bulk selection handlers
   const toggleSelectAll = () => {
@@ -719,11 +794,18 @@ export default function AdminASECustomers() {
                   <SelectContent>
                     <SelectItem value="all">All Assignees</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id.toString()}>
-                        {`${emp.first_name} ${emp.last_name}`.trim() || emp.username}
-                      </SelectItem>
-                    ))}
+                    {employees.map(emp => {
+                      // Format name: capitalize first letter of each word
+                      const firstName = emp.first_name ? emp.first_name.charAt(0).toUpperCase() + emp.first_name.slice(1).toLowerCase() : '';
+                      const lastName = emp.last_name ? emp.last_name.charAt(0).toUpperCase() + emp.last_name.slice(1).toLowerCase() : '';
+                      const displayName = `${firstName} ${lastName}`.trim() || emp.username;
+                      
+                      return (
+                        <SelectItem key={emp.id} value={emp.id.toString()}>
+                          {displayName}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -739,7 +821,6 @@ export default function AdminASECustomers() {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {user?.role !== 'employee' && (
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -749,7 +830,6 @@ export default function AdminASECustomers() {
                       <UsersIcon className="w-4 h-4 mr-2" />
                       Assign Employee
                     </Button>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -1040,15 +1120,13 @@ export default function AdminASECustomers() {
                                   </DropdownMenuItem>
                                 )}
 
-                                {(user?.role === 'admin' || user?.role === 'manager') && (
-                                  <DropdownMenuItem
-                                    onClick={() => setReassignTarget(customer)}
-                                    className="cursor-pointer"
-                                  >
-                                    <UsersIcon className="w-4 h-4 mr-2" />
-                                    Assign to Employee
-                                  </DropdownMenuItem>
-                                )}
+                                <DropdownMenuItem
+                                  onClick={() => setReassignTarget(customer)}
+                                  className="cursor-pointer"
+                                >
+                                  <UsersIcon className="w-4 h-4 mr-2" />
+                                  Assign to Employee
+                                </DropdownMenuItem>
 
                                 <DropdownMenuItem
                                   onClick={async () => {

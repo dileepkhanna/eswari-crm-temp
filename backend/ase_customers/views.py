@@ -103,6 +103,11 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         if user.role in ['manager', 'employee']:
+            # Remove assigned_to from validated_data if present
+            validated_data = serializer.validated_data
+            if 'assigned_to' in validated_data:
+                validated_data.pop('assigned_to')
+            
             serializer.save(
                 created_by=user,
                 company=user.company,
