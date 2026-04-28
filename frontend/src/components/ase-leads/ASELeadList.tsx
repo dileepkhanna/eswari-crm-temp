@@ -386,8 +386,12 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                       {(lead.assigned_to_name || lead.created_by_name || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-xs font-medium leading-tight">{lead.assigned_to_name || 'Unassigned'}</div>
-                      <div className="text-xs text-muted-foreground">by {lead.created_by_name || '-'}</div>
+                      <div className="text-xs font-medium leading-tight" title={lead.assigned_to_name || 'Unassigned'}>
+                        {lead.assigned_to_name ? lead.assigned_to_name.split(' ')[0] : 'Unassigned'}
+                      </div>
+                      <div className="text-xs text-muted-foreground" title={lead.created_by_name || '-'}>
+                        by {lead.created_by_name ? lead.created_by_name.split(' ')[0] : '-'}
+                      </div>
                     </div>
                   </div>
                 </td>
