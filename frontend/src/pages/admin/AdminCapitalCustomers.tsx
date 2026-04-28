@@ -328,7 +328,9 @@ export default function AdminCapitalCustomers() {
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-muted-foreground">{c.assigned_to_name || '—'}</td>
+                  <td className="py-3 px-4 text-xs text-muted-foreground" title={c.assigned_to_name || 'Unassigned'}>
+                    {c.assigned_to_name ? c.assigned_to_name.split(' ')[0] : '—'}
+                  </td>
                   <td className="py-3 px-4">
                     {c.is_converted
                       ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">✓ Converted</span>

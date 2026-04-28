@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import Notification, PushSubscription
+from .models import Notification, PushSubscription, FCMToken
 from .serializers import NotificationSerializer
 from .utils import send_notification
 
@@ -78,6 +78,72 @@ def unsubscribe(request):
     if endpoint:
         PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
     return Response({'message': 'Unsubscribed successfully'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def register_fcm_token(request):
+    """Register a Firebase Cloud Messaging token for mobile push notifications."""
+    try:
+        token = request.data.get('token')
+        device_type = request.data.get('device_type', 'android')
+        device_name = request.data.get('device_name', '')
+
+        if not token:
+            return Response({'error': 'Token is required'}, status=400)
+
+        # Create or update FCM token
+        fcm_token, created = FCMToken.objects.update_or_create(
+            token=token,
+            defaults={
+                'user': request.user,
+                'device_type': device_type,
+                'device_name': device_name,
+                'is_active': True,
+            }
+        )
+
+        action = 'registered' if created else 'updated'
+        return Response({
+            'success': True,
+            'message': f'FCM token {action} successfully',
+            'created': created
+        })
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'FCM token registration error for user {request.user.username}: {str(e)}')
+        return Response({
+            'error': 'Failed to register FCM token. Please try again.'
+        }, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def unregister_fcm_token(request):
+    """Unregister a Firebase Cloud Messaging token."""
+    try:
+        token = request.data.get('token')
+        if not token:
+            return Response({'error': 'Token is required'}, status=400)
+
+        # Mark token as inactive instead of deleting
+        updated = FCMToken.objects.filter(token=token, user=request.user).update(is_active=False)
+
+        return Response({
+            'success': True,
+            'message': 'FCM token unregistered successfully',
+            'updated': updated > 0
+        })
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'FCM token unregistration error: {str(e)}')
+        return Response({
+            'error': 'Failed to unregister FCM token.'
+        }, status=500)
 
 
 @api_view(['POST'])

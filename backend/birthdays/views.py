@@ -128,11 +128,74 @@ class BirthdayViewSet(viewsets.ModelViewSet):
             created_announcements = service.create_daily_birthday_announcements()
             
             return Response({
-                'message': f'Created {len(created_announcements)} birthday announcements',
+                'message': f'Created {len(created_announcements)} birthday announcements with push notifications',
                 'announcements': created_announcements
             })
         except Exception as e:
             return Response(
                 {'error': f'Failed to create birthday announcements: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def send_birthday_notification(self, request, pk=None):
+        """Manually send birthday push notification for a specific employee (Admin/HR only)"""
+        if request.user.role not in ['admin', 'hr']:
+            return Response(
+                {'error': 'Only HR and Admin users can send birthday notifications'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            from notifications.utils import send_bulk_push_notification
+            
+            birthday = self.get_object()
+            employee = birthday.employee
+            
+            if not employee.company:
+                return Response(
+                    {'error': 'Employee has no company assigned'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get all active users from the same company
+            company_users = User.objects.filter(
+                company=employee.company,
+                is_active=True
+            ).exclude(id=employee.id)
+            
+            if not company_users.exists():
+                return Response(
+                    {'message': 'No other users in company to notify'}, 
+                    status=status.HTTP_200_OK
+                )
+            
+            # Create notification message
+            title = f"🎉 Happy Birthday {employee.first_name}!"
+            age_text = f" turning {birthday.age}" if birthday.show_age and birthday.age else ""
+            message = f"🎂 Today we celebrate {employee.get_full_name()}{age_text}! Join us in wishing {employee.first_name} a wonderful birthday! 🎈"
+            
+            # Send push notifications
+            sent_count = send_bulk_push_notification(
+                users=company_users,
+                title=title,
+                message=message,
+                notification_type='birthday',
+                data={
+                    'employee_id': str(employee.id),
+                    'employee_name': employee.get_full_name(),
+                },
+                company=employee.company
+            )
+            
+            return Response({
+                'message': f'Sent birthday notifications to {sent_count}/{company_users.count()} users',
+                'employee': employee.get_full_name(),
+                'recipients': sent_count
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to send birthday notification: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

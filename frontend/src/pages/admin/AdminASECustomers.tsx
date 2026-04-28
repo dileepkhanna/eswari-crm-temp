@@ -827,31 +827,41 @@ export default function AdminASECustomers() {
               </div>
               
               {/* Desktop Table View - Hidden on Mobile/Tablet */}
-              <div className="hidden xl:block overflow-x-auto">
-                <table className="w-full">
+              <div className="hidden xl:block overflow-hidden">
+                <table className="w-full text-sm">
+                  <colgroup>
+                    <col style={{ width: '50px' }} />
+                    <col style={{ width: '140px' }} />
+                    <col style={{ width: '140px' }} />
+                    <col />
+                    <col style={{ width: '140px' }} />
+                    <col style={{ width: '110px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col style={{ width: '180px' }} />
+                  </colgroup>
                   <thead>
                     <tr className="border-b bg-muted/30">
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground w-12">
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">
                         <Checkbox
                           checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
                           onCheckedChange={toggleSelectAll}
                           aria-label="Select all calls"
                         />
                       </th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Phone</th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Name</th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Service Interests</th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Status</th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Assigned To</th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Last Call</th>
-                      <th className="text-left p-4 font-medium text-sm text-muted-foreground">Actions</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Phone</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Name</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Services</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Status</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Assigned</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Last Call</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCustomers.map((customer, index) => (
                       <tr key={customer.id} className="border-b hover:bg-muted/20 transition-colors">
                         {/* Checkbox */}
-                        <td className="p-4 w-12">
+                        <td className="p-2 w-8">
                           <Checkbox
                             checked={selectedIds.has(customer.id)}
                             onCheckedChange={() => toggleSelect(customer.id)}
@@ -860,62 +870,67 @@ export default function AdminASECustomers() {
                         </td>
                         
                         {/* Phone */}
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
+                        <td className="p-2">
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => window.open(`tel:${customer.phone}`, '_self')}
-                              className="p-1 rounded-full hover:bg-green-100 transition-colors group"
+                              className="p-0.5 rounded-full hover:bg-green-100 transition-colors group"
                               title={`Call ${customer.phone}`}
                             >
-                              <PhoneIcon className="w-4 h-4 text-green-600 group-hover:text-green-700" />
+                              <PhoneIcon className="w-3 h-3 text-green-600 group-hover:text-green-700" />
                             </button>
-                            <span className="font-medium">{customer.phone}</span>
+                            <span className="text-sm font-medium">{customer.phone}</span>
                           </div>
                         </td>
                         
                         {/* Name */}
-                        <td className="p-4">
-                          <span className="text-sm">{customer.name || '-'}</span>
+                        <td className="p-2">
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm">{customer.name || '-'}</span>
+                            {customer.is_converted && (
+                              <span className="text-green-600" title="Converted to Lead">✓</span>
+                            )}
+                          </div>
                         </td>
                         {/* Service Interests */}
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-1 max-w-48">
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-0.5">
                             {customer.service_interests && customer.service_interests.length > 0 ? (
                               customer.service_interests.slice(0, 2).map((interest) => {
                                 const serviceOption = ASE_SERVICE_OPTIONS.find(s => s.value === interest);
                                 return (
                                   <span
                                     key={interest}
-                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
                                   >
                                     {serviceOption?.label || interest}
                                   </span>
                                 );
                               })
                             ) : (
-                              <span className="text-xs text-muted-foreground">No interests</span>
+                              <span className="text-xs text-muted-foreground">-</span>
                             )}
                             {customer.service_interests && customer.service_interests.length > 2 && (
                               <span className="text-xs text-muted-foreground">
-                                +{customer.service_interests.length - 2} more
+                                +{customer.service_interests.length - 2}
                               </span>
                             )}
                           </div>
                         </td>
                         
                         {/* Status */}
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
+                        <td className="p-2">
+                          <div className="flex items-center gap-1">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${getCallStatusColor(customer.call_status)} cursor-pointer hover:opacity-80 transition-opacity h-9 min-h-9`}>
-                                  <span className="text-sm font-medium">
+                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${getCallStatusColor(customer.call_status)} cursor-pointer hover:opacity-80 transition-opacity`}>
+                                  <span className="text-xs font-medium">
                                     {customer.call_status === 'custom' && customer.custom_call_status 
                                       ? customer.custom_call_status
                                       : ASE_CALL_STATUS_OPTIONS.find(s => s.value === customer.call_status)?.label || customer.call_status
                                     }
                                   </span>
-                                  <ChevronDownIcon className="w-3 h-3 text-current" />
+                                  <ChevronDownIcon className="w-2.5 h-2.5 text-current" />
                                 </div>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="start" className="w-48">
@@ -955,27 +970,25 @@ export default function AdminASECustomers() {
                           </div>
                         </td>
                         {/* Assigned To */}
-                        <td className="p-4">
-                          <span className="text-sm text-muted-foreground">
-                            {customer.assigned_to_name || 'Unassigned'}
+                        <td className="p-2">
+                          <span className="text-sm text-muted-foreground" title={customer.assigned_to_name || 'Unassigned'}>
+                            {customer.assigned_to_name ? customer.assigned_to_name.split(' ')[0] : '-'}
                           </span>
                         </td>
                         
                         {/* Last Call */}
-                        <td className="p-4">
-                          <span className="text-sm text-muted-foreground">
+                        <td className="p-2">
+                          <span className="text-xs text-muted-foreground">
                             {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', {
                               month: 'short',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            }) : 'Never'}
+                              day: '2-digit'
+                            }) : '-'}
                           </span>
                         </td>
                         
                         {/* Actions */}
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
+                        <td className="p-2">
+                          <div className="flex items-center gap-1">
                             {/* View Button */}
                             <Button 
                               variant="outline" 
@@ -984,7 +997,7 @@ export default function AdminASECustomers() {
                                 setDetailTab('calls');
                                 setViewCustomer(customer);
                               }}
-                              className="h-9 min-h-9 px-3 text-sm"
+                              className="h-7 px-2 text-xs"
                             >
                               View
                             </Button>
@@ -995,9 +1008,9 @@ export default function AdminASECustomers() {
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
-                                  className="h-9 w-9 p-0"
+                                  className="h-7 w-7 p-0"
                                 >
-                                  <MoreVerticalIcon className="w-4 h-4" />
+                                  <MoreVerticalIcon className="w-3 h-3" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
@@ -1027,13 +1040,15 @@ export default function AdminASECustomers() {
                                   </DropdownMenuItem>
                                 )}
 
-                                <DropdownMenuItem
-                                  onClick={() => setReassignTarget(customer)}
-                                  className="cursor-pointer"
-                                >
-                                  <UsersIcon className="w-4 h-4 mr-2" />
-                                  Assign to Employee
-                                </DropdownMenuItem>
+                                {(user?.role === 'admin' || user?.role === 'manager') && (
+                                  <DropdownMenuItem
+                                    onClick={() => setReassignTarget(customer)}
+                                    className="cursor-pointer"
+                                  >
+                                    <UsersIcon className="w-4 h-4 mr-2" />
+                                    Assign to Employee
+                                  </DropdownMenuItem>
+                                )}
 
                                 <DropdownMenuItem
                                   onClick={async () => {
@@ -1291,8 +1306,8 @@ export default function AdminASECustomers() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Assigned:</span>
-                        <span className="text-sm font-medium">
-                          {customer.assigned_to_name || 'Unassigned'}
+                        <span className="text-sm font-medium" title={customer.assigned_to_name || 'Unassigned'}>
+                          {customer.assigned_to_name ? customer.assigned_to_name.split(' ')[0] : 'Unassigned'}
                         </span>
                       </div>
                       

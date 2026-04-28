@@ -611,26 +611,26 @@ export default function LeadList({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-12">
+              <TableHead className="w-12 p-2">
                 <Checkbox 
                   checked={allSelected} 
                   onCheckedChange={toggleSelectAll}
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="font-semibold">
-                <div className="flex items-center gap-2">
+              <TableHead className="font-semibold p-2 text-xs">
+                <div className="flex items-center gap-1">
                   Name
-                  <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                  <ArrowUpDown className="w-3 h-3 text-muted-foreground" />
                 </div>
               </TableHead>
-              <TableHead className="font-semibold">Phone</TableHead>
-              <TableHead className="font-semibold">Contact</TableHead>
-              <TableHead className="font-semibold">Project</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Assigned To</TableHead>
-              <TableHead className="font-semibold">Follow-up</TableHead>
-              <TableHead className="font-semibold w-20"></TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Phone</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Contact</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Project</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Status</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Assigned To</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Follow-up</TableHead>
+              <TableHead className="font-semibold p-2 text-xs w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -640,43 +640,43 @@ export default function LeadList({
                 className="table-row-hover animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <TableCell>
+                <TableCell className="p-2">
                   <Checkbox 
                     checked={selectedIds.has(lead.id)} 
                     onCheckedChange={() => toggleSelect(lead.id)}
                     aria-label={`Select ${lead.name}`}
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   <div>
-                    <p className="font-medium text-foreground">{lead.name}</p>
+                    <p className="font-medium text-foreground text-sm">{lead.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{lead.source || "Direct"}</p>
                     {tasks.some(t => t.leadId === lead.id) && (
                       <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
                         <CheckSquare className="w-3 h-3" />
-                        Task Created
+                        Task
                       </span>
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-3.5 h-3.5" />
-                    {lead.phone}
+                <TableCell className="p-2">
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Phone className="w-3 h-3" />
+                    <span className="text-xs">{lead.phone}</span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="w-3.5 h-3.5" />
-                    {lead.email || '-'}
+                <TableCell className="p-2">
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Mail className="w-3 h-3" />
+                    <span className="text-xs truncate max-w-[120px]">{lead.email || '-'}</span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <p className="text-sm font-medium">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</p>
+                <TableCell className="p-2">
+                  <p className="text-xs font-medium truncate max-w-[150px]">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   <Select value={lead.status} onValueChange={(value) => handleStatusChange(lead.id, value as Lead["status"])}>
-                    <SelectTrigger className={`w-36 border rounded-full px-3 text-xs font-medium flex items-center justify-between gap-1 ${
+                    <SelectTrigger className={`w-28 h-7 border rounded-full px-2 text-xs font-medium flex items-center justify-between gap-1 ${
                       lead.status === 'new' ? 'bg-green-100 border-green-300 text-green-700' :
                       lead.status === 'hot' ? 'bg-red-100 border-red-300 text-red-700' :
                       lead.status === 'warm' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
@@ -686,7 +686,7 @@ export default function LeadList({
                       'bg-gray-100 border-gray-300 text-gray-700'
                     }`}>
                       <span className="truncate">
-                        {lead.status === 'not_interested' ? 'Not Interested' :
+                        {lead.status === 'not_interested' ? 'Not Int.' :
                          lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
                       </span>
                     </SelectTrigger>
@@ -700,28 +700,30 @@ export default function LeadList({
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   {lead.assignedTo ? (
-                    <StaffProfileChip userId={lead.assignedTo} userName={lead.assignedToName} showDetails={true} />
+                    <span className="text-xs text-muted-foreground truncate max-w-[100px] block" title={lead.assignedToName}>
+                      {lead.assignedToName?.split(' ')[0] || 'Assigned'}
+                    </span>
                   ) : (
-                    <span className="text-sm text-muted-foreground">Unassigned</span>
+                    <span className="text-xs text-muted-foreground">-</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   {lead.followUpDate ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(lead.followUpDate, "MMM dd, yyyy")}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      <span className="text-xs">{format(lead.followUpDate, "MMM dd")}</span>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground">-</span>
+                    <span className="text-xs text-muted-foreground">-</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreHorizontal className="w-3 h-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
+from . import hr_reports
 
 # Create router for ViewSets
 router = DefaultRouter()
@@ -34,6 +35,11 @@ urlpatterns = [
     path('invite/generate/', views.generate_invite_view, name='generate_invite'),
     path('invite/validate/', views.validate_invite_view, name='validate_invite'),
     path('invite/register/', views.invite_register_view, name='invite_register'),
+    
+    # HR Reports endpoints
+    path('hr/reports/dashboard/', hr_reports.dashboard_metrics, name='hr_dashboard_metrics'),
+    path('hr/reports/employees/', hr_reports.employee_statistics, name='hr_employee_statistics'),
+    path('hr/reports/leaves/', hr_reports.leave_statistics, name='hr_leave_statistics'),
     
     # Include router URLs for ViewSets
     path('', include(router.urls)),

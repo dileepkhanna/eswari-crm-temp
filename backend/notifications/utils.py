@@ -81,25 +81,42 @@ def send_notification(user, title, message, notification_type='other', data=None
 
 def send_push_notification(user, title, message, notification_type='other', data=None, company=None):
     """
-    Create a DB notification AND send a Web Push to all active browser subscriptions.
-    Falls back gracefully if no subscriptions exist or pywebpush is unavailable.
+    Create a DB notification AND send push notifications to all devices.
+    Sends BOTH web push (browser) and FCM (mobile) notifications.
+    Falls back gracefully if either service is unavailable.
     """
     try:
+        # 1. Create in-app notification
         notification = send_notification(user, title, message, notification_type, data, company)
 
+        # 2. Send Web Push (Browser)
         subscriptions = PushSubscription.objects.filter(user=user, is_active=True)
-        if not subscriptions.exists():
-            logger.info(f'No active push subscriptions for user {user.username}')
-            return notification is not None
+        if subscriptions.exists():
+            push_data = {
+                'notification_id': str(notification.id) if notification else '',
+                'type': notification_type,
+                **(data or {}),
+            }
+            for sub in subscriptions:
+                _send_webpush(sub, title, message, push_data)
+        else:
+            logger.info(f'No active web push subscriptions for user {user.username}')
 
-        push_data = {
-            'notification_id': str(notification.id) if notification else '',
-            'type': notification_type,
-            **(data or {}),
-        }
-
-        for sub in subscriptions:
-            _send_webpush(sub, title, message, push_data)
+        # 3. Send FCM (Mobile)
+        try:
+            from .fcm_utils import send_fcm_notification
+            fcm_data = {
+                'notification_id': str(notification.id) if notification else '',
+                'type': notification_type,
+                **(data or {}),
+            }
+            # Convert all data values to strings (FCM requirement)
+            fcm_data = {k: str(v) for k, v in fcm_data.items()}
+            send_fcm_notification(user, title, message, fcm_data)
+        except ImportError:
+            logger.debug('FCM utils not available, skipping mobile notifications')
+        except Exception as e:
+            logger.error(f'Error sending FCM notification: {e}')
 
         return True
 
@@ -109,11 +126,17 @@ def send_push_notification(user, title, message, notification_type='other', data
 
 
 def send_bulk_push_notification(users, title, message, notification_type='other', data=None, company=None):
-    """Send push notification to multiple users."""
+    """
+    Send push notification to multiple users.
+    Sends BOTH web push (browser) and FCM (mobile) notifications.
+    """
     user_list = list(users)
+    
+    # Send web push notifications
     success_count = sum(
         1 for user in user_list
         if send_push_notification(user, title, message, notification_type, data, company)
     )
+    
     logger.info(f'Sent push notifications to {success_count}/{len(user_list)} users')
     return success_count

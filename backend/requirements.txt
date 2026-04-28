@@ -26,3 +26,6 @@ openpyxl==3.1.2
 
 # Push notifications (Django-native Web Push via pywebpush — no Firebase needed)
 pywebpush
+
+# Firebase Cloud Messaging for mobile push notifications
+firebase-admin==7.4.0

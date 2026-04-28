@@ -562,6 +562,7 @@ class UserListView(generics.ListAPIView):
     def get_queryset(self):
         """Filter users based on strict role-based access control"""
         user = self.request.user
+        search = self.request.query_params.get('search', '').strip()
         
         if user.role == 'admin' or user.role == 'hr':
             # Admin and HR can see all users, but optionally filter by company
@@ -569,18 +570,29 @@ class UserListView(generics.ListAPIView):
             qs = User.objects.all().order_by('-created_at')
             if company_id:
                 qs = qs.filter(company_id=company_id)
-            return qs
         
         elif user.role == 'manager':
             # Manager can see ONLY their assigned employees + themselves
-            return User.objects.filter(
+            qs = User.objects.filter(
                 models.Q(manager=user) |  # Their assigned employees only
                 models.Q(id=user.id)      # Themselves
             ).order_by('-created_at')
         
         else:  # employee role
             # Employee can see ONLY themselves
-            return User.objects.filter(id=user.id).order_by('-created_at')
+            qs = User.objects.filter(id=user.id).order_by('-created_at')
+        
+        # Apply search filter if provided
+        if search:
+            qs = qs.filter(
+                models.Q(first_name__icontains=search) |
+                models.Q(last_name__icontains=search) |
+                models.Q(email__icontains=search) |
+                models.Q(phone__icontains=search) |
+                models.Q(designation__icontains=search)
+            )
+        
+        return qs
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

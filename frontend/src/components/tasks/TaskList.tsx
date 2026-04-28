@@ -454,23 +454,23 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-12">
+              <TableHead className="w-12 p-2">
                 <Checkbox 
                   checked={allSelected} 
                   onCheckedChange={toggleSelectAll}
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="font-semibold">Lead Name</TableHead>
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Phone</TableHead>}
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Contact</TableHead>}
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Requirement</TableHead>}
-              <TableHead className="font-semibold">Project</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Assigned To</TableHead>
-              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold">Visit Date</TableHead>}
-              <TableHead className="font-semibold">Created</TableHead>
-              <TableHead className="font-semibold w-20"></TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Lead Name</TableHead>
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold p-2 text-xs">Phone</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold p-2 text-xs">Contact</TableHead>}
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold p-2 text-xs">Requirement</TableHead>}
+              <TableHead className="font-semibold p-2 text-xs">Project</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Status</TableHead>
+              <TableHead className="font-semibold p-2 text-xs">Assigned To</TableHead>
+              {canSeeAnyPhoneNumbers && <TableHead className="font-semibold p-2 text-xs">Visit Date</TableHead>}
+              <TableHead className="font-semibold p-2 text-xs">Created</TableHead>
+              <TableHead className="font-semibold p-2 text-xs w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -480,51 +480,51 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 className="table-row-hover animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <TableCell>
+                <TableCell className="p-2">
                   <Checkbox 
                     checked={selectedIds.has(task.id)} 
                     onCheckedChange={() => toggleSelect(task.id)}
                     aria-label={`Select ${task.lead?.name || 'task'}`}
                   />
                 </TableCell>
-                <TableCell>
-                  <p className="font-medium text-foreground">{task.lead?.name || 'Unknown Lead'}</p>
+                <TableCell className="p-2">
+                  <p className="font-medium text-foreground text-sm truncate max-w-[150px]">{task.lead?.name || 'Unknown Lead'}</p>
                 </TableCell>
                 {canSeePhoneNumber(task) && (
-                  <TableCell>
-                    <p className="text-sm font-medium">{task.lead?.phone || '-'}</p>
+                  <TableCell className="p-2">
+                    <p className="text-xs font-medium">{task.lead?.phone || '-'}</p>
                   </TableCell>
                 )}
                 {!canSeePhoneNumber(task) && canSeeAnyPhoneNumbers && (
-                  <TableCell>
-                    <p className="text-sm font-medium">{maskPhoneNumber(task.lead?.phone || '')}</p>
+                  <TableCell className="p-2">
+                    <p className="text-xs font-medium">{maskPhoneNumber(task.lead?.phone || '')}</p>
                   </TableCell>
                 )}
                 {canSeePhoneNumber(task) && (
-                  <TableCell>
-                    <p className="text-sm font-medium">{task.lead?.email || '-'}</p>
+                  <TableCell className="p-2">
+                    <p className="text-xs font-medium truncate max-w-[120px]">{task.lead?.email || '-'}</p>
                   </TableCell>
                 )}
                 {!canSeePhoneNumber(task) && canSeeAnyPhoneNumbers && (
-                  <TableCell>
-                    <p className="text-sm font-medium">***@***.***</p>
+                  <TableCell className="p-2">
+                    <p className="text-xs font-medium">***@***.***</p>
                   </TableCell>
                 )}
                 {canSeeAnyPhoneNumbers && (
-                  <TableCell>
+                  <TableCell className="p-2">
                     <div>
-                      <p className="text-sm capitalize">{task.lead?.requirementType || '-'}</p>
+                      <p className="text-xs capitalize truncate max-w-[100px]">{task.lead?.requirementType || '-'}</p>
                       <p className="text-xs text-muted-foreground">{task.lead?.bhkRequirement || '-'} BHK</p>
                     </div>
                   </TableCell>
                 )}
-                <TableCell>
-                  <p className="text-sm font-medium">{getProjectName(task.assignedProject)}</p>
+                <TableCell className="p-2">
+                  <p className="text-xs font-medium truncate max-w-[120px]">{getProjectName(task.assignedProject)}</p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   {canEdit ? (
                     <Select value={task.status} onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}>
-                      <SelectTrigger className="w-36 h-8 text-xs">
+                      <SelectTrigger className="w-28 h-7 text-xs">
                         <TaskStatusChip status={task.status} />
                       </SelectTrigger>
                       <SelectContent>
@@ -532,7 +532,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                         <SelectItem value="site_visit">Site Visit</SelectItem>
                         <SelectItem value="family_visit">Family Visit</SelectItem>
                         {user?.role === 'admin' && (
-                          <SelectItem value="perfect_family_visit">Perfect Family Visit</SelectItem>
+                          <SelectItem value="perfect_family_visit">Perfect F. Visit</SelectItem>
                         )}
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
@@ -542,29 +542,31 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                     <TaskStatusChip status={task.status} />
                   )}
                 </TableCell>
-                <TableCell>
-                  <StaffProfileChip userId={task.assignedTo} userName={task.assignedToName} showDetails={canSeeAnyPhoneNumbers} />
+                <TableCell className="p-2">
+                  <span className="text-xs text-muted-foreground truncate max-w-[100px] block" title={task.assignedToName}>
+                    {task.assignedToName?.split(' ')[0] || '-'}
+                  </span>
                 </TableCell>
                 {canSeeAnyPhoneNumbers && (
-                  <TableCell>
+                  <TableCell className="p-2">
                     {task.nextActionDate ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {format(task.nextActionDate, "MMM dd, yyyy")}
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        <span className="text-xs">{format(task.nextActionDate, "MMM dd")}</span>
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
+                      <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </TableCell>
                 )}
-                <TableCell>
-                  <p className="text-sm text-muted-foreground">{format(task.createdAt, "MMM dd, yyyy")}</p>
+                <TableCell className="p-2">
+                  <p className="text-xs text-muted-foreground">{format(task.createdAt, "MMM dd")}</p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreHorizontal className="w-3 h-3" />
                       </Button>
                     </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

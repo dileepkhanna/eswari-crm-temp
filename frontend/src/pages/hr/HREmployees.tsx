@@ -683,16 +683,16 @@ export default function HREmployees() {
                   onClick={handleOpenCreateModal}
                   className="btn-primary flex-1"
                 >
-                  <Plus className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">New</span>
+                  <Plus className="w-4 h-4 mr-1" />
+                  <span>New</span>
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setShowInviteModal(true); }}
-                  className="flex-1"
+                  className="flex-1 border-primary text-primary hover:bg-primary hover:text-white"
                 >
-                  <Link className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Invite</span>
+                  <Link className="w-4 h-4 mr-1" />
+                  <span>Invite</span>
                 </Button>
               </div>
             </div>

@@ -88,8 +88,10 @@ def get_capital_queryset(qs, user):
             Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
         ).distinct()
     if user.role == 'employee':
-        # Employees can ONLY see records assigned to them (not records they created)
-        return qs.filter(assigned_to=user).distinct()
+        # Employees see records assigned to them OR created by them
+        return qs.filter(
+            Q(assigned_to=user) | Q(created_by=user)
+        ).distinct()
 
     return qs.none()
 

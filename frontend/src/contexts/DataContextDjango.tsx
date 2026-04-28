@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { Announcement, Lead, Project, Task, Leave } from '@/types';
 import { useNotifications } from './NotificationContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useCompany } from '@/contexts/CompanyContext';
 import { apiClient } from '@/lib/api';
 import { getMediaUrl } from '@/lib/api';
 import { logLeadActivity, logTaskActivity, logProjectActivity, logLeaveActivity } from '@/lib/activityLogger';
@@ -193,6 +194,7 @@ const apiToTask = (apiTask: any): Task => ({
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [leadsPage, setLeadsPage] = useState(1);
   const [leadsTotalPages, setLeadsTotalPages] = useState(1);
@@ -984,6 +986,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateProject = useCallback(async (id: string, data: Partial<Project>) => {
     try {
+      // Get the existing project to preserve the company field
+      const existingProject = projects.find(p => p.id === id);
+      const companyId = existingProject?.company || user?.company?.id || (user?.company as any) || selectedCompany?.id;
+      
       const updateData: any = {};
       if (data.name !== undefined) updateData.name = data.name;
       if (data.location !== undefined) updateData.location = data.location;
@@ -1004,6 +1010,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.availability !== undefined) updateData.availability = data.availability;
       if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
       if (data.blueprintImage !== undefined) updateData.blueprintImage = data.blueprintImage;
+      
+      // Include company field - required by backend
+      if (companyId) {
+        updateData.company = companyId;
+      }
       
       // Legacy fields for backward compatibility
       if (data.launchDate !== undefined) updateData.start_date = data.launchDate.toISOString().split('T')[0];

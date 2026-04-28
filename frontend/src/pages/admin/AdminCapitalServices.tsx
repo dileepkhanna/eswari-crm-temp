@@ -326,7 +326,9 @@ export default function AdminCapitalServices() {
                         {s.status_display || s.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground">{s.assigned_to_name || '—'}</td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground" title={s.assigned_to_name || 'Unassigned'}>
+                      {s.assigned_to_name ? s.assigned_to_name.split(' ')[0] : '—'}
+                    </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" title="View Details" onClick={() => setViewing(s)}><Eye className="w-3.5 h-3.5" /></Button>

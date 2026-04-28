@@ -20,6 +20,27 @@ class PushSubscription(models.Model):
         return f"{self.user.username} - {self.endpoint[:40]}..."
 
 
+class FCMToken(models.Model):
+    """Firebase Cloud Messaging token for mobile push notifications."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='fcm_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    device_type = models.CharField(max_length=20, default='android')
+    device_name = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'fcm_tokens'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.device_type} - {self.token[:20]}..."
+
+
 class Notification(models.Model):
     """In-app notification stored in DB and delivered via polling."""
     NOTIFICATION_TYPES = [

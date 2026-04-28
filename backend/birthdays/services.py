@@ -3,8 +3,11 @@ from django.contrib.auth import get_user_model
 from .models import Birthday, BirthdayAnnouncement
 from announcements.models import Announcement
 from accounts.models import Company
+from notifications.utils import send_bulk_push_notification
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 class BirthdayAnnouncementService:
     """Service for creating automatic birthday announcements"""
@@ -87,6 +90,43 @@ Best wishes from the entire team! 🎊"""
         
         # Add all companies to the announcement
         announcement.companies.set(active_companies)
+        
+        # Send push notifications to all users in the employee's company
+        try:
+            if employee.company:
+                # Get all active users from the same company
+                company_users = User.objects.filter(
+                    company=employee.company,
+                    is_active=True
+                ).exclude(id=employee.id)  # Don't send to the birthday person
+                
+                if company_users.exists():
+                    # Create a shorter notification message for push
+                    push_message = f"🎂 Today we celebrate {employee.get_full_name()}{age_text}! Join us in wishing {employee.first_name} a wonderful birthday! 🎈"
+                    
+                    # Send push notifications to all company users
+                    sent_count = send_bulk_push_notification(
+                        users=company_users,
+                        title=title,
+                        message=push_message,
+                        notification_type='birthday',
+                        data={
+                            'announcement_id': str(announcement.id),
+                            'employee_id': str(employee.id),
+                            'employee_name': employee.get_full_name(),
+                        },
+                        company=employee.company
+                    )
+                    
+                    logger.info(f"✅ Sent birthday push notifications to {sent_count}/{company_users.count()} users for {employee.get_full_name()}")
+                else:
+                    logger.info(f"ℹ️  No other users in company to notify about {employee.get_full_name()}'s birthday")
+            else:
+                logger.warning(f"⚠️  Employee {employee.get_full_name()} has no company assigned, skipping push notifications")
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to send birthday push notifications for {employee.get_full_name()}: {e}")
+            # Don't fail the announcement creation if push notifications fail
         
         return announcement
     

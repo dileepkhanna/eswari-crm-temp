@@ -295,9 +295,10 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
       </div>
 
       {/* Desktop table view */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm" style={{ minWidth: '900px' }}>
-          <thead>
+      <div className="hidden md:block border rounded-lg">
+        <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '70vh' }}>
+          <table className="w-full text-sm" style={{ minWidth: '900px' }}>
+          <thead className="sticky top-0 bg-background z-10">
             <tr className="border-b text-muted-foreground text-xs">
               <th className="text-left py-2 px-3 font-medium w-6">
                 <input
@@ -411,6 +412,7 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );

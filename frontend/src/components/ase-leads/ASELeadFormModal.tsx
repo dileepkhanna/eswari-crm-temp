@@ -207,7 +207,14 @@ export default function ASELeadFormModal({
     try {
       setLoading(true);
       setPhoneError(null);
-      await onSave(formData);
+      
+      // For employees, remove assigned_to field to let backend auto-assign
+      const dataToSave = { ...formData };
+      if (user?.role === 'employee') {
+        delete dataToSave.assigned_to;
+      }
+      
+      await onSave(dataToSave);
       onClose();
     } catch (error: any) {
       const details = (() => {

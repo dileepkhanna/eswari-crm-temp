@@ -293,3 +293,27 @@ LOGGING = {
 VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
 VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='admin@eswaricrm.com')
+
+# Firebase Admin SDK for Mobile Push Notifications (FCM)
+import firebase_admin
+from firebase_admin import credentials as firebase_credentials
+
+FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, 'firebase-service-account.json')
+
+if os.path.exists(FIREBASE_CREDENTIALS_PATH):
+    try:
+        if not firebase_admin._apps:
+            cred = firebase_credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+            firebase_admin.initialize_app(cred)
+            import logging as _logging
+            _logging.getLogger(__name__).info('✅ Firebase Admin SDK initialized successfully')
+    except Exception as _e:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(f'⚠️  Firebase Admin SDK initialization failed: {_e}')
+else:
+    import logging as _logging
+    _logging.getLogger(__name__).info(
+        'ℹ️  Firebase service account key not found. '
+        'Mobile push notifications (FCM) will be disabled. '
+        'Place firebase-service-account.json in the backend root to enable.'
+    )
