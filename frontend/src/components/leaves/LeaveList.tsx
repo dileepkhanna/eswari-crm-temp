@@ -152,6 +152,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
   }, [leaves]);
 
   // Count leaves for current user in the current month (to determine if document is required)
+  // Uses start_date to match what's shown in the calendar view
   const userMonthlyLeaveCount = useMemo(() => {
     if (!user) return 0;
     
@@ -162,8 +163,12 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
     return leaves.filter(l => {
       if (l.user_id.toString() !== user.id.toString()) return false;
       
-      const leaveDate = new Date(l.created_at);
-      return leaveDate.getMonth() === currentMonth && leaveDate.getFullYear() === currentYear;
+      // Don't count rejected leaves
+      if (l.status === 'rejected') return false;
+      
+      // Use start_date instead of created_at to match calendar view
+      const leaveStartDate = new Date(l.start_date);
+      return leaveStartDate.getMonth() === currentMonth && leaveStartDate.getFullYear() === currentYear;
     }).length;
   }, [leaves, user]);
 
@@ -666,8 +671,10 @@ export default function LeaveList({ canApprove = false, canCreate = false, canDe
                 <p className="text-sm font-medium text-foreground">This Month's Leaves</p>
                 <p className="text-xs text-muted-foreground">
                   {userMonthlyLeaveCount === 0 
-                    ? "No leaves taken this month. First leave won't require a document." 
-                    : `${userMonthlyLeaveCount} leave(s) taken this month. Next leave will require a document.`
+                    ? "No leaves taken this month. First leave doesn't require a document." 
+                    : userMonthlyLeaveCount === 1
+                    ? "1 leave taken this month. Next leave will require a document."
+                    : `${userMonthlyLeaveCount} leaves taken this month. All future leaves require a document.`
                   }
                 </p>
               </div>
