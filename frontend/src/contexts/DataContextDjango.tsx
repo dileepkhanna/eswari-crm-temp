@@ -937,6 +937,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
+      // Get company ID from user or selected company
+      const companyId = user?.company?.id || (user?.company as any) || selectedCompany?.id;
+      
+      if (!companyId) {
+        toast.error('Company information is missing. Please refresh and try again.');
+        throw new Error('Company ID is required');
+      }
+
       const projectData = {
         name: project.name,
         location: project.location || '',
@@ -955,6 +963,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         availability: project.availability || '',
         coverImage: project.coverImage && isValidUrl(project.coverImage) ? project.coverImage : '',
         blueprintImage: project.blueprintImage && isValidUrl(project.blueprintImage) ? project.blueprintImage : '',
+        company: companyId, // REQUIRED: Add company field
         // Legacy fields for backward compatibility
         start_date: project.launchDate.toISOString().split('T')[0],
         end_date: project.possessionDate?.toISOString().split('T')[0],
@@ -964,6 +973,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       };
 
       logger.log('🚀 Sending project data to API:', projectData);
+      logger.log('🚀 Company ID:', companyId);
       logger.log('🚀 Availability in API payload:', projectData.availability);
 
       const newProject = await apiClient.createProject(projectData);
@@ -979,10 +989,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.success('Project created successfully');
     } catch (error: any) {
       logger.error('Error adding project:', error);
-      toast.error('Failed to add project');
+      
+      // Show more specific error message
+      if (error.message?.includes('Company')) {
+        toast.error('Failed to add project: Company information is missing');
+      } else if (error.response?.data) {
+        const errorData = error.response.data;
+        const errorMessage = typeof errorData === 'string' 
+          ? errorData 
+          : errorData.detail || errorData.message || JSON.stringify(errorData);
+        toast.error(`Failed to add project: ${errorMessage}`);
+      } else {
+        toast.error('Failed to add project');
+      }
       throw error;
     }
-  }, []);
+  }, [user, selectedCompany]);
 
   const updateProject = useCallback(async (id: string, data: Partial<Project>) => {
     try {
