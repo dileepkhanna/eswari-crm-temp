@@ -43,7 +43,22 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         print(f"DEBUG: User {user.username} (ID: {user.id}, Role: {user.role}) requesting customers")
         
         # Base queryset with optimized database queries
-        base_queryset = Customer.objects.select_related('company', 'assigned_to', 'created_by')
+        # Use select_related for ForeignKey fields to avoid N+1 queries
+        base_queryset = Customer.objects.select_related(
+            'company', 
+            'assigned_to', 
+            'created_by'
+        ).only(
+            # Only fetch needed fields to reduce data transfer
+            'id', 'name', 'phone', 'call_status', 'custom_call_status',
+            'assigned_to_id', 'created_by_id', 'scheduled_date', 'call_date',
+            'notes', 'is_converted', 'converted_lead_id', 'created_at',
+            'updated_at', 'company_id',
+            # Related fields
+            'assigned_to__first_name', 'assigned_to__last_name', 'assigned_to__username',
+            'created_by__first_name', 'created_by__last_name', 'created_by__username',
+            'company__id', 'company__name', 'company__code'
+        )
         
         # Use the centralized permission filter
         queryset = filter_by_user_access(
@@ -101,7 +116,9 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
                 # Default to created_at descending if invalid field provided
                 queryset = queryset.order_by('-created_at')
         
-        print(f"DEBUG: Returning {queryset.count()} customers for {user.role}")
+        # Don't call count() here - it's expensive and causes full table scan
+        # The pagination class will handle counting when needed
+        # print(f"DEBUG: Returning customers for {user.role}")
         return queryset
     
     def get_permissions(self):

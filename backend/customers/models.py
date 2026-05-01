@@ -93,6 +93,12 @@ class Customer(models.Model):
             models.Index(fields=['is_converted']),
             models.Index(fields=['company', 'is_converted']),
             models.Index(fields=['call_status']),
+            # Additional indexes for performance
+            models.Index(fields=['company', 'call_status']),
+            models.Index(fields=['assigned_to']),
+            models.Index(fields=['created_by']),
+            models.Index(fields=['phone']),  # For search queries
+            models.Index(fields=['name']),   # For search queries
         ]
         
     def __str__(self):
