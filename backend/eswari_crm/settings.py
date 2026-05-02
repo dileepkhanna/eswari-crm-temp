@@ -66,6 +66,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django.middleware.gzip.GZipMiddleware",  # Compress responses (70-90% smaller) - ADD THIS
     "corsheaders.middleware.CorsMiddleware",
     "eswari_crm.middleware.MediaCORSMiddleware",  # Custom CORS middleware for media files
     "django.middleware.security.SecurityMiddleware",

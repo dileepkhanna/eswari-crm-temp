@@ -104,6 +104,45 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
                     Q(name__icontains=search) | Q(phone__icontains=search)
                 )
         
+        # Filter by assigned_to
+        assigned_to = self.request.query_params.get('assigned_to', None)
+        if assigned_to and assigned_to != 'all':
+            try:
+                assigned_to_id = int(assigned_to)
+                queryset = queryset.filter(assigned_to_id=assigned_to_id)
+            except (ValueError, TypeError):
+                pass  # Invalid ID, ignore filter
+        
+        # Filter by scheduled_date (exact date)
+        scheduled_date = self.request.query_params.get('scheduled_date', None)
+        if scheduled_date:
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(scheduled_date__date=date_obj)
+            except (ValueError, TypeError):
+                pass  # Invalid date format, ignore filter
+        
+        # Filter by date range (overdue, today, upcoming)
+        date_filter = self.request.query_params.get('date_filter', None)
+        if date_filter:
+            from django.utils import timezone
+            now = timezone.now()
+            today = now.date()
+            
+            if date_filter == 'overdue':
+                # Scheduled date is in the past AND status is pending
+                queryset = queryset.filter(
+                    scheduled_date__date__lt=today,
+                    call_status='pending'
+                )
+            elif date_filter == 'today':
+                # Scheduled for today
+                queryset = queryset.filter(scheduled_date__date=today)
+            elif date_filter == 'upcoming':
+                # Scheduled for future dates
+                queryset = queryset.filter(scheduled_date__date__gt=today)
+        
         # Apply sorting/ordering
         ordering = self.request.query_params.get('ordering', None)
         if ordering:

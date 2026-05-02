@@ -591,6 +591,20 @@ class ApiClient {
     }
   }
 
+  async toggleUserActiveStatus(userId: string) {
+    logger.log(`API: Toggling active status for user ${userId}`);
+    try {
+      const response = await this.request(`/auth/users/${userId}/toggle-active/`, {
+        method: 'POST',
+      });
+      logger.log(`API: Toggle active status successful for user ${userId}:`, response);
+      return response;
+    } catch (error) {
+      logger.error(`API: Toggle active status failed for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
   // Customers
   async getCustomers(params?: Record<string, any>): Promise<any> {
     const query = params ? '?' + new URLSearchParams(

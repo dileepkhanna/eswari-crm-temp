@@ -24,6 +24,7 @@ urlpatterns = [
     path('users/', views.UserListView.as_view(), name='user_list'),
     path('users/<int:user_id>/update/', views.admin_update_user_view, name='admin_update_user'),
     path('users/<int:user_id>/delete/', views.delete_user_view, name='delete_user'),
+    path('users/<int:user_id>/toggle-active/', views.toggle_user_active_status_view, name='toggle_user_active'),
     path('users/<int:user_id>/promote/', views.promote_employee_to_manager_view, name='promote_employee'),
     path('users/<int:user_id>/approve/', views.approve_user_view, name='approve_user'),
     path('users/<int:user_id>/reject/', views.reject_user_view, name='reject_user'),

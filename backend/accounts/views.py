@@ -971,6 +971,56 @@ def simple_delete_user_view(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def toggle_user_active_status_view(request, user_id):
+    """Toggle user active/inactive status - Admin only"""
+    if request.user.role != 'admin':
+        return Response({
+            'error': 'Only administrators can disable/enable user accounts'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user_to_toggle = User.objects.get(id=user_id)
+        
+        # Prevent admin from disabling themselves
+        if user_to_toggle.id == request.user.id:
+            return Response({
+                'error': 'You cannot disable your own account'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prevent disabling the last active admin
+        if user_to_toggle.role == 'admin' and user_to_toggle.is_active:
+            active_admin_count = User.objects.filter(role='admin', is_active=True).count()
+            if active_admin_count <= 1:
+                return Response({
+                    'error': 'Cannot disable the last active admin user'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Toggle the is_active status
+        user_to_toggle.is_active = not user_to_toggle.is_active
+        user_to_toggle.save()
+        
+        user_name = f"{user_to_toggle.first_name} {user_to_toggle.last_name}".strip() or user_to_toggle.username
+        status_text = 'enabled' if user_to_toggle.is_active else 'disabled'
+        
+        return Response({
+            'message': f'User "{user_name}" has been {status_text} successfully',
+            'user': UserSerializer(user_to_toggle).data,
+            'is_active': user_to_toggle.is_active
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to toggle user status',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def promote_employee_to_manager_view(request, user_id):
     """Promote an employee to manager role"""
     if request.user.role != 'admin':

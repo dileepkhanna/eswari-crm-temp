@@ -386,8 +386,35 @@ export default function UserList(props?: UserListProps) {
   };
 
   const handleToggleStatus = async (user: DBUser) => {
-    // For now, just show a message that this feature is not implemented
-    toast.info(`Status toggle for ${user.name} is not implemented yet`);
+    try {
+      logger.log(`🔄 Toggling active status for user ${user.id} (${user.name})...`);
+      const response = await apiClient.toggleUserActiveStatus(user.id);
+      
+      if (response && response.message) {
+        toast.success(response.message);
+        // Refresh the user list to show updated status
+        await fetchUsers(false);
+      } else {
+        toast.error('Failed to toggle user status');
+      }
+    } catch (error: any) {
+      logger.error('Error toggling user status:', error);
+      
+      // Parse error message from API response
+      let errorMessage = 'Failed to toggle user status';
+      try {
+        if (error.message && error.message.includes('details: ')) {
+          const errorData = JSON.parse(error.message.split('details: ')[1]);
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        }
+      } catch (parseError) {
+        errorMessage = error.message || 'Failed to toggle user status';
+      }
+      
+      toast.error(errorMessage);
+    }
   };
 
   const handleSaveUser = async (userData: {
