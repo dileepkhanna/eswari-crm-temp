@@ -29,6 +29,9 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
+        extra_kwargs = {
+            'company': {'required': False}  # Make company optional for updates
+        }
     
     def to_representation(self, instance):
         """Convert model instance to API response"""
@@ -70,6 +73,10 @@ class ProjectSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """Update existing project instance"""
+        # Preserve company if not provided in update
+        if 'company' not in validated_data:
+            validated_data['company'] = instance.company
+            
         # Handle image field mapping
         if 'coverImage' in validated_data:
             validated_data['cover_image'] = validated_data['coverImage']
