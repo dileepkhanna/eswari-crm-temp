@@ -21,7 +21,7 @@ import {
   PhoneIcon,
   MegaphoneIcon,
 } from '@/components/icons';
-import { UserCircle, BarChart, Share2, FileText, Mail, TrendingUp, Target, Users2, ChevronDown, ChevronRight, Gift, Calculator } from 'lucide-react';
+import { UserCircle, BarChart, Share2, FileText, Mail, TrendingUp, Target, Users2, ChevronDown, ChevronRight, Gift, Calculator, ListTodo } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { ASECustomerService } from '@/services/ase-customer.service';
 
@@ -155,6 +155,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   // ASE Technologies specific sections
   const aseSpecificItems: NavItem[] = [
     { label: 'Employees', icon: UsersIcon, href: '/ase-employees', roles: ['admin'] },
+    { label: 'Technical Team', icon: Users2, href: '/technical-team', roles: ['admin'] },
+    { label: 'Marketing Team', icon: TrendingUp, href: '/marketing-team', roles: ['admin', 'manager'] },
     { label: 'Calls', icon: PhoneIcon, href: '/ase-customers', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leads', icon: LeadsIcon, href: '/ase-leads', roles: ['admin', 'manager', 'employee'] },
     { label: 'Reports', icon: ReportsIcon, href: '/ase-reports', roles: ['admin', 'manager'] },
@@ -202,12 +204,92 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     'hr': '/hr'
   };
   
-  const basePath = roleRouteMap[user.role] || '/login';
+  // Check if user is a team member
+  const isTeamMember = user.company?.id === 2 && user.team_info?.team_type;
+  const isInTechnicalTeam = user.company?.id === 2 && user.team_info?.team_type === 'technical';
+  const isInMarketingTeam = user.company?.id === 2 && user.team_info?.team_type === 'marketing';
+  const marketingCategory = user.team_info?.marketing_category;
+  
+  // Override basePath for team members
+  let basePath = roleRouteMap[user.role] || '/login';
+  if (isInTechnicalTeam) {
+    basePath = '/team/technical';
+  } else if (isInMarketingTeam) {
+    basePath = '/team/marketing';
+  }
   
   // Determine which menu groups to show based on role and company
   let menuGroups: MenuGroup[];
   
-  if (user.role === 'hr') {
+  if (isTeamMember) {
+    // Team members see only their team panel
+    const teamPath = isInTechnicalTeam ? '/team/technical' : '/team/marketing';
+    const teamLabel = isInTechnicalTeam ? 'Technical Team' : 'Marketing Team';
+    
+    // Role-specific sidebar items for marketing team
+    let marketingItems: NavItem[];
+    if (!isInMarketingTeam) {
+      marketingItems = [
+        { label: teamLabel, icon: Users2, href: '', roles: ['employee'] },
+        { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['employee'] },
+        { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['employee'] },
+        { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['employee'] },
+        { label: 'Birthdays', icon: Gift, href: '/birthdays', roles: ['employee'] },
+        settingsNavItem
+      ];
+    } else if (marketingCategory === 'boe') {
+      marketingItems = [
+        { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['employee'] },
+        { label: 'Research Data', icon: LeadsIcon, href: '/research', roles: ['employee'] },
+        { label: 'Leads', icon: LeadsIcon, href: '/leads', roles: ['employee'] },
+        { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['employee'] },
+        { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['employee'] },
+        { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['employee'] },
+        { label: 'Birthdays', icon: Gift, href: '/birthdays', roles: ['employee'] },
+        settingsNavItem
+      ];
+    } else if (marketingCategory === 'cre') {
+      marketingItems = [
+        { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['employee'] },
+        { label: 'Assigned Leads', icon: LeadsIcon, href: '/research', roles: ['employee'] },
+        { label: 'Tasks', icon: ListTodo, href: '/tasks', roles: ['employee'] },
+        { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['employee'] },
+        { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['employee'] },
+        { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['employee'] },
+        { label: 'Birthdays', icon: Gift, href: '/birthdays', roles: ['employee'] },
+        settingsNavItem
+      ];
+    } else if (marketingCategory === 'marketing_lead') {
+      marketingItems = [
+        { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['employee'] },
+        { label: 'Research Data', icon: LeadsIcon, href: '/research', roles: ['employee'] },
+        { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['employee'] },
+        { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['employee'] },
+        { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['employee'] },
+        { label: 'Birthdays', icon: Gift, href: '/birthdays', roles: ['employee'] },
+        settingsNavItem
+      ];
+    } else {
+      // BRE
+      marketingItems = [
+        { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['employee'] },
+        { label: 'Research Data', icon: LeadsIcon, href: '/research', roles: ['employee'] },
+        { label: 'Announcements', icon: MegaphoneIcon, href: '/announcements', roles: ['employee'] },
+        { label: 'Leaves', icon: CalendarIcon, href: '/leaves', roles: ['employee'] },
+        { label: 'Holidays', icon: CalendarIcon, href: '/holidays', roles: ['employee'] },
+        { label: 'Birthdays', icon: Gift, href: '/birthdays', roles: ['employee'] },
+        settingsNavItem
+      ];
+    }
+
+    menuGroups = [
+      { 
+        label: '', 
+        items: marketingItems, 
+        collapsible: false 
+      }
+    ];
+  } else if (user.role === 'hr') {
     menuGroups = [
       { label: '', items: [...hrNavItems, settingsNavItem], collapsible: false }
     ];

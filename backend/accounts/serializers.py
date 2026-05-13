@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from .models import Company
+from teams.models import Team
 from utils.validators import CompanyValidationMixin, ManagerValidationMixin
 
 User = get_user_model()
@@ -12,14 +13,15 @@ class UserSerializer(serializers.ModelSerializer):
     employees_names = serializers.SerializerMethodField()
     company_info = serializers.SerializerMethodField()
     approved_by_name = serializers.SerializerMethodField()
+    team_info = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'company', 'company_info', 'joining_date', 'designation', 'pending_approval', 'approved_by', 'approved_by_name', 'approved_at', 'is_active', 'created_at',
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager', 'manager_name', 'employees_count', 'employees_names', 'company', 'company_info', 'team', 'team_info', 'joining_date', 'designation', 'pending_approval', 'approved_by', 'approved_by_name', 'approved_at', 'is_active', 'created_at',
                   'permanent_address', 'present_address', 'bank_name', 'bank_account_number', 'bank_ifsc', 'blood_group', 'aadhar_number',
                   'emergency_contact1_name', 'emergency_contact1_phone', 'emergency_contact1_relation',
                   'emergency_contact2_name', 'emergency_contact2_phone', 'emergency_contact2_relation']
-        read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count', 'employees_names', 'company_info', 'approved_by_name', 'approved_by', 'approved_at', 'is_active']
+        read_only_fields = ['id', 'created_at', 'manager_name', 'employees_count', 'employees_names', 'company_info', 'team_info', 'approved_by_name', 'approved_by', 'approved_at', 'is_active']
     
     def get_manager_name(self, obj):
         """Get the manager's full name"""
@@ -44,6 +46,22 @@ class UserSerializer(serializers.ModelSerializer):
         """Get the approver's full name"""
         if obj.approved_by:
             return f"{obj.approved_by.first_name} {obj.approved_by.last_name}".strip() or obj.approved_by.username
+        return None
+    
+    def get_team_info(self, obj):
+        """Get team information"""
+        if obj.team:
+            data = {
+                'id': obj.team.id,
+                'name': obj.team.name,
+                'team_type': obj.team.team_type,
+                'team_type_display': obj.team.get_team_type_display()
+            }
+            # Include marketing_category for marketing teams
+            if obj.team.team_type == 'marketing' and hasattr(obj.team, 'marketing_category'):
+                data['marketing_category'] = obj.team.marketing_category
+                data['marketing_category_display'] = obj.team.get_marketing_category_display() if obj.team.marketing_category else None
+            return data
         return None
     
     def get_company_info(self, obj):
@@ -95,10 +113,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         allow_null=True,
         help_text="Company assignment (optional for admin and HR roles)"
     )
+    team = serializers.PrimaryKeyRelatedField(
+        queryset=Team.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+        help_text="Team assignment (optional)"
+    )
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'phone', 'role', 'manager', 'company', 'joining_date', 'designation', 'pending_approval', 'is_active',
+        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'phone', 'role', 'manager', 'company', 'team', 'joining_date', 'designation', 'pending_approval', 'is_active',
                   'present_address', 'permanent_address', 'bank_name', 'bank_account_number', 'bank_ifsc', 'blood_group', 'aadhar_number',
                   'emergency_contact1_name', 'emergency_contact1_phone', 'emergency_contact1_relation',
                   'emergency_contact2_name', 'emergency_contact2_phone', 'emergency_contact2_relation']

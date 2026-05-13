@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { UserRole } from '@/types';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
+import { apiClient } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -42,9 +43,10 @@ const createUserSchema = z.object({
   email: z.string().email('Invalid email address').min(1, 'Email is required'),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   designation: z.string().min(1, 'Designation is required').max(100),
-  role: z.enum(['admin', 'manager', 'employee', 'hr'] as const),
+  role: z.enum(['admin', 'manager', 'team_lead', 'employee', 'hr'] as const),
   company: z.number().positive('Company is required').optional(),
   managerId: z.string().optional(),
+  team: z.number().positive().optional(), // Team field for ASE Technologies
   joining_date: z.string().min(1, 'Joining date is required'),
   present_address: z.string().min(1, 'Present address is required'),
   permanent_address: z.string().min(1, 'Permanent address is required'),
@@ -68,9 +70,13 @@ const createUserSchema = z.object({
   return true;
 }, { message: "Manager must be assigned for employees", path: ["managerId"] })
 .refine((data) => {
-  if ((data.role === 'manager' || data.role === 'employee') && !data.company) return false;
+  if ((data.role === 'manager' || data.role === 'employee' || data.role === 'team_lead') && !data.company) return false;
   return true;
-}, { message: "Company is required for manager and employee roles", path: ["company"] });
+}, { message: "Company is required for manager, team lead and employee roles", path: ["company"] })
+.refine((data) => {
+  if (data.role === 'team_lead' && !data.team) return false;
+  return true;
+}, { message: "Team must be assigned for team leads", path: ["team"] });
 
 const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -80,6 +86,7 @@ const editUserSchema = z.object({
   joining_date: z.string().min(1, 'Joining date is required'),
   managerId: z.string().optional(),
   company: z.number().positive('Company is required').optional(),
+  team: z.number().positive().optional(), // Team field for ASE Technologies
   present_address: z.string().min(1, 'Present address is required'),
   permanent_address: z.string().min(1, 'Permanent address is required'),
   bank_name: z.string().min(1, 'Bank name is required'),
@@ -112,6 +119,7 @@ interface EditUser {
   role?: string;
   manager_id?: string | null;
   company?: { id: number; name: string; code: string } | null;
+  team?: number | null; // Add team field
   permanent_address?: string | null;
   present_address?: string | null;
   bank_name?: string | null;
@@ -133,6 +141,7 @@ interface UserFormModalProps {
   onSave: (userData: {
     email: string; password: string; name: string; phone: string; address: string;
     designation?: string; role: UserRole; company?: number; managerId?: string; joining_date?: string;
+    team?: number; // Add team field
     permanent_address?: string; present_address?: string; bank_name?: string;
     bank_account_number?: string; bank_ifsc?: string; blood_group?: string; aadhar_number?: string;
     emergency_contact1_name?: string; emergency_contact1_phone?: string; emergency_contact1_relation?: string;
@@ -140,7 +149,9 @@ interface UserFormModalProps {
   }) => Promise<{ success: boolean; userId?: string }>;
   onUpdate?: (userId: string, userData: {
     name: string; email?: string; phone: string; address: string;
-    designation?: string; joining_date?: string; managerId?: string; company?: number; newPassword?: string;
+    designation?: string; joining_date?: string; managerId?: string; company?: number; 
+    team?: number; // Add team field
+    newPassword?: string;
     permanent_address?: string; present_address?: string; bank_name?: string;
     bank_account_number?: string; bank_ifsc?: string; blood_group?: string; aadhar_number?: string;
     emergency_contact1_name?: string; emergency_contact1_phone?: string; emergency_contact1_relation?: string;
@@ -164,6 +175,9 @@ export default function UserFormModal({
   const [copied, setCopied] = useState(false);
   const [sameAsPresent, setSameAsPresent] = useState(false);
   const [declared, setDeclared] = useState(false);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [teamCategory, setTeamCategory] = useState<string>('all'); // Team category filter
   const { user } = useAuth();
   const { canSelectCompany } = useCompany();
   
@@ -176,7 +190,7 @@ export default function UserFormModal({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
       name: '', email: '', phone: '', designation: '', role: 'employee',
-      company: defaultCompanyId as any, managerId: '',
+      company: defaultCompanyId as any, managerId: '', team: undefined,
       joining_date: new Date().toISOString().split('T')[0],
       present_address: '', permanent_address: '',
       bank_name: '', bank_account_number: '', bank_ifsc: '', blood_group: '', aadhar_number: '',
@@ -190,7 +204,7 @@ export default function UserFormModal({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
       name: '', email: '', phone: '', designation: '', joining_date: '',
-      managerId: 'none', company: 0,
+      managerId: 'none', company: 0, team: undefined,
       present_address: '', permanent_address: '',
       bank_name: '', bank_account_number: '', bank_ifsc: '', blood_group: '', aadhar_number: '',
       emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
@@ -199,10 +213,11 @@ export default function UserFormModal({
     },
   });
 
+  // Watch fields for reactive updates
   const selectedRole = createForm.watch('role');
   const nameValue = createForm.watch('name');
-  const selectedCompanyCreate = createForm.watch('company');
-  const selectedCompanyEdit = editForm.watch('company');
+  const selectedCompanyCreate = useWatch({ control: createForm.control, name: 'company' });
+  const selectedCompanyEdit = useWatch({ control: editForm.control, name: 'company' });
 
   // Filter managers by selected company
   const filteredManagersCreate = selectedCompanyCreate
@@ -212,6 +227,28 @@ export default function UserFormModal({
   const filteredManagersEdit = selectedCompanyEdit
     ? managers.filter(m => !m.company || m.company === selectedCompanyEdit)
     : managers;
+
+  // Filter teams by category - only show teams with marketing_category when marketing is selected
+  const getFilteredTeams = () => {
+    if (teamCategory === 'all') return teams;
+    
+    if (teamCategory === 'technical') {
+      return teams.filter(team => team.team_type === 'technical');
+    }
+    
+    if (teamCategory === 'marketing') {
+      // Only show marketing teams that have a marketing_category assigned (BRE, BOE, CRE, Marketing Lead)
+      return teams.filter(team => 
+        team.team_type === 'marketing' && 
+        team.marketing_category && 
+        ['bre', 'boe', 'cre', 'marketing_lead'].includes(team.marketing_category)
+      );
+    }
+    
+    return teams;
+  };
+
+  const filteredTeams = getFilteredTeams();
 
   // Clear manager selection when company changes
   useEffect(() => {
@@ -236,6 +273,7 @@ export default function UserFormModal({
           joining_date: (editUser as any).joining_date || '',
           managerId: editUser.manager_id || 'none',
           company: editUser.company?.id || (user?.company as any)?.id || (user?.company as any) || 0,
+          team: editUser.team || undefined,
           newPassword: '',
           present_address: editUser.present_address || '',
           permanent_address: editUser.permanent_address || '',
@@ -271,8 +309,44 @@ export default function UserFormModal({
       setCreatedUserId(null);
       setCopied(false);
       setDeclared(false);
+      // Clear teams when dialog opens to prevent showing stale data
+      setTeams([]);
+      setTeamCategory('all');
     }
   }, [open, editUser, createForm, editForm, defaultCompanyId]);
+
+  // Fetch teams when company changes (for ASE Technologies)
+  useEffect(() => {
+    const fetchTeams = async () => {
+      const selectedCompanyId = isEditMode 
+        ? selectedCompanyEdit 
+        : selectedCompanyCreate;
+      
+      console.log('[UserFormModal] Fetching teams for company:', selectedCompanyId, 'isEditMode:', isEditMode);
+      
+      if (selectedCompanyId && selectedCompanyId > 0) {
+        setLoadingTeams(true);
+        try {
+          const response = await apiClient.getTeams({ company: selectedCompanyId });
+          console.log('[UserFormModal] Teams API response:', response);
+          // API returns paginated response with results array
+          const teamsData = response?.results || response || [];
+          console.log('[UserFormModal] Teams data:', teamsData, 'Length:', teamsData.length);
+          setTeams(teamsData);
+        } catch (error) {
+          console.error('[UserFormModal] Failed to fetch teams:', error);
+          setTeams([]);
+        } finally {
+          setLoadingTeams(false);
+        }
+      } else {
+        console.log('[UserFormModal] No company selected, clearing teams');
+        setTeams([]);
+      }
+    };
+
+    fetchTeams();
+  }, [selectedCompanyCreate, selectedCompanyEdit, isEditMode]);
 
   const handleCreateSubmit = async (data: CreateUserFormData) => {
     logger.log('[UserFormModal] Form data before submit:', data);
@@ -297,6 +371,7 @@ export default function UserFormModal({
       email: data.email || '', password: data.password, name: data.name, phone: data.phone, address: '',
       designation: data.designation || undefined, role: data.role as UserRole,
       company: companyValue, managerId: data.managerId || undefined, joining_date: data.joining_date || undefined,
+      team: data.team || undefined, // Include team field
       permanent_address: data.permanent_address, present_address: data.present_address,
       bank_name: data.bank_name, bank_account_number: data.bank_account_number,
       bank_ifsc: data.bank_ifsc, blood_group: data.blood_group, aadhar_number: data.aadhar_number,
@@ -320,7 +395,9 @@ export default function UserFormModal({
       name: data.name, email: data.email || undefined, phone: data.phone, address: '',
       designation: data.designation || undefined, joining_date: data.joining_date || undefined,
       managerId: data.managerId === 'none' ? undefined : data.managerId,
-      company: data.company, newPassword: data.newPassword || undefined,
+      company: data.company, 
+      team: data.team || undefined, // Include team field
+      newPassword: data.newPassword || undefined,
       permanent_address: data.permanent_address, present_address: data.present_address,
       bank_name: data.bank_name, bank_account_number: data.bank_account_number,
       bank_ifsc: data.bank_ifsc, blood_group: data.blood_group, aadhar_number: data.aadhar_number,
@@ -417,7 +494,7 @@ export default function UserFormModal({
   if (isEditMode) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-lg max-h-[90vh]">
+        <DialogContent className="max-w-lg max-h-[90vh] w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle>Edit User: {editUser.name}</DialogTitle>
             <DialogDescription>
@@ -517,6 +594,106 @@ export default function UserFormModal({
                     description="Assign user to a company. Changing company will clear manager assignment."
                     required={true}
                   />
+                )}
+
+                {/* Team Selection — show when teams are available for the selected company */}
+                {teams.length > 0 && selectedCompanyEdit && selectedCompanyEdit > 0 && (
+                  <>
+                    {/* Team Category Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Team Category</label>
+                      <Select 
+                        value={teamCategory}
+                        onValueChange={setTeamCategory}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Teams</SelectItem>
+                          <SelectItem value="technical">Technical Team</SelectItem>
+                          <SelectItem value="marketing">Marketing Team</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Filter teams by category to find them easily
+                      </p>
+                    </div>
+
+                    {/* Team/Category Selection */}
+                    <FormField
+                      control={editForm.control}
+                      name="team"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {teamCategory === 'marketing' ? 'Marketing Category' : 'Team'} {editUser.role === 'team_lead' && <span className="text-destructive">*</span>}
+                            {editUser.role !== 'team_lead' && '(Optional)'}
+                          </FormLabel>
+                          <Select 
+                            onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))} 
+                            value={field.value?.toString() || "0"}
+                            disabled={loadingTeams}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={
+                                  loadingTeams 
+                                    ? "Loading teams..." 
+                                    : editUser.role === 'team_lead'
+                                      ? teamCategory === 'marketing' ? "Select marketing category" : "Select team (required for team lead)"
+                                      : teamCategory === 'marketing' ? "Select marketing category (optional)" : "Select team (optional)"
+                                } />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {editUser.role !== 'team_lead' && <SelectItem value="0">No Team</SelectItem>}
+                              {teamCategory === 'marketing' ? (
+                                // Show marketing categories
+                                <>
+                                  {filteredTeams.filter(t => t.marketing_category === 'bre').length > 0 && (
+                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'bre')?.id.toString() || "0"}>
+                                      BRE - Business Research Executive
+                                    </SelectItem>
+                                  )}
+                                  {filteredTeams.filter(t => t.marketing_category === 'boe').length > 0 && (
+                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'boe')?.id.toString() || "0"}>
+                                      BOE - Business Outreach Executive
+                                    </SelectItem>
+                                  )}
+                                  {filteredTeams.filter(t => t.marketing_category === 'cre').length > 0 && (
+                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'cre')?.id.toString() || "0"}>
+                                      CRE - Client Research Executive
+                                    </SelectItem>
+                                  )}
+                                  {filteredTeams.filter(t => t.marketing_category === 'marketing_lead').length > 0 && (
+                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'marketing_lead')?.id.toString() || "0"}>
+                                      Marketing Team Lead
+                                    </SelectItem>
+                                  )}
+                                </>
+                              ) : (
+                                // Show team names for technical or all
+                                filteredTeams.map((team) => (
+                                  <SelectItem key={team.id} value={team.id.toString()}>
+                                    {team.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            {teamCategory === 'marketing' 
+                              ? "Select the marketing category for this user"
+                              : editUser.role === 'team_lead' 
+                                ? "Team Lead must be assigned to a team to manage"
+                                : "Assign this user to a specific team (for ASE Technologies)"}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
 
                 {editUser.role === 'employee' && (
@@ -745,7 +922,7 @@ export default function UserFormModal({
   // Create mode form
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh]">
+      <DialogContent className="max-w-lg max-h-[90vh] w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
@@ -869,6 +1046,7 @@ export default function UserFormModal({
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="hr">HR</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="team_lead">Team Lead</SelectItem>
                         <SelectItem value="employee">Employee</SelectItem>
                       </SelectContent>
                     </Select>
@@ -887,8 +1065,108 @@ export default function UserFormModal({
                       ? "Optional: Select a company to assign this user to, or leave empty for global access"
                       : "Select the company this user belongs to"
                   }
-                  required={selectedRole === 'manager' || selectedRole === 'employee'}
+                  required={selectedRole === 'manager' || selectedRole === 'employee' || selectedRole === 'team_lead'}
                 />
+              )}
+
+              {/* Team Selection — show when teams are available for the selected company */}
+              {teams.length > 0 && selectedCompanyCreate && selectedCompanyCreate > 0 && (
+                <>
+                  {/* Team Category Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Team Category</label>
+                    <Select 
+                      value={teamCategory}
+                      onValueChange={setTeamCategory}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Teams</SelectItem>
+                        <SelectItem value="technical">Technical Team</SelectItem>
+                        <SelectItem value="marketing">Marketing Team</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Filter teams by category to find them easily
+                    </p>
+                  </div>
+
+                  {/* Team/Category Selection */}
+                  <FormField
+                    control={createForm.control}
+                    name="team"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {teamCategory === 'marketing' ? 'Marketing Category' : 'Team'} {selectedRole === 'team_lead' && <span className="text-destructive">*</span>}
+                          {selectedRole !== 'team_lead' && '(Optional)'}
+                        </FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))} 
+                          value={field.value?.toString() || "0"}
+                          disabled={loadingTeams}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                loadingTeams 
+                                  ? "Loading teams..." 
+                                  : selectedRole === 'team_lead'
+                                    ? teamCategory === 'marketing' ? "Select marketing category" : "Select team (required for team lead)"
+                                    : teamCategory === 'marketing' ? "Select marketing category (optional)" : "Select team (optional)"
+                              } />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {selectedRole !== 'team_lead' && <SelectItem value="0">No Team</SelectItem>}
+                            {teamCategory === 'marketing' ? (
+                              // Show marketing categories
+                              <>
+                                {filteredTeams.filter(t => t.marketing_category === 'bre').length > 0 && (
+                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'bre')?.id.toString() || "0"}>
+                                    BRE - Business Research Executive
+                                  </SelectItem>
+                                )}
+                                {filteredTeams.filter(t => t.marketing_category === 'boe').length > 0 && (
+                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'boe')?.id.toString() || "0"}>
+                                    BOE - Business Outreach Executive
+                                  </SelectItem>
+                                )}
+                                {filteredTeams.filter(t => t.marketing_category === 'cre').length > 0 && (
+                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'cre')?.id.toString() || "0"}>
+                                    CRE - Client Research Executive
+                                  </SelectItem>
+                                )}
+                                {filteredTeams.filter(t => t.marketing_category === 'marketing_lead').length > 0 && (
+                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'marketing_lead')?.id.toString() || "0"}>
+                                    Marketing Team Lead
+                                  </SelectItem>
+                                )}
+                              </>
+                            ) : (
+                              // Show team names for technical or all
+                              filteredTeams.map((team) => (
+                                <SelectItem key={team.id} value={team.id.toString()}>
+                                  {team.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {teamCategory === 'marketing' 
+                            ? "Select the marketing category for this user"
+                            : selectedRole === 'team_lead' 
+                              ? "Team Lead must be assigned to a team to manage"
+                              : "Assign this user to a specific team (for ASE Technologies)"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
               )}
 
               {selectedRole === 'employee' && (

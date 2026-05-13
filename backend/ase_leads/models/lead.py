@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class ASELead(models.Model):
@@ -115,12 +116,98 @@ class ASELead(models.Model):
         help_text="User who created this lead"
     )
     
+    # Role Assignment Fields (Marketing Team)
+    researched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='researched_leads',
+        help_text="BRE who researched and qualified this lead"
+    )
+    contacted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contacted_leads',
+        help_text="BOE who made first contact with this lead"
+    )
+    managed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_leads',
+        help_text="CRE managing this lead through proposal and closing"
+    )
+    
     # Important Dates
     first_contact_date = models.DateTimeField(null=True, blank=True, help_text="Date of first contact")
     last_contact_date = models.DateTimeField(null=True, blank=True, help_text="Date of last contact")
     next_follow_up = models.DateTimeField(null=True, blank=True, help_text="Next follow-up date")
     proposal_sent_date = models.DateTimeField(null=True, blank=True, help_text="Date proposal was sent")
     contract_start_date = models.DateTimeField(null=True, blank=True, help_text="Contract start date")
+    
+    # Tracking Timestamp Fields (Marketing Team Workflow)
+    research_completed_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when BRE completed research and qualification")
+    first_contact_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when BOE made first contact")
+    proposal_sent_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when CRE sent proposal")
+    deal_closed_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when deal was closed (won/lost)")
+    
+    # Performance Metric Fields (Marketing Team Activity Tracking)
+    total_calls_made = models.IntegerField(default=0, help_text="Total number of calls made to this lead")
+    total_emails_sent = models.IntegerField(default=0, help_text="Total number of emails sent to this lead")
+    total_meetings_held = models.IntegerField(default=0, help_text="Total number of meetings held with this lead")
+    response_time_hours = models.DecimalField(
+        max_digits=6, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        help_text="Average response time in hours"
+    )
+    
+    # Qualification Fields (BRE Research & Qualification)
+    lead_score = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Lead quality score from 0-100 (assigned by BRE during qualification)"
+    )
+    qualification_notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="BRE notes on lead qualification, research findings, and quality assessment"
+    )
+    disqualification_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Reason for disqualifying the lead (if applicable)"
+    )
+    
+    # Engagement Tracking Fields
+    engagement_level = models.CharField(
+        max_length=20,
+        choices=[
+            ('cold', 'Cold'),
+            ('warm', 'Warm'),
+            ('hot', 'Hot'),
+            ('very_hot', 'Very Hot'),
+        ],
+        default='cold',
+        help_text="Current engagement level of the lead"
+    )
+    last_engagement_type = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Type of last engagement (call, email, meeting, etc.)"
+    )
+    last_engagement_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Date and time of last engagement with the lead"
+    )
     
     # Financial Information
     estimated_project_value = models.DecimalField(

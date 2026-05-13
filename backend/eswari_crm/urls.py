@@ -54,6 +54,8 @@ urlpatterns = [
     path("api/", include("ase_customers.urls")),  # ASE Customers URLs
     path("api/", include("ase_leads.urls")),      # ASE Leads URLs
     path("api/capital/", include("capital.urls")),  # Eswari Capital URLs
+    path("api/", include("teams.urls")),          # Teams URLs for ASE Technologies
+    path("api/tech/", include("tech_projects.urls")),  # Technical team projects and tasks
     path("api/app-settings/", include("app_settings.urls")),
     path("api/notifications/", include("notifications.urls")),
     path("api/hr/reports/dashboard/", dashboard_metrics, name="hr_dashboard_metrics"),

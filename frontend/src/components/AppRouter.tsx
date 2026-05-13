@@ -38,6 +38,11 @@ import AdminCapitalEmployees from '@/pages/admin/AdminCapitalEmployees';
 import AdminDocumentation from '@/pages/admin/AdminDocumentation';
 import AdminBirthdays from '@/pages/admin/AdminBirthdays';
 import AdminPendingUsers from '@/pages/admin/AdminPendingUsers';
+import TechnicalTeamPanel from '@/pages/admin/TechnicalTeamPanel';
+import EnhancedTechnicalTeamPanel from '@/pages/admin/EnhancedTechnicalTeamPanel';
+import MarketingTeamPanel from '@/pages/admin/MarketingTeamPanel';
+import BOELeads from '@/components/ase-marketing/dashboards/BOELeads';
+import MarketingTasks from '@/components/ase-marketing/tasks/MarketingTasksPage';
 
 // Manager Pages
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
@@ -158,6 +163,8 @@ const AppRouter = () => {
         <Route path="ase-reports" element={<AdminReports />} />
         <Route path="ase-activity" element={<AdminASEActivity />} />
         <Route path="ase-employees" element={<AdminASEEmployees />} />
+        <Route path="technical-team" element={<EnhancedTechnicalTeamPanel />} />
+        <Route path="marketing-team" element={<MarketingTeamPanel />} />
         <Route path="eswari-employees" element={<AdminEswariEmployees />} />
         <Route path="capital-employees" element={<AdminCapitalEmployees />} />
         <Route path="campaigns" element={<AdminCampaigns />} />
@@ -230,7 +237,27 @@ const AppRouter = () => {
         <Route path="announcements" element={<ManagerAnnouncements />} />
         <Route path="reports" element={<ManagerReports />} />
         <Route path="activity" element={<ManagerActivity />} />
+        <Route path="marketing-team" element={<MarketingTeamPanel />} />
         <Route path="settings" element={<SettingsPage />} />
+      </Route>
+
+      {/* Team Routes (for team members - technical and marketing) */}
+      <Route path="/team" element={<DashboardLayout requiredRole="employee" />}>
+        <Route path="technical" element={<EnhancedTechnicalTeamPanel />} />
+        <Route path="marketing" element={<MarketingTeamPanel />} />
+        <Route path="marketing/research" element={<MarketingTeamPanel />} />
+        <Route path="marketing/leads" element={<BOELeads />} />
+        <Route path="marketing/tasks" element={<MarketingTeamPanel />} />
+        <Route path="technical/announcements" element={<StaffAnnouncements />} />
+        <Route path="technical/leaves" element={<StaffLeaves />} />
+        <Route path="technical/holidays" element={<StaffHolidays />} />
+        <Route path="technical/birthdays" element={<AdminBirthdays />} />
+        <Route path="technical/settings" element={<EmployeeSettings />} />
+        <Route path="marketing/announcements" element={<StaffAnnouncements />} />
+        <Route path="marketing/leaves" element={<StaffLeaves />} />
+        <Route path="marketing/holidays" element={<StaffHolidays />} />
+        <Route path="marketing/birthdays" element={<AdminBirthdays />} />
+        <Route path="marketing/settings" element={<EmployeeSettings />} />
       </Route>
 
       {/* Staff Routes (for employee role) */}

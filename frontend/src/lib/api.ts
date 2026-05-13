@@ -439,8 +439,9 @@ class ApiClient {
     last_name: string;
     phone: string;
     role: string;
-    company: number;
+    company?: number;
     manager?: number;
+    team?: number;
     joining_date?: string;
     designation?: string;
     present_address?: string;
@@ -538,6 +539,7 @@ class ApiClient {
     newPassword?: string;
     managerId?: string;
     company?: number;
+    team?: number;
     permanent_address?: string;
     present_address?: string;
     bank_name?: string;
@@ -1171,6 +1173,123 @@ class ApiClient {
 
   async getActiveCompanies() {
     return this.request('/auth/companies/active/');
+  }
+
+  // Teams (for ASE Technologies)
+  async getTeams(params?: Record<string, any>) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/teams/${queryString}`);
+  }
+
+  async getTeam(id: number) {
+    return this.request(`/teams/${id}/`);
+  }
+
+  async getTeamMembers(id: number) {
+    return this.request(`/teams/${id}/members/`);
+  }
+
+  async getTeamTypes() {
+    return this.request('/teams/types/');
+  }
+
+  async createTeam(teamData: any) {
+    return this.request('/teams/', {
+      method: 'POST',
+      body: JSON.stringify(teamData),
+    });
+  }
+
+  async updateTeam(id: number, teamData: any) {
+    return this.request(`/teams/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(teamData),
+    });
+  }
+
+  async deleteTeam(id: number) {
+    return this.request(`/teams/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Tech Projects (Technical Team)
+  async getTechProjects(params?: Record<string, any>) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/tech/projects/${queryString}`);
+  }
+
+  async getTechProject(id: number) {
+    return this.request(`/tech/projects/${id}/`);
+  }
+
+  async createTechProject(projectData: any) {
+    return this.request('/tech/projects/', {
+      method: 'POST',
+      body: JSON.stringify(projectData),
+    });
+  }
+
+  async updateTechProject(id: number, projectData: any) {
+    return this.request(`/tech/projects/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(projectData),
+    });
+  }
+
+  async deleteTechProject(id: number) {
+    return this.request(`/tech/projects/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTechProjectStatistics() {
+    return this.request('/tech/projects/statistics/');
+  }
+
+  // Tech Tasks (Technical Team)
+  async getTechTasks(params?: Record<string, any>) {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/tech/tasks/${queryString}`);
+  }
+
+  async getTechTask(id: number) {
+    return this.request(`/tech/tasks/${id}/`);
+  }
+
+  async createTechTask(taskData: any) {
+    return this.request('/tech/tasks/', {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    });
+  }
+
+  async updateTechTask(id: number, taskData: any) {
+    return this.request(`/tech/tasks/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(taskData),
+    });
+  }
+
+  async deleteTechTask(id: number) {
+    return this.request(`/tech/tasks/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTechTaskStatistics() {
+    return this.request('/tech/tasks/statistics/');
+  }
+
+  async getTechKanbanBoard() {
+    return this.request('/tech/tasks/kanban/');
+  }
+
+  async moveTechTask(id: number, status: string) {
+    return this.request(`/tech/tasks/${id}/move/`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
   }
 
   // Generic HTTP methods for external services

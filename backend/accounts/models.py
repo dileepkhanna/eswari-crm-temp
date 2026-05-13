@@ -198,6 +198,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=[
         ('admin', 'Admin'),
         ('manager', 'Manager'),
+        ('team_lead', 'Team Lead'),
         ('employee', 'Employee'),
         ('hr', 'HR'),
     ], default='employee')
@@ -261,6 +262,17 @@ class User(AbstractUser):
     emergency_contact2_name = models.CharField(max_length=100, blank=True, null=True)
     emergency_contact2_phone = models.CharField(max_length=15, blank=True, null=True)
     emergency_contact2_relation = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Team assignment (for ASE Technologies)
+    team = models.ForeignKey(
+        'teams.Team',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='members',
+        help_text='Team this user belongs to (for ASE Technologies)'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

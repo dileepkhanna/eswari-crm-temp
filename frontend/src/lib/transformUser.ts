@@ -14,6 +14,10 @@ export function transformUser(user: any) {
     designation: user.designation || null,
     joining_date: user.joining_date || null,
     role: user.role,
+    // Team assignment
+    team: user.team || null,
+    team_info: user.team_info || null,
+    marketing_category: user.team_info?.marketing_category || null,
     // Derive status from actual backend flags
     status: user.is_active ? 'active' : (user.pending_approval ? 'pending' : 'inactive'),
     manager_id: user.manager?.toString() || null,

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'manager' | 'employee' | 'hr';
+export type UserRole = 'admin' | 'manager' | 'team_lead' | 'employee' | 'hr';
 
 export type LeadStatus = 'new' | 'hot' | 'warm' | 'cold' | 'not_interested' | 'reminder' | 'contacted' | 'qualified' | 'converted';
 
@@ -43,6 +43,16 @@ export interface User {
   manager_name?: string; // Manager's name from backend
   employees_count?: number; // Count of employees under this manager
   password?: string; // For demo purposes
+  company?: Company; // User's company
+  team?: number; // Team ID
+  team_info?: { // Team information
+    id: number;
+    name: string;
+    team_type: 'technical' | 'marketing';
+    team_type_display: string;
+    marketing_category?: 'bre' | 'boe' | 'cre' | 'marketing_lead';
+    marketing_category_display?: string;
+  };
 }
 
 export interface Permission {

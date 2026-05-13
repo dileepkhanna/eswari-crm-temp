@@ -104,9 +104,16 @@ Authorization: Bearer <access_token>
   "phone": "+1234567892",
   "password": "SecurePass123!",
   "role": "employee",
-  "manager": 2
+  "company": 2,
+  "manager": 2,
+  "team": 1
 }
 ```
+
+**Field Notes**:
+- `company` (optional): Company ID. Required for manager, team_lead, and employee roles. Optional for admin/HR roles.
+- `team` (optional): Team ID. Required for team_lead role. Optional for other roles.
+- `manager` (optional): Manager user ID. Required for employee role.
 
 **Request Example**:
 ```http
@@ -121,7 +128,9 @@ Content-Type: application/json
   "phone": "+1234567892",
   "password": "SecurePass123!",
   "role": "employee",
-  "manager": 2
+  "company": 2,
+  "manager": 2,
+  "team": 1
 }
 ```
 
@@ -183,9 +192,18 @@ Content-Type: application/json
   "phone": "+1234567899",
   "address": "123 Main St",
   "managerId": 2,
+  "team": 1,
   "newPassword": "NewSecurePass123!"
 }
 ```
+
+**Field Notes**:
+- `team` (optional): Team ID to assign. See **Team Assignment Rules** below.
+
+**Team Assignment Rules**:
+- A team can be assigned to a user who does not currently have one.
+- Once a team is assigned, it **cannot be changed** to a different team. The API will return a `400` error if you attempt to change an existing team assignment.
+- Once a team is assigned, it **cannot be removed** (set to `null`/`0`/empty) by any user, including admins. The API will return a `400` error.
 
 **Request Example**:
 ```http
@@ -224,6 +242,20 @@ Content-Type: application/json
 ```json
 {
   "error": "HR cannot modify admin or HR users"
+}
+```
+
+- `400 Bad Request`: Attempting to change an already-assigned team
+```json
+{
+  "error": "Team cannot be changed once assigned."
+}
+```
+
+- `400 Bad Request`: Attempting to remove an already-assigned team
+```json
+{
+  "error": "Team cannot be removed once assigned."
 }
 ```
 

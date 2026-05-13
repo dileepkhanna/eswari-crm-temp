@@ -19,6 +19,15 @@ interface AuthUser {
   employees_names?: string[];
   company?: Company;
   available_companies?: Company[];
+  team?: number;
+  team_info?: {
+    id: number;
+    name: string;
+    team_type: 'technical' | 'marketing';
+    team_type_display: string;
+    marketing_category?: 'bre' | 'boe' | 'cre' | 'marketing_lead' | 'general';
+    marketing_category_display?: string;
+  };
 }
 
 interface AuthContextType {
@@ -79,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         employees_names: userData.employees_names,
         company: userData.company_info || userData.company,
         available_companies: userData.available_companies,
+        team: userData.team,
+        team_info: userData.team_info,
       };
 
       setUser(authUser);
@@ -165,6 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         employees_names: data.user.employees_names,
         company: userCompany,
         available_companies: availableCompanies,
+        team: data.user.team,
+        team_info: data.user.team_info,
       };
 
       setUser(authUser);
@@ -210,6 +223,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         employees_names: data.user.employees_names,
         company: userCompany,
         available_companies: availableCompanies,
+        team: data.user.team,
+        team_info: data.user.team_info,
       };
 
       setUser(authUser);
@@ -267,6 +282,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         manager_name: data.user.manager_name,
         employees_count: data.user.employees_count,
         employees_names: data.user.employees_names,
+        team: data.user.team,
+        team_info: data.user.team_info,
       };
 
       setUser(authUser);
@@ -310,6 +327,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         employees_names: data.user.employees_names,
         company: data.user.company_info || data.user.company,
         available_companies: data.user.available_companies,
+        team: data.user.team,
+        team_info: data.user.team_info,
       };
 
       setUser(authUser);

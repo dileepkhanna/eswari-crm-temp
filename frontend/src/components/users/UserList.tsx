@@ -67,6 +67,7 @@ interface DBUser {
   address: string | null;
   designation?: string | null;
   joining_date?: string | null;
+  team?: number | null; // Add team field
   permanent_address?: string | null;
   present_address?: string | null;
   bank_name?: string | null;
@@ -248,6 +249,20 @@ export default function UserList(props?: UserListProps) {
     }
   }, [props?.users, props?.companies]);
 
+  // Extract managers from props.users when provided
+  useEffect(() => {
+    if (props?.users && props.users.length > 0) {
+      const managersList = props.users
+        .filter(user => user.role === 'manager')
+        .map(user => ({
+          id: user.id,
+          name: user.name,
+          company: user.company?.id,
+        }));
+      setManagers(managersList);
+    }
+  }, [props?.users]);
+
   // Fetch companies for filter dropdown
   const fetchCompanies = async () => {
     // If using props, don't fetch
@@ -428,43 +443,67 @@ export default function UserList(props?: UserListProps) {
     company?: number;
     managerId?: string;
     joining_date?: string;
+    team?: number;
+    permanent_address?: string;
+    present_address?: string;
+    bank_name?: string;
+    bank_account_number?: string;
+    bank_ifsc?: string;
+    blood_group?: string;
+    aadhar_number?: string;
+    emergency_contact1_name?: string;
+    emergency_contact1_phone?: string;
+    emergency_contact1_relation?: string;
+    emergency_contact2_name?: string;
+    emergency_contact2_phone?: string;
+    emergency_contact2_relation?: string;
   }): Promise<{ success: boolean; userId?: string }> => {
     try {
       setIsSubmitting(true);
       
       logger.log('[UserList] handleSaveUser called with userData:', userData);
       
-      const result = await createUser(
-        userData.email,
-        userData.password,
-        userData.name,
-        userData.phone,
-        userData.address,
-        userData.role,
-        userData.company, // Add company parameter
-        userData.managerId,
-        userData.joining_date,
-        userData.designation
-      );
+      // Build the full payload for the API directly
+      const [firstName, ...lastNameParts] = userData.name.split(' ');
+      const lastName = lastNameParts.join(' ');
+      
+      const apiPayload: any = {
+        email: userData.email,
+        password: userData.password,
+        password_confirm: userData.password,
+        first_name: firstName,
+        last_name: lastName,
+        phone: userData.phone,
+        role: userData.role,
+        ...(userData.company && { company: userData.company }),
+        ...(userData.managerId && { manager: parseInt(userData.managerId) }),
+        ...(userData.joining_date && { joining_date: userData.joining_date }),
+        ...(userData.designation && { designation: userData.designation }),
+        ...(userData.team && { team: userData.team }),
+        ...(userData.present_address && { present_address: userData.present_address }),
+        ...(userData.permanent_address && { permanent_address: userData.permanent_address }),
+        ...(userData.bank_name && { bank_name: userData.bank_name }),
+        ...(userData.bank_account_number && { bank_account_number: userData.bank_account_number }),
+        ...(userData.bank_ifsc && { bank_ifsc: userData.bank_ifsc }),
+        ...(userData.blood_group && { blood_group: userData.blood_group }),
+        ...(userData.aadhar_number && { aadhar_number: userData.aadhar_number }),
+        ...(userData.emergency_contact1_name && { emergency_contact1_name: userData.emergency_contact1_name }),
+        ...(userData.emergency_contact1_phone && { emergency_contact1_phone: userData.emergency_contact1_phone }),
+        ...(userData.emergency_contact1_relation && { emergency_contact1_relation: userData.emergency_contact1_relation }),
+        ...(userData.emergency_contact2_name && { emergency_contact2_name: userData.emergency_contact2_name }),
+        ...(userData.emergency_contact2_phone && { emergency_contact2_phone: userData.emergency_contact2_phone }),
+        ...(userData.emergency_contact2_relation && { emergency_contact2_relation: userData.emergency_contact2_relation }),
+      };
 
-      if (result.success) {
+      logger.log('[UserList] Sending full payload to API:', apiPayload);
+      const data = await apiClient.createUser(apiPayload);
+
+      if (data && data.user) {
         toast.success(`User created successfully!`);
         await fetchUsers(false);
-        return { success: true, userId: result.userId };
+        return { success: true, userId: data.user.username };
       } else {
-        // Parse error message for better user feedback
-        let errorMessage = result.error || 'Failed to create user';
-        
-        // Check for specific error patterns
-        if (errorMessage.includes('UNIQUE constraint failed: accounts_user.email')) {
-          errorMessage = 'This email address is already registered. Please use a different email or leave it empty.';
-        } else if (errorMessage.includes('email')) {
-          errorMessage = 'Email error: ' + errorMessage;
-        }
-        
-        toast.error('Failed to create user', {
-          description: errorMessage
-        });
+        toast.error('Failed to create user');
         return { success: false };
       }
     } catch (error: any) {
@@ -498,6 +537,7 @@ export default function UserList(props?: UserListProps) {
       joining_date?: string;
       managerId?: string; 
       company?: number;
+      team?: number; // Add team field
       newPassword?: string;
       permanent_address?: string;
       present_address?: string;
@@ -645,7 +685,7 @@ export default function UserList(props?: UserListProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full overflow-x-hidden">
       {/* Filters */}
       <div className="flex flex-col gap-3">
         <div className="flex gap-3">
@@ -740,6 +780,11 @@ export default function UserList(props?: UserListProps) {
                 <Badge variant="outline" className={cn("capitalize text-[10px] px-1.5 py-0", getRoleBadgeColor(user.role || ''))}>
                   {user.role}
                 </Badge>
+                {(user as any).marketing_category && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 border-purple-300 uppercase">
+                    {(user as any).marketing_category}
+                  </Badge>
+                )}
                 {user.company && (
                   <span className="text-[10px] text-muted-foreground">{user.company.name}</span>
                 )}
@@ -792,11 +837,10 @@ export default function UserList(props?: UserListProps) {
 
       {/* Desktop table */}
       <div className="glass-card rounded-2xl overflow-hidden hidden sm:block">
-        <div className="overflow-x-auto">
-        <Table>
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-12">
+              <TableHead className="w-10 px-2">
                 <Checkbox 
                   checked={allSelected} 
                   onCheckedChange={toggleSelectAll}
@@ -805,13 +849,13 @@ export default function UserList(props?: UserListProps) {
               </TableHead>
               <TableHead className="font-semibold">User</TableHead>
               <TableHead className="font-semibold">User ID</TableHead>
-              <TableHead className="font-semibold hidden md:table-cell">Contact</TableHead>
+              <TableHead className="font-semibold hidden lg:table-cell">Contact</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
               <TableHead className="font-semibold hidden xl:table-cell">Company</TableHead>
-              <TableHead className="font-semibold hidden lg:table-cell">Manager</TableHead>
+              <TableHead className="font-semibold hidden xl:table-cell">Manager</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold hidden lg:table-cell">Joined</TableHead>
-              <TableHead className="font-semibold w-20"></TableHead>
+              <TableHead className="font-semibold w-10 px-2"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -825,7 +869,7 @@ export default function UserList(props?: UserListProps) {
                 }`}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <TableCell>
+                <TableCell className="px-2">
                   <Checkbox 
                     checked={selectedIds.has(user.id)} 
                     onCheckedChange={() => toggleSelect(user.id)}
@@ -833,47 +877,49 @@ export default function UserList(props?: UserListProps) {
                   />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white font-semibold shrink-0 text-sm">
                       {user.name.charAt(0)}
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">{user.name}</p>
-                      {user.email && <p className="text-xs text-muted-foreground">{user.email}</p>}
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground text-sm truncate">{user.name}</p>
+                      {user.email && <p className="text-xs text-muted-foreground truncate">{user.email}</p>}
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
                     {user.user_id}
                   </code>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">
+                <TableCell className="hidden lg:table-cell">
                   <p className="text-sm text-muted-foreground">{user.phone || '-'}</p>
                 </TableCell>
                 <TableCell>
-                  <Badge 
-                    variant="outline" 
-                    className={cn("capitalize", getRoleBadgeColor(user.role || ''))}
-                  >
-                    {user.role}
-                  </Badge>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <Badge 
+                      variant="outline" 
+                      className={cn("capitalize", getRoleBadgeColor(user.role || ''))}
+                    >
+                      {user.role}
+                    </Badge>
+                    {(user as any).marketing_category && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 border-purple-300 uppercase">
+                        {(user as any).marketing_category}
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="hidden xl:table-cell">
                   {user.company ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-                        {user.company.code.charAt(0)}
-                      </div>
-                      <span className="text-sm text-muted-foreground">{user.company.name}</span>
-                    </div>
+                    <span className="text-sm text-muted-foreground truncate">{user.company.name}</span>
                   ) : (
                     <p className="text-sm text-muted-foreground">-</p>
                   )}
                 </TableCell>
-                <TableCell className="hidden lg:table-cell">
+                <TableCell className="hidden xl:table-cell">
                   {user.role === 'employee' && user.manager_name ? (
-                    <p className="text-sm text-muted-foreground">{user.manager_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{user.manager_name}</p>
                   ) : (
                     <p className="text-sm text-muted-foreground">-</p>
                   )}
@@ -899,7 +945,7 @@ export default function UserList(props?: UserListProps) {
                       : format(new Date(user.created_at), 'MMM dd, yyyy')}
                   </p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -955,7 +1001,6 @@ export default function UserList(props?: UserListProps) {
             <p className="text-muted-foreground">No users found</p>
           </div>
         )}
-        </div>
       </div>
 
       <UserFormModal
@@ -1029,7 +1074,7 @@ export default function UserList(props?: UserListProps) {
                   <p className="text-sm font-medium">{viewingUser.address || 'Not provided'}</p>
                 </div>
 
-                <div class="space-y-1 col-span-2">
+                <div className="space-y-1 col-span-2">
                   <Label className="text-xs text-muted-foreground">Designation</Label>
                   <p className="text-sm font-medium">{viewingUser.designation || 'Not specified'}</p>
                 </div>

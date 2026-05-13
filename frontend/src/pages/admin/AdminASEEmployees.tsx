@@ -62,12 +62,12 @@ export default function AdminASEEmployees() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <TopBar 
         title="ASE Technologies — Employees" 
         subtitle="Manage ASE Technologies employees"
       />
-      <div className="p-3 sm:p-4 md:p-6">
+      <div className="p-3 sm:p-4 md:p-6 max-w-full">
         <UserList
           users={users}
           companies={companies}

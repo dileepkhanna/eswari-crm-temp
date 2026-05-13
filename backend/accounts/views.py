@@ -563,24 +563,38 @@ class UserListView(generics.ListAPIView):
         """Filter users based on strict role-based access control"""
         user = self.request.user
         search = self.request.query_params.get('search', '').strip()
+        team_id = self.request.query_params.get('team')  # Add team filter
         
         if user.role == 'admin' or user.role == 'hr':
             # Admin and HR can see all users, but optionally filter by company
             company_id = self.request.query_params.get('company')
-            qs = User.objects.all().order_by('-created_at')
+            qs = User.objects.all().select_related('company', 'team', 'manager').order_by('-created_at')
             if company_id:
                 qs = qs.filter(company_id=company_id)
+            # Filter by team if provided
+            if team_id:
+                qs = qs.filter(team_id=team_id)
         
         elif user.role == 'manager':
-            # Manager can see ONLY their assigned employees + themselves
-            qs = User.objects.filter(
-                models.Q(manager=user) |  # Their assigned employees only
-                models.Q(id=user.id)      # Themselves
-            ).order_by('-created_at')
+            # Manager can see their assigned employees + themselves
+            # When filtering by company, show all users in that company (for team panels)
+            company_id = self.request.query_params.get('company')
+            if company_id:
+                qs = User.objects.filter(
+                    models.Q(company_id=company_id)
+                ).select_related('company', 'team', 'manager').order_by('-created_at')
+            else:
+                qs = User.objects.filter(
+                    models.Q(manager=user) |  # Their assigned employees only
+                    models.Q(id=user.id)      # Themselves
+                ).select_related('company', 'team', 'manager').order_by('-created_at')
+            # Filter by team if provided
+            if team_id:
+                qs = qs.filter(team_id=team_id)
         
         else:  # employee role
             # Employee can see ONLY themselves
-            qs = User.objects.filter(id=user.id).order_by('-created_at')
+            qs = User.objects.filter(id=user.id).select_related('company', 'team', 'manager').order_by('-created_at')
         
         # Apply search filter if provided
         if search:
@@ -629,6 +643,7 @@ def admin_update_user_view(request, user_id):
         new_password = request.data.get('newPassword', '').strip()
         manager_id = request.data.get('managerId')
         company_id = request.data.get('company')
+        team_id = request.data.get('team')  # Team assignment
         # New personal/banking fields
         permanent_address = request.data.get('permanent_address', '').strip()
         present_address = request.data.get('present_address', '').strip()
@@ -719,11 +734,41 @@ def admin_update_user_view(request, user_id):
                 # If company changed, clear manager assignment (manager must be from same company)
                 if old_company and old_company.id != company.id:
                     user_to_update.manager = None
+                    # Also clear team assignment if company changed
+                    user_to_update.team = None
                     
             except Company.DoesNotExist:
                 return Response({
                     'error': 'Selected company not found or is inactive'
                 }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update team assignment if provided
+        if team_id is not None:
+            if team_id == '' or team_id == 0 or team_id == 'null' or team_id == 'none':
+                # Cannot remove team once assigned
+                if user_to_update.team is not None:
+                    return Response({
+                        'error': 'Team cannot be removed once assigned.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # If user already has a team assigned, prevent changing it (no one can change)
+                if user_to_update.team is not None and str(user_to_update.team_id) != str(team_id):
+                    return Response({
+                        'error': 'Team cannot be changed once assigned.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    from teams.models import Team
+                    team = Team.objects.get(id=team_id, is_active=True)
+                    # Validate team is from same company (if user has a company)
+                    if user_to_update.company and team.company_id != user_to_update.company_id:
+                        return Response({
+                            'error': 'Team must be from the same company'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    user_to_update.team = team
+                except Team.DoesNotExist:
+                    return Response({
+                        'error': 'Selected team not found or is inactive'
+                    }, status=status.HTTP_400_BAD_REQUEST)
         
         # Update manager assignment if provided
         if manager_id is not None:

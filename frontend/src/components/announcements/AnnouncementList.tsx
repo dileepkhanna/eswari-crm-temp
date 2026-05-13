@@ -54,8 +54,47 @@ export default function AnnouncementList({
 
   return (
     <>
-      {/* Always show table layout with horizontal scroll */}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      {/* Mobile card layout */}
+      <div className="space-y-3 sm:hidden">
+        {announcements.map((a, index) => (
+          <div
+            key={a.id}
+            className="glass-card rounded-xl p-4 space-y-2 animate-fade-in cursor-pointer"
+            style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => onView(a)}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h4 className="font-medium text-sm truncate">{a.title}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">By {a.createdByName || 'Unknown'}</p>
+              </div>
+              <Badge variant="outline" className={cn('capitalize text-[10px] shrink-0', getPriorityColor(a.priority))}>
+                {a.priority}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">{a.message}</p>
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={cn('text-[10px]', getStatusColor(a.isActive))}>
+                  {a.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+                {a.document_url && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {isImageFile(a.document_name || '') ? <Image className="w-3 h-3 mr-0.5" /> : <FileText className="w-3 h-3 mr-0.5" />}
+                    Doc
+                  </Badge>
+                )}
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {a.expiresAt ? format(a.expiresAt, 'MMM dd') : 'No expiry'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="glass-card rounded-2xl overflow-hidden hidden sm:block">
         <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

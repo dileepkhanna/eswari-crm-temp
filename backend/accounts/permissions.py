@@ -35,6 +35,17 @@ def get_accessible_user_ids(user):
         # HR can access all users within their company only
         return list(User.objects.filter(company=user.company).values_list('id', flat=True))
     
+    elif user.role == 'team_lead':
+        # Team Lead can access all users in their team + their own data
+        if user.team:
+            team_member_ids = list(
+                User.objects.filter(team=user.team, company=user.company).values_list('id', flat=True)
+            )
+            return team_member_ids
+        else:
+            # If team lead has no team assigned, only access their own data
+            return [user.id]
+    
     elif user.role == 'manager':
         # Manager can access ONLY their assigned employees' data + their own data
         employee_ids = list(
@@ -56,6 +67,7 @@ def filter_by_user_access(queryset, user, assigned_to_field='assigned_to', creat
     This function filters data so that:
     - Admins see all data across all companies
     - HR see all data within their company
+    - Team Leads see data for all members in their team
     - Managers see their own data + their assigned employees' data only
     - Employees see ONLY data assigned to them (not data they created)
     
@@ -79,20 +91,20 @@ def filter_by_user_access(queryset, user, assigned_to_field='assigned_to', creat
             company_filter = Q(company=user.company)
         return queryset.filter(company_filter)
     
-    # Get accessible user IDs for manager/employee roles
+    # Get accessible user IDs for team_lead/manager/employee roles
     accessible_user_ids = get_accessible_user_ids(user)
     
     # Build Q objects for filtering
     filters = Q()
     
     # For employees: ONLY filter by assigned_to (not created_by)
-    # For managers: filter by both assigned_to and created_by
+    # For team leads and managers: filter by both assigned_to and created_by
     if user.role == 'employee':
         # Employees can ONLY see records assigned to them
         if assigned_to_field and hasattr(queryset.model, assigned_to_field):
             filters |= Q(**{f'{assigned_to_field}__id__in': accessible_user_ids})
     else:
-        # Managers can see records assigned to them OR created by them/their team
+        # Team leads and managers can see records assigned to them OR created by them/their team
         # Filter by assigned_to if field exists
         if assigned_to_field and hasattr(queryset.model, assigned_to_field):
             filters |= Q(**{f'{assigned_to_field}__id__in': accessible_user_ids})
@@ -124,6 +136,12 @@ def can_access_user_data(requesting_user, target_user):
     
     if requesting_user.id == target_user.id:
         return True
+    
+    if requesting_user.role == 'team_lead':
+        # Check if target_user is in the same team
+        return (requesting_user.team and 
+                target_user.team and 
+                requesting_user.team.id == target_user.team.id)
     
     if requesting_user.role == 'manager':
         # Check if target_user is an employee under this manager
@@ -167,6 +185,8 @@ def should_hide_contact_details(requesting_user, data_owner_user):
     
     Contact details should be visible when:
     - Admin viewing any data
+    - HR viewing any data
+    - Team Lead viewing their team members' data
     - Manager viewing their employees' data
     - User viewing their own data
     
@@ -177,13 +197,20 @@ def should_hide_contact_details(requesting_user, data_owner_user):
     Returns:
         bool: True if contact details should be hidden, False otherwise
     """
-    # Admin can see everything
-    if requesting_user.role == 'admin':
+    # Admin and HR can see everything
+    if requesting_user.role in ['admin', 'hr']:
         return False
     
     # Users can see their own data
     if requesting_user.id == data_owner_user.id:
         return False
+    
+    # Team leads can see their team members' data
+    if requesting_user.role == 'team_lead':
+        if (requesting_user.team and 
+            data_owner_user.team and 
+            requesting_user.team.id == data_owner_user.team.id):
+            return False
     
     # Managers can see their employees' data
     if requesting_user.role == 'manager' and data_owner_user.manager_id == requesting_user.id:
@@ -243,7 +270,7 @@ class CompanyAccessPermission(permissions.BasePermission):
     
     Access Rules:
     - Admin and HR: Can access any company's data
-    - Manager and Employee: Can only access their own company's data
+    - Team Lead, Manager and Employee: Can only access their own company's data
     
     Returns 403 Forbidden for cross-company access attempts by restricted roles.
     """
@@ -270,5 +297,5 @@ class CompanyAccessPermission(permissions.BasePermission):
         if not hasattr(obj, 'company'):
             return True  # No company restriction
         
-        # Managers and Employees can only access their company's data
+        # Team Leads, Managers and Employees can only access their company's data
         return obj.company_id == user.company_id
