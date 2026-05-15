@@ -86,8 +86,9 @@ export default function HREmployees() {
   const [createFormData, setCreateFormData] = useState({
     first_name: '', last_name: '', email: '', phone: '', address: '',
     designation: '', password: '', password_confirm: '',
-    role: 'employee' as 'manager' | 'employee',
+    role: 'employee' as 'manager' | 'team_lead' | 'employee',
     manager: '' as string, company: user?.company?.id || 0,
+    team: undefined as number | undefined,
     joining_date: new Date().toISOString().split('T')[0],
     present_address: '', permanent_address: '',
     bank_name: '', bank_account_number: '', bank_ifsc: '',
@@ -96,6 +97,11 @@ export default function HREmployees() {
     emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
   });
 
+  // Team selection state
+  const [createTeams, setCreateTeams] = useState<any[]>([]);
+  const [loadingCreateTeams, setLoadingCreateTeams] = useState(false);
+  const [createTeamCategory, setCreateTeamCategory] = useState<string>('all');
+
   // Edit employee modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -103,14 +109,19 @@ export default function HREmployees() {
   const [editFormData, setEditFormData] = useState({
     first_name: '', last_name: '', email: '', phone: '', address: '',
     designation: '', joining_date: '',
-    role: 'employee' as 'manager' | 'employee',
-    manager: '' as string, company: 0, newPassword: '',
+    role: 'employee' as 'manager' | 'team_lead' | 'employee',
+    manager: '' as string, company: 0, team: undefined as number | undefined, newPassword: '',
     present_address: '', permanent_address: '',
     bank_name: '', bank_account_number: '', bank_ifsc: '',
     blood_group: '', aadhar_number: '',
     emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
     emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
   });
+
+  // Edit team selection state
+  const [editTeams, setEditTeams] = useState<any[]>([]);
+  const [loadingEditTeams, setLoadingEditTeams] = useState(false);
+  const [editTeamCategory, setEditTeamCategory] = useState<string>('all');
 
   // Delete employee modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -131,6 +142,8 @@ export default function HREmployees() {
   const [inviteRole, setInviteRole] = useState('employee');
   const [inviteCompany, setInviteCompany] = useState<number | ''>('');
   const [inviteManager, setInviteManager] = useState('');
+  const [inviteTeam, setInviteTeam] = useState<string>('');
+  const [inviteTeams, setInviteTeams] = useState<any[]>([]);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteGenerating, setInviteGenerating] = useState(false);
 
@@ -233,6 +246,7 @@ export default function HREmployees() {
     if (createFormData.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     if (!createFormData.company || createFormData.company === 0) { toast.error('Company is required'); return; }
     if (createFormData.role === 'employee' && !createFormData.manager) { toast.error('Manager is required for employees'); return; }
+    if (createFormData.role === 'team_lead' && !createFormData.team) { toast.error('Team must be assigned for team leads'); return; }
     if (!declared) { toast.error('Please accept the declaration'); return; }
 
     try {
@@ -285,7 +299,8 @@ export default function HREmployees() {
         emergency_contact2_relation: createFormData.emergency_contact2_relation.trim() || undefined,
         ...(createFormData.role === 'employee' && createFormData.manager && {
           manager: parseInt(createFormData.manager)
-        })
+        }),
+        ...(createFormData.team && { team: createFormData.team }),
       });
       
       logger.log('[HREmployees] API response:', response);
@@ -318,6 +333,7 @@ export default function HREmployees() {
         first_name: '', last_name: '', email: '', phone: '', address: '',
         designation: '', password: '', password_confirm: '',
         role: 'employee', manager: '', company: user?.company?.id || 0,
+        team: undefined,
         joining_date: new Date().toISOString().split('T')[0],
         present_address: '', permanent_address: '',
         bank_name: '', bank_account_number: '', bank_ifsc: '',
@@ -325,6 +341,7 @@ export default function HREmployees() {
         emergency_contact1_name: '', emergency_contact1_phone: '', emergency_contact1_relation: '',
         emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
       });
+      setCreateTeamCategory('all');
       
       // Refresh employee list
       fetchEmployees();
@@ -353,6 +370,7 @@ export default function HREmployees() {
       first_name: '', last_name: '', email: '', phone: '', address: '',
       designation: '', password: '', password_confirm: '',
       role: 'employee', manager: '', company: user?.company?.id || 0,
+      team: undefined,
       joining_date: new Date().toISOString().split('T')[0],
       present_address: '', permanent_address: '',
       bank_name: '', bank_account_number: '', bank_ifsc: '',
@@ -361,16 +379,18 @@ export default function HREmployees() {
       emergency_contact2_name: '', emergency_contact2_phone: '', emergency_contact2_relation: '',
     });
     setDeclared(false);
+    setCreateTeamCategory('all');
     setIsCreateModalOpen(true);
   };
 
   const handleGenerateInvite = async () => {
     setInviteGenerating(true);
     try {
-      const payload: { role: string; company?: number; manager_id?: number } = { role: inviteRole };
+      const payload: { role: string; company?: number; manager_id?: number; team_id?: number } = { role: inviteRole };
       if (inviteCompany) payload.company = inviteCompany as number;
       else if (user?.company?.id) payload.company = user.company.id;
       if (inviteManager) payload.manager_id = parseInt(inviteManager);
+      if (inviteTeam) payload.team_id = parseInt(inviteTeam);
       const res: any = await apiClient.generateInvite(payload);
       setInviteLink(`${window.location.origin}/register?token=${res.token}`);
     } catch {
@@ -378,6 +398,93 @@ export default function HREmployees() {
     } finally {
       setInviteGenerating(false);
     }
+  };
+
+  // Fetch teams when company changes
+  const fetchTeamsForCompany = async (companyId: number) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`http://localhost:8000/api/teams/?company=${companyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInviteTeams(data.results || data || []);
+      }
+    } catch { setInviteTeams([]); }
+  };
+
+  // Fetch teams for create form when company changes
+  useEffect(() => {
+    const fetchTeams = async () => {
+      const companyId = createFormData.company;
+      if (companyId && companyId > 0) {
+        setLoadingCreateTeams(true);
+        try {
+          const response = await apiClient.getTeams({ company: companyId });
+          const teamsData = response?.results || response || [];
+          setCreateTeams(teamsData);
+        } catch (error) {
+          logger.error('Failed to fetch teams for create form:', error);
+          setCreateTeams([]);
+        } finally {
+          setLoadingCreateTeams(false);
+        }
+      } else {
+        setCreateTeams([]);
+      }
+    };
+    fetchTeams();
+  }, [createFormData.company]);
+
+  // Fetch teams for edit form when company changes
+  useEffect(() => {
+    const fetchTeams = async () => {
+      const companyId = editFormData.company;
+      if (companyId && companyId > 0) {
+        setLoadingEditTeams(true);
+        try {
+          const response = await apiClient.getTeams({ company: companyId });
+          const teamsData = response?.results || response || [];
+          setEditTeams(teamsData);
+        } catch (error) {
+          logger.error('Failed to fetch teams for edit form:', error);
+          setEditTeams([]);
+        } finally {
+          setLoadingEditTeams(false);
+        }
+      } else {
+        setEditTeams([]);
+      }
+    };
+    fetchTeams();
+  }, [editFormData.company]);
+
+  // Filter teams by category
+  const getFilteredCreateTeams = () => {
+    if (createTeamCategory === 'all') return createTeams;
+    if (createTeamCategory === 'technical') return createTeams.filter((team: any) => team.team_type === 'technical');
+    if (createTeamCategory === 'marketing') {
+      return createTeams.filter((team: any) => 
+        team.team_type === 'marketing' && 
+        team.marketing_category && 
+        ['bre', 'boe', 'cre', 'marketing_lead'].includes(team.marketing_category)
+      );
+    }
+    return createTeams;
+  };
+
+  const getFilteredEditTeams = () => {
+    if (editTeamCategory === 'all') return editTeams;
+    if (editTeamCategory === 'technical') return editTeams.filter((team: any) => team.team_type === 'technical');
+    if (editTeamCategory === 'marketing') {
+      return editTeams.filter((team: any) => 
+        team.team_type === 'marketing' && 
+        team.marketing_category && 
+        ['bre', 'boe', 'cre', 'marketing_lead'].includes(team.marketing_category)
+      );
+    }
+    return editTeams;
   };
 
   const handleCopyInvite = () => {
@@ -402,9 +509,10 @@ export default function HREmployees() {
       address: (employee as any).address || '',
       designation: employee.designation || '',
       joining_date: employee.joining_date || '',
-      role: employee.role as 'manager' | 'employee',
+      role: employee.role as 'manager' | 'team_lead' | 'employee',
       manager: employee.manager ? employee.manager.toString() : '',
       company: employee.company_info?.id || 0,
+      team: (employee as any).team || undefined,
       newPassword: '',
       present_address: employee.present_address || '',
       permanent_address: employee.permanent_address || '',
@@ -421,6 +529,7 @@ export default function HREmployees() {
       emergency_contact2_relation: employee.emergency_contact2_relation || '',
     });
     setDeclared(false);
+    setEditTeamCategory('all');
     setIsEditModalOpen(true);
   };
 
@@ -435,6 +544,7 @@ export default function HREmployees() {
     if (!editFormData.designation.trim()) { toast.error('Designation is required'); return; }
     if (!editFormData.joining_date) { toast.error('Joining date is required'); return; }
     if (editFormData.role === 'employee' && !editFormData.manager) { toast.error('Manager is required for employees'); return; }
+    if (editFormData.role === 'team_lead' && !editFormData.team) { toast.error('Team must be assigned for team leads'); return; }
     if (!declared) { toast.error('Please accept the declaration'); return; }
 
     try {
@@ -454,6 +564,7 @@ export default function HREmployees() {
         managerId: editFormData.role === 'employee' && editFormData.manager
           ? editFormData.manager
           : undefined,
+        team: editFormData.team || undefined,
         newPassword: editFormData.newPassword.trim() || undefined,
         present_address: editFormData.present_address.trim() || undefined,
         permanent_address: editFormData.permanent_address.trim() || undefined,
@@ -575,6 +686,8 @@ export default function HREmployees() {
         return 'bg-blue-100 text-blue-700 border-blue-300';
       case 'manager':
         return 'bg-primary/15 text-primary border-primary/30';
+      case 'team_lead':
+        return 'bg-teal-100 text-teal-700 border-teal-300';
       case 'employee':
         return 'bg-info/15 text-info border-info/30';
       default:
@@ -612,9 +725,9 @@ export default function HREmployees() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <TopBar title="Employee Management" subtitle="Manage employee accounts" />
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         <div className="space-y-6">
           {/* Search Bar and Filters */}
           <div className="space-y-3">
@@ -641,6 +754,7 @@ export default function HREmployees() {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="hr">HR</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
                   <SelectItem value="employee">Employee</SelectItem>
                 </SelectContent>
               </Select>
@@ -688,7 +802,7 @@ export default function HREmployees() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setShowInviteModal(true); }}
+                  onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setInviteTeam(''); setInviteTeams([]); setShowInviteModal(true); }}
                   className="flex-1 border-primary text-primary hover:bg-primary hover:text-white"
                 >
                   <Link className="w-4 h-4 mr-1" />
@@ -808,17 +922,17 @@ export default function HREmployees() {
 
           {/* Desktop Table View - Hidden on mobile */}
           <div className="hidden md:block glass-card rounded-2xl overflow-hidden">
-            <Table>
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-semibold">Name</TableHead>
-                  <TableHead className="font-semibold">Email</TableHead>
-                  <TableHead className="font-semibold hidden sm:table-cell">Phone</TableHead>
-                  <TableHead className="font-semibold">Role</TableHead>
-                  <TableHead className="font-semibold hidden xl:table-cell">Company</TableHead>
-                  <TableHead className="font-semibold hidden lg:table-cell">Manager</TableHead>
-                  <TableHead className="font-semibold hidden md:table-cell">Joined</TableHead>
-                  <TableHead className="font-semibold text-right">Actions</TableHead>
+                  <TableHead className="font-semibold w-[18%]">Name</TableHead>
+                  <TableHead className="font-semibold w-[18%]">Email</TableHead>
+                  <TableHead className="font-semibold w-[12%]">Phone</TableHead>
+                  <TableHead className="font-semibold w-[10%]">Role</TableHead>
+                  <TableHead className="font-semibold w-[15%] hidden xl:table-cell">Company</TableHead>
+                  <TableHead className="font-semibold w-[12%] hidden lg:table-cell">Manager</TableHead>
+                  <TableHead className="font-semibold w-[10%]">Joined</TableHead>
+                  <TableHead className="font-semibold w-[8%] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -828,40 +942,40 @@ export default function HREmployees() {
                     className="table-row-hover animate-fade-in"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold shrink-0">
+                    <TableCell className="truncate">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-semibold shrink-0">
                           {employee.first_name.charAt(0)}{employee.last_name.charAt(0)}
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate text-sm">
                             {employee.first_name} {employee.last_name}
                           </p>
-                          <p className="text-xs text-muted-foreground">@{employee.username}</p>
+                          <p className="text-xs text-muted-foreground truncate">@{employee.username}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm text-muted-foreground">{employee.email}</p>
+                      <p className="text-sm text-muted-foreground truncate">{employee.email}</p>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <p className="text-sm text-muted-foreground">{employee.phone || '-'}</p>
+                    <TableCell>
+                      <p className="text-sm text-muted-foreground truncate">{employee.phone || '-'}</p>
                     </TableCell>
                     <TableCell>
                       <Badge 
                         variant="outline" 
-                        className={cn("capitalize", getRoleBadgeColor(employee.role))}
+                        className={cn("capitalize text-xs", getRoleBadgeColor(employee.role))}
                       >
-                        {employee.role}
+                        {employee.role === 'team_lead' ? 'TL' : employee.role}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden xl:table-cell">
                       {employee.company_info ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                             {employee.company_info.code.charAt(0)}
                           </div>
-                          <span className="text-sm text-muted-foreground">{employee.company_info.name}</span>
+                          <span className="text-sm text-muted-foreground truncate">{employee.company_info.name}</span>
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">-</p>
@@ -869,20 +983,20 @@ export default function HREmployees() {
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       {employee.role === 'employee' && employee.manager_name ? (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground truncate">
                           {employee.manager_name}
                         </p>
                       ) : (
                         <p className="text-sm text-muted-foreground">-</p>
                       )}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <p className="text-sm text-muted-foreground">
+                    <TableCell>
+                      <p className="text-xs text-muted-foreground whitespace-nowrap">
                         {format(new Date(employee.created_at), 'MMM dd, yyyy')}
                       </p>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -947,7 +1061,7 @@ export default function HREmployees() {
           <DialogHeader>
             <DialogTitle>Create New Employee</DialogTitle>
             <DialogDescription>
-              Add a new manager or employee to the system. Only manager and employee roles are available.
+              Add a new manager, team lead or employee to the system.
             </DialogDescription>
           </DialogHeader>
           
@@ -1055,8 +1169,8 @@ export default function HREmployees() {
               </Label>
               <Select
                 value={createFormData.role}
-                onValueChange={(value: 'manager' | 'employee') => 
-                  setCreateFormData({ ...createFormData, role: value, manager: value === 'manager' ? '' : createFormData.manager })
+                onValueChange={(value: 'manager' | 'team_lead' | 'employee') => 
+                  setCreateFormData({ ...createFormData, role: value, manager: value === 'manager' ? '' : createFormData.manager, team: undefined })
                 }
                 disabled={isCreating}
               >
@@ -1065,6 +1179,7 @@ export default function HREmployees() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
                   <SelectItem value="employee">Employee</SelectItem>
                 </SelectContent>
               </Select>
@@ -1080,12 +1195,14 @@ export default function HREmployees() {
                 <Select
                   value={createFormData.company?.toString() || '0'}
                   onValueChange={(value) => {
-                    // Clear manager selection when company changes
+                    // Clear manager and team selection when company changes
                     setCreateFormData({ 
                       ...createFormData, 
                       company: parseInt(value),
-                      manager: '' // Reset manager when company changes
+                      manager: '', // Reset manager when company changes
+                      team: undefined, // Reset team when company changes
                     });
+                    setCreateTeamCategory('all');
                   }}
                   disabled={isCreating}
                 >
@@ -1149,6 +1266,88 @@ export default function HREmployees() {
                   </SelectContent>
                 </Select>
               </div>
+            )}
+
+            {/* Team Selection - show when teams are available for the selected company */}
+            {createTeams.length > 0 && createFormData.company && createFormData.company > 0 && (
+              <>
+                {/* Team Category Filter */}
+                <div className="grid gap-2">
+                  <Label>Team Category</Label>
+                  <Select 
+                    value={createTeamCategory}
+                    onValueChange={setCreateTeamCategory}
+                    disabled={isCreating}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Teams</SelectItem>
+                      <SelectItem value="technical">Technical Team</SelectItem>
+                      <SelectItem value="marketing">Marketing Team</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Filter teams by category to find them easily
+                  </p>
+                </div>
+
+                {/* Team Selection */}
+                <div className="grid gap-2">
+                  <Label>
+                    {createTeamCategory === 'marketing' ? 'Marketing Category' : 'Team'} {createFormData.role === 'team_lead' ? <span className="text-red-500">*</span> : '(Optional)'}
+                  </Label>
+                  <Select
+                    value={createFormData.team?.toString() || '0'}
+                    onValueChange={(value) => setCreateFormData({ ...createFormData, team: value === '0' ? undefined : parseInt(value) })}
+                    disabled={isCreating || loadingCreateTeams}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder={
+                        loadingCreateTeams 
+                          ? "Loading teams..." 
+                          : createFormData.role === 'team_lead'
+                            ? createTeamCategory === 'marketing' ? "Select marketing category" : "Select team (required)"
+                            : createTeamCategory === 'marketing' ? "Select marketing category (optional)" : "Select team (optional)"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {createFormData.role !== 'team_lead' && <SelectItem value="0">No Team</SelectItem>}
+                      {createTeamCategory === 'marketing' ? (
+                        <>
+                          {getFilteredCreateTeams().filter((t: any) => t.marketing_category === 'bre').length > 0 && (
+                            <SelectItem value={getFilteredCreateTeams().find((t: any) => t.marketing_category === 'bre')?.id.toString() || "0"}>
+                              BRE - Business Research Executive
+                            </SelectItem>
+                          )}
+                          {getFilteredCreateTeams().filter((t: any) => t.marketing_category === 'boe').length > 0 && (
+                            <SelectItem value={getFilteredCreateTeams().find((t: any) => t.marketing_category === 'boe')?.id.toString() || "0"}>
+                              BOE - Business Outreach Executive
+                            </SelectItem>
+                          )}
+                          {getFilteredCreateTeams().filter((t: any) => t.marketing_category === 'cre').length > 0 && (
+                            <SelectItem value={getFilteredCreateTeams().find((t: any) => t.marketing_category === 'cre')?.id.toString() || "0"}>
+                              CRE - Client Research Executive
+                            </SelectItem>
+                          )}
+                          {getFilteredCreateTeams().filter((t: any) => t.marketing_category === 'marketing_lead').length > 0 && (
+                            <SelectItem value={getFilteredCreateTeams().find((t: any) => t.marketing_category === 'marketing_lead')?.id.toString() || "0"}>
+                              Marketing Team Lead
+                            </SelectItem>
+                          )}
+                        </>
+                      ) : (
+                        getFilteredCreateTeams().map((team: any) => (
+                          <SelectItem key={team.id} value={team.id.toString()}>
+                            {team.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
 
             {/* Password Fields - Side by Side */}
@@ -1339,7 +1538,7 @@ export default function HREmployees() {
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
             <DialogDescription>
-              Update employee information. Only manager and employee roles can be modified by HR.
+              Update employee information. Manager, team lead and employee roles can be modified by HR.
             </DialogDescription>
           </DialogHeader>
           
@@ -1432,12 +1631,14 @@ export default function HREmployees() {
               <Select
                 value={editFormData.company?.toString() || '0'}
                 onValueChange={(value) => {
-                  // Clear manager selection when company changes
+                  // Clear manager and team selection when company changes
                   setEditFormData({ 
                     ...editFormData, 
                     company: parseInt(value),
-                    manager: '' // Reset manager when company changes
+                    manager: '', // Reset manager when company changes
+                    team: undefined, // Reset team when company changes
                   });
+                  setEditTeamCategory('all');
                 }}
                 disabled={isUpdating}
               >
@@ -1464,8 +1665,8 @@ export default function HREmployees() {
               </Label>
               <Select
                 value={editFormData.role}
-                onValueChange={(value: 'manager' | 'employee') => 
-                  setEditFormData({ ...editFormData, role: value, manager: value === 'manager' ? '' : editFormData.manager })
+                onValueChange={(value: 'manager' | 'team_lead' | 'employee') => 
+                  setEditFormData({ ...editFormData, role: value, manager: value === 'manager' ? '' : editFormData.manager, team: undefined })
                 }
                 disabled={isUpdating}
               >
@@ -1474,11 +1675,12 @@ export default function HREmployees() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
                   <SelectItem value="employee">Employee</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Only manager and employee roles can be set by HR
+                Only manager, team lead and employee roles can be set by HR
               </p>
             </div>
 
@@ -1516,6 +1718,85 @@ export default function HREmployees() {
                   Assign this employee to a manager for proper hierarchy
                 </p>
               </div>
+            )}
+
+            {/* Team Selection for Edit - show when teams are available */}
+            {editTeams.length > 0 && editFormData.company && editFormData.company > 0 && (
+              <>
+                {/* Team Category Filter */}
+                <div className="grid gap-2">
+                  <Label>Team Category</Label>
+                  <Select 
+                    value={editTeamCategory}
+                    onValueChange={setEditTeamCategory}
+                    disabled={isUpdating}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Teams</SelectItem>
+                      <SelectItem value="technical">Technical Team</SelectItem>
+                      <SelectItem value="marketing">Marketing Team</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Team Selection */}
+                <div className="grid gap-2">
+                  <Label>
+                    {editTeamCategory === 'marketing' ? 'Marketing Category' : 'Team'} {editFormData.role === 'team_lead' ? <span className="text-red-500">*</span> : '(Optional)'}
+                  </Label>
+                  <Select
+                    value={editFormData.team?.toString() || '0'}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, team: value === '0' ? undefined : parseInt(value) })}
+                    disabled={isUpdating || loadingEditTeams}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        loadingEditTeams 
+                          ? "Loading teams..." 
+                          : editFormData.role === 'team_lead'
+                            ? "Select team (required)"
+                            : "Select team (optional)"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editFormData.role !== 'team_lead' && <SelectItem value="0">No Team</SelectItem>}
+                      {editTeamCategory === 'marketing' ? (
+                        <>
+                          {getFilteredEditTeams().filter((t: any) => t.marketing_category === 'bre').length > 0 && (
+                            <SelectItem value={getFilteredEditTeams().find((t: any) => t.marketing_category === 'bre')?.id.toString() || "0"}>
+                              BRE - Business Research Executive
+                            </SelectItem>
+                          )}
+                          {getFilteredEditTeams().filter((t: any) => t.marketing_category === 'boe').length > 0 && (
+                            <SelectItem value={getFilteredEditTeams().find((t: any) => t.marketing_category === 'boe')?.id.toString() || "0"}>
+                              BOE - Business Outreach Executive
+                            </SelectItem>
+                          )}
+                          {getFilteredEditTeams().filter((t: any) => t.marketing_category === 'cre').length > 0 && (
+                            <SelectItem value={getFilteredEditTeams().find((t: any) => t.marketing_category === 'cre')?.id.toString() || "0"}>
+                              CRE - Client Research Executive
+                            </SelectItem>
+                          )}
+                          {getFilteredEditTeams().filter((t: any) => t.marketing_category === 'marketing_lead').length > 0 && (
+                            <SelectItem value={getFilteredEditTeams().find((t: any) => t.marketing_category === 'marketing_lead')?.id.toString() || "0"}>
+                              Marketing Team Lead
+                            </SelectItem>
+                          )}
+                        </>
+                      ) : (
+                        getFilteredEditTeams().map((team: any) => (
+                          <SelectItem key={team.id} value={team.id.toString()}>
+                            {team.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
 
             {/* New Password */}
@@ -2070,7 +2351,7 @@ export default function HREmployees() {
 
               <div className="space-y-2">
                 <Label>Company</Label>
-                <Select value={inviteCompany === '' ? 'none' : String(inviteCompany)} onValueChange={v => { setInviteCompany(v === 'none' ? '' : Number(v)); setInviteManager(''); }}>
+                <Select value={inviteCompany === '' ? 'none' : String(inviteCompany)} onValueChange={v => { const val = v === 'none' ? '' : Number(v); setInviteCompany(val); setInviteManager(''); setInviteTeam(''); if (val) fetchTeamsForCompany(val as number); else setInviteTeams([]); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select company (optional)" />
                   </SelectTrigger>
@@ -2082,6 +2363,23 @@ export default function HREmployees() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {inviteTeams.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Team <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <Select value={inviteTeam || 'none'} onValueChange={v => setInviteTeam(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No team</SelectItem>
+                      {inviteTeams.map((t: any) => (
+                        <SelectItem key={t.id} value={String(t.id)}>{t.name}{t.marketing_category ? ` (${t.marketing_category.toUpperCase()})` : ''}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {inviteRole === 'employee' && (
                 <div className="space-y-2">

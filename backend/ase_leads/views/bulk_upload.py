@@ -614,18 +614,31 @@ def boe_assigned_list(request):
             qs = BREResearchData.objects.filter(
                 company=company,
                 status__in=['assigned', 'converted'],
-            ).select_related('created_by', 'assigned_to', 'assigned_to_cre').order_by('-created_at')
+            ).select_related('created_by', 'assigned_to', 'assigned_to_cre')
         else:
             qs = BREResearchData.objects.filter(
                 status__in=['assigned', 'converted'],
-            ).select_related('created_by', 'assigned_to', 'assigned_to_cre').order_by('-created_at')
+            ).select_related('created_by', 'assigned_to', 'assigned_to_cre')
     else:
         # BOE employee sees only their assigned data
         qs = BREResearchData.objects.filter(
             company=company,
             assigned_to=user,
             status__in=['assigned', 'converted'],
-        ).select_related('created_by', 'assigned_to', 'assigned_to_cre').order_by('-created_at')
+        ).select_related('created_by', 'assigned_to', 'assigned_to_cre')
+
+    # Order: assigned (active) records at top, converted at bottom.
+    # Records with call_status='interested' (shown as "Converted" in UI) also go to bottom.
+    # Within each group, newest first.
+    from django.db.models import Case, When, Value, IntegerField
+    qs = qs.annotate(
+        status_order=Case(
+            When(status='converted', then=Value(1)),
+            When(call_status='interested', then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    ).order_by('status_order', '-created_at')
 
     # Search
     search = request.query_params.get('search', '').strip()
@@ -1616,6 +1629,14 @@ def cre_convert_to_task(request, pk):
         from django.utils import timezone
         due_date = (timezone.now() + timedelta(days=1)).isoformat()
 
+    # Get the original BRE creator from source_research if available
+    original_creator = lead.created_by  # BOE employee who created the BOELead
+    boe_assigner = lead.created_by  # BOE employee who assigned to CRE
+
+    # If the lead has source_research, the original creator is the BRE employee
+    if lead.source_research and lead.source_research.created_by:
+        original_creator = lead.source_research.created_by  # BRE employee
+
     task = ASELeadTask.objects.create(
         title=title,
         description=description,
@@ -1623,9 +1644,15 @@ def cre_convert_to_task(request, pk):
         priority=priority,
         due_date=due_date,
         assigned_to=user,
-        created_by=user,
+        created_by=original_creator,  # BRE employee who created the original data
+        assigned_by=boe_assigner,  # BOE employee who assigned the lead
+        closed_by=None,  # Will be set when task is marked as done
         status='pending',
     )
+
+    # Mark the lead as completed (converted to task)
+    lead.status = 'completed'
+    lead.save(update_fields=['status'])
 
     return Response({
         'id': task.id,

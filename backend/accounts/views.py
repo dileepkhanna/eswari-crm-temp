@@ -1421,18 +1421,30 @@ def generate_invite_view(request):
         except User.DoesNotExist:
             return Response({'error': 'Manager not found'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Optional team assignment (for ASE Technologies)
+    team_id = request.data.get('team_id')
+    team = None
+    if team_id:
+        from teams.models import Team
+        try:
+            team = Team.objects.get(id=team_id, is_active=True)
+        except Team.DoesNotExist:
+            return Response({'error': 'Team not found'}, status=status.HTTP_400_BAD_REQUEST)
+
     invite = InviteToken.objects.create(
         role=role,
         company=company,
         created_by=request.user,
         expires_at=expires_at,
         manager=manager,
+        team=team,
     )
 
     return Response({
         'token': str(invite.token),
         'role': invite.role,
         'company': company.name if company else None,
+        'team': team.name if team else None,
         'manager': manager.get_full_name() or manager.username if manager else None,
         'expires_at': invite.expires_at.isoformat(),
     }, status=status.HTTP_201_CREATED)
@@ -1516,6 +1528,7 @@ def invite_register_view(request):
             role=invite.role,
             company=invite.company,
             manager=invite.manager,
+            team=invite.team,
             designation=request.data.get('designation', '').strip(),
             joining_date=request.data.get('joining_date') or None,
             present_address=request.data.get('present_address', '').strip(),

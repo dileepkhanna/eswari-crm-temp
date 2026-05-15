@@ -339,65 +339,280 @@ export default function CREDashboard() {
       <TopBar title={isLeadsPage ? "Assigned Leads" : isTasksPage ? "My Tasks" : "CRE Dashboard"} subtitle="Client Relationship Executive" />
       <div className="space-y-4 p-3 sm:p-4 md:p-6">
 
-      {/* Dashboard - Stats Cards */}
+      {/* Dashboard - Professional Layout */}
       {isDashboardPage && (
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4">
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 shrink-0" />
-              <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.total || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
+      <>
+        {/* Stats Cards Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Total Leads</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-500" />
+                </div>
               </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-sky-400">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.cold || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Cold</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-sky-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-yellow-500">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.warm || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Warm</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-yellow-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-red-500">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.hot || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Hot</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <Target className="w-5 h-5 text-red-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-green-500">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.completed || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Completed</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-gray-400">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.rejected || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Rejected</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
+                  <XCircle className="w-5 h-5 text-gray-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Pipeline Progress Bar */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-blue-600" />
+              Lead Pipeline Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="flex items-center gap-1 h-6 rounded-full overflow-hidden bg-muted">
+              {(stats?.total || 0) > 0 && (
+                <>
+                  {(stats?.cold || 0) > 0 && (
+                    <div className="h-full bg-sky-400 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                      style={{ width: `${((stats?.cold || 0) / (stats?.total || 1)) * 100}%`, minWidth: (stats?.cold || 0) > 0 ? '24px' : '0' }}>
+                      {stats?.cold}
+                    </div>
+                  )}
+                  {(stats?.warm || 0) > 0 && (
+                    <div className="h-full bg-yellow-400 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                      style={{ width: `${((stats?.warm || 0) / (stats?.total || 1)) * 100}%`, minWidth: (stats?.warm || 0) > 0 ? '24px' : '0' }}>
+                      {stats?.warm}
+                    </div>
+                  )}
+                  {(stats?.hot || 0) > 0 && (
+                    <div className="h-full bg-red-400 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                      style={{ width: `${((stats?.hot || 0) / (stats?.total || 1)) * 100}%`, minWidth: (stats?.hot || 0) > 0 ? '24px' : '0' }}>
+                      {stats?.hot}
+                    </div>
+                  )}
+                  {(stats?.completed || 0) > 0 && (
+                    <div className="h-full bg-green-400 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                      style={{ width: `${((stats?.completed || 0) / (stats?.total || 1)) * 100}%`, minWidth: (stats?.completed || 0) > 0 ? '24px' : '0' }}>
+                      {stats?.completed}
+                    </div>
+                  )}
+                  {(stats?.rejected || 0) > 0 && (
+                    <div className="h-full bg-gray-400 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                      style={{ width: `${((stats?.rejected || 0) / (stats?.total || 1)) * 100}%`, minWidth: (stats?.rejected || 0) > 0 ? '24px' : '0' }}>
+                      {stats?.rejected}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>Cold</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>Warm</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>Hot</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-400"></span>Completed</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>Rejected</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 shrink-0" />
-              <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.cold || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Cold</p>
+
+        {/* Two Column Layout: Recent Leads + Activity Summary */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Recent Leads - Takes 2 columns */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  Recent Leads
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">{leads.length} shown</Badge>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 shrink-0" />
-              <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.warm || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Warm</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Target className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 shrink-0" />
-              <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.hot || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Hot</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 shrink-0" />
-              <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.completed || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Completed</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : leads.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-10 h-10 mx-auto text-muted-foreground/30 mb-2" />
+                  <p className="text-sm text-muted-foreground">No leads assigned yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Leads will appear when BOE assigns them to you</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {leads.slice(0, 8).map((record) => (
+                    <div key={record.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/40 transition-colors cursor-pointer"
+                      onClick={() => { setViewRecord(record); setViewModalOpen(true); }}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-medium shrink-0">
+                          {record.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{record.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-0.5"><Phone className="w-3 h-3" />{record.phone_number}</span>
+                            {record.location && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{record.location}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {getStatusBadge(record.status)}
+                        <a href={`tel:${record.phone_number}`} onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                            <Phone className="w-3.5 h-3.5 text-green-600" />
+                          </Button>
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                  {leads.length > 8 && (
+                    <p className="text-xs text-center text-muted-foreground pt-2">
+                      +{leads.length - 8} more leads. Go to <span className="text-blue-600 font-medium">Leads</span> tab to see all.
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Right Column: Activity & Quick Stats */}
+          <div className="space-y-4">
+            {/* Time-based Stats */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-purple-600" />
+                  Activity Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Today</span>
+                  <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{stats?.today_assigned || 0} new</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/20">
+                  <span className="text-xs font-medium text-purple-700 dark:text-purple-300">This Week</span>
+                  <span className="text-sm font-bold text-purple-700 dark:text-purple-300">{stats?.this_week || 0} leads</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">This Month</span>
+                  <span className="text-sm font-bold text-green-700 dark:text-green-300">{stats?.this_month || 0} leads</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Conversion Rate */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Target className="w-4 h-4 text-green-600" />
+                  Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-center py-2">
+                  <p className="text-3xl font-bold text-green-600">
+                    {(stats?.total || 0) > 0 ? Math.round(((stats?.completed || 0) / (stats?.total || 1)) * 100) : 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Conversion Rate</p>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all"
+                    style={{ width: `${(stats?.total || 0) > 0 ? ((stats?.completed || 0) / (stats?.total || 1)) * 100 : 0}%` }}>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{stats?.completed || 0} completed</span>
+                  <span>{stats?.total || 0} total</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" className="w-full justify-start h-9 text-xs" onClick={() => setAddModalOpen(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-2" /> Add New Lead
+                </Button>
+                <Button variant="outline" className="w-full justify-start h-9 text-xs" onClick={() => { setStatusFilter('hot'); setCurrentPage(1); }}>
+                  <Target className="w-3.5 h-3.5 mr-2 text-red-500" /> View Hot Leads ({stats?.hot || 0})
+                </Button>
+                <Button variant="outline" className="w-full justify-start h-9 text-xs" onClick={() => { setStatusFilter('cold'); setCurrentPage(1); }}>
+                  <Clock className="w-3.5 h-3.5 mr-2 text-sky-500" /> Follow Up Cold ({stats?.cold || 0})
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </>
       )}
 
       {/* Assigned Leads Section */}
@@ -552,9 +767,16 @@ export default function CREDashboard() {
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleDeleteLead(record)} title="Delete">
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
                       </Button>
-                      <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={() => handleOpenTaskModal(record)} title="Convert to Task">
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Task
-                      </Button>
+                      {record.status === 'completed' ? (
+                        <div className="h-8 px-2 flex items-center gap-1 text-xs text-green-600 font-medium" title="Converted to Task">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>Done</span>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={() => handleOpenTaskModal(record)} title="Convert to Task">
+                          <Plus className="w-3.5 h-3.5 mr-1" /> Task
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

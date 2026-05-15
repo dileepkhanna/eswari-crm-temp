@@ -98,8 +98,9 @@ def my_tasks(request):
     if task_type:
         tasks = tasks.filter(task_type=task_type)
 
-    # Ordering
-    ordering = request.query_params.get('ordering', 'due_date')
+    # Ordering: by default, pending/in_progress at top, completed next, cancelled at bottom
+    # Within each group, newest first
+    ordering = request.query_params.get('ordering', '')
     valid_orderings = [
         'due_date', '-due_date',
         'priority', '-priority',
@@ -108,7 +109,18 @@ def my_tasks(request):
     if ordering in valid_orderings:
         tasks = tasks.order_by(ordering)
     else:
-        tasks = tasks.order_by('due_date')
+        # Custom status-based ordering: pending/in_progress → top, completed → middle, cancelled → bottom
+        from django.db.models import Case, When, Value, IntegerField
+        tasks = tasks.annotate(
+            status_order=Case(
+                When(status='pending', then=Value(0)),
+                When(status='in_progress', then=Value(1)),
+                When(status='completed', then=Value(2)),
+                When(status='cancelled', then=Value(3)),
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        ).order_by('status_order', '-created_at')
 
     # Paginate and return
     data = _paginate_queryset(tasks, request)
@@ -319,6 +331,7 @@ def complete_task(request, pk):
     # Mark as completed
     task.status = 'completed'
     task.completed_at = timezone.now()
+    task.closed_by = user  # Set who completed/closed the task
     task.save()
 
     # Return serialized task

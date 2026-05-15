@@ -344,6 +344,11 @@ class InviteToken(models.Model):
         'Company', on_delete=models.CASCADE, related_name='invite_tokens',
         null=True, blank=True
     )
+    team = models.ForeignKey(
+        'teams.Team', on_delete=models.SET_NULL, related_name='invite_tokens',
+        null=True, blank=True,
+        help_text="Team to assign the new user to (for ASE Technologies)"
+    )
     created_by = models.ForeignKey(
         'User', on_delete=models.CASCADE, related_name='created_invites'
     )

@@ -62,7 +62,23 @@ class ASELeadTask(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='created_ase_lead_tasks',
-        help_text="User who created this task"
+        help_text="User who created this task (BRE who created the original data)"
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_ase_lead_tasks',
+        help_text="User who assigned this lead (BOE who assigned to CRE)"
+    )
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='closed_ase_lead_tasks',
+        help_text="User who closed/completed this task (CRE who converted to task)"
     )
     
     # Task Details
@@ -153,6 +169,20 @@ class ASELeadTask(models.Model):
         """Return the full name of the user who created this task"""
         if self.created_by:
             return f"{self.created_by.first_name} {self.created_by.last_name}".strip() or self.created_by.username
+        return None
+
+    @property
+    def assigned_by_name(self):
+        """Return the full name of the user who assigned this lead (BOE)"""
+        if self.assigned_by:
+            return f"{self.assigned_by.first_name} {self.assigned_by.last_name}".strip() or self.assigned_by.username
+        return None
+
+    @property
+    def closed_by_name(self):
+        """Return the full name of the user who closed this task (CRE)"""
+        if self.closed_by:
+            return f"{self.closed_by.first_name} {self.closed_by.last_name}".strip() or self.closed_by.username
         return None
     
     @property

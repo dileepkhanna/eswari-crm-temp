@@ -124,6 +124,8 @@ export default function UserList(props?: UserListProps) {
   const [inviteRole, setInviteRole] = useState('employee');
   const [inviteCompany, setInviteCompany] = useState<number | ''>('');
   const [inviteManager, setInviteManager] = useState<string>('');
+  const [inviteTeam, setInviteTeam] = useState<string>('');
+  const [inviteTeams, setInviteTeams] = useState<any[]>([]);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteGenerating, setInviteGenerating] = useState(false);
   const [editingUser, setEditingUser] = useState<DBUser | null>(null);
@@ -604,9 +606,10 @@ export default function UserList(props?: UserListProps) {
   const handleGenerateInvite = async () => {
     setInviteGenerating(true);
     try {
-      const payload: { role: string; company?: number; manager_id?: number } = { role: inviteRole };
+      const payload: { role: string; company?: number; manager_id?: number; team_id?: number } = { role: inviteRole };
       if (inviteCompany) payload.company = inviteCompany as number;
       if (inviteManager) payload.manager_id = parseInt(inviteManager);
+      if (inviteTeam) payload.team_id = parseInt(inviteTeam);
       const res: any = await apiClient.generateInvite(payload);
       const base = window.location.origin;
       setInviteLink(`${base}/register?token=${res.token}`);
@@ -615,6 +618,20 @@ export default function UserList(props?: UserListProps) {
     } finally {
       setInviteGenerating(false);
     }
+  };
+
+  // Fetch teams when company changes (for ASE Technologies team assignment)
+  const fetchTeamsForCompany = async (companyId: number) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`http://localhost:8000/api/teams/?company=${companyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInviteTeams(data.results || data || []);
+      }
+    } catch { setInviteTeams([]); }
   };
 
   const handleCopyInvite = () => {
@@ -702,7 +719,7 @@ export default function UserList(props?: UserListProps) {
             <Plus className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Add User</span>
           </Button>
-          <Button variant="outline" className="shrink-0" onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setShowInviteModal(true); }}>
+          <Button variant="outline" className="shrink-0" onClick={() => { setInviteLink(''); setInviteCompany(''); setInviteManager(''); setInviteTeam(''); setInviteTeams([]); setShowInviteModal(true); }}>
             <Link className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Invite Link</span>
           </Button>
@@ -1315,7 +1332,7 @@ export default function UserList(props?: UserListProps) {
 
               <div className="space-y-2">
                 <Label>Company</Label>
-                <Select value={inviteCompany === '' ? 'none' : String(inviteCompany)} onValueChange={v => { setInviteCompany(v === 'none' ? '' : Number(v)); setInviteManager(''); }}>
+                <Select value={inviteCompany === '' ? 'none' : String(inviteCompany)} onValueChange={v => { const val = v === 'none' ? '' : Number(v); setInviteCompany(val); setInviteManager(''); setInviteTeam(''); if (val) fetchTeamsForCompany(val as number); else setInviteTeams([]); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select company (optional)" />
                   </SelectTrigger>
@@ -1327,6 +1344,23 @@ export default function UserList(props?: UserListProps) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {inviteTeams.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Team <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <Select value={inviteTeam || 'none'} onValueChange={v => setInviteTeam(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No team</SelectItem>
+                      {inviteTeams.map((t: any) => (
+                        <SelectItem key={t.id} value={String(t.id)}>{t.name}{t.marketing_category ? ` (${t.marketing_category.toUpperCase()})` : ''}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {inviteRole === 'employee' && (
                 <div className="space-y-2">

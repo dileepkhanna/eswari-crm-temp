@@ -8,7 +8,6 @@ import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eswari_crm.settings')
 django.setup()
-
 from ase_customers.models import ASECustomer
 from ase_leads.models import ASELead
 from accounts.models import User, Company

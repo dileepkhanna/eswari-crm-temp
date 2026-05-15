@@ -561,7 +561,7 @@ class ApiClient {
   }
 
   // Invite link methods
-  async generateInvite(data: { role: string; company?: number; expires_hours?: number }) {
+  async generateInvite(data: { role: string; company?: number; expires_hours?: number; manager_id?: number; team_id?: number }) {
     return this.request('/auth/invite/generate/', {
       method: 'POST',
       body: JSON.stringify(data),

@@ -1015,6 +1015,8 @@ class ASELeadTaskSerializer(serializers.ModelSerializer):
     # Read-only fields for display
     assigned_to_name = serializers.ReadOnlyField()
     created_by_name = serializers.ReadOnlyField()
+    assigned_by_name = serializers.ReadOnlyField()
+    closed_by_name = serializers.ReadOnlyField()
     task_type_display = serializers.CharField(source='get_task_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -1025,6 +1027,8 @@ class ASELeadTaskSerializer(serializers.ModelSerializer):
     # Nested serializers for relationships
     assigned_to_details = UserBasicSerializer(source='assigned_to', read_only=True)
     created_by_details = UserBasicSerializer(source='created_by', read_only=True)
+    assigned_by_details = UserBasicSerializer(source='assigned_by', read_only=True)
+    closed_by_details = UserBasicSerializer(source='closed_by', read_only=True)
     lead_details = ASELeadNestedSerializer(source='lead', read_only=True, allow_null=True)
 
     # Kept for backward-compat / lightweight access without full lead_details
@@ -1065,6 +1069,12 @@ class ASELeadTaskSerializer(serializers.ModelSerializer):
             'created_by',
             'created_by_name',
             'created_by_details',
+            'assigned_by',
+            'assigned_by_name',
+            'assigned_by_details',
+            'closed_by',
+            'closed_by_name',
+            'closed_by_details',
             
             # Task Details
             'task_type',

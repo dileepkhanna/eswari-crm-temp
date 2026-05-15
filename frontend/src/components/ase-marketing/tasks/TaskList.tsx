@@ -287,7 +287,8 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
                     </span>
                     <span className="capitalize">{task.status.replace('_', ' ')}</span>
                     {task.assigned_to_name && <span>Assigned: <strong>{task.assigned_to_name}</strong></span>}
-                    {task.created_by_name && <span>By: {task.created_by_name}</span>}
+                    {task.assigned_by_name && <span>Assigned By: {task.assigned_by_name}</span>}
+                    {task.created_by_name && <span>Created By: {task.created_by_name}</span>}
                   </div>
                 </div>
 
@@ -348,8 +349,9 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
                 <div><Label className="text-xs text-muted-foreground">Status</Label><Badge variant="outline" className="mt-1 capitalize">{viewTask.status.replace('_', ' ')}</Badge></div>
                 <div><Label className="text-xs text-muted-foreground">Type</Label><p className="text-sm capitalize">{viewTask.task_type_display || viewTask.task_type}</p></div>
                 <div><Label className="text-xs text-muted-foreground">Priority</Label><div className="mt-1"><PriorityBadge priority={viewTask.priority} /></div></div>
-                <div><Label className="text-xs text-muted-foreground">Assigned To</Label><p className="text-sm font-medium">{viewTask.assigned_to_name || '—'}{viewTask.assigned_to_details?.marketing_category && <span className="text-xs text-muted-foreground ml-1">({viewTask.assigned_to_details.marketing_category})</span>}</p></div>
-                <div><Label className="text-xs text-muted-foreground">Created By</Label><p className="text-sm">{viewTask.created_by_name || '—'}{viewTask.created_by_details?.marketing_category && <span className="text-xs text-muted-foreground ml-1">({viewTask.created_by_details.marketing_category})</span>}</p></div>
+                <div><Label className="text-xs text-muted-foreground">Created By</Label><p className="text-sm">{viewTask.created_by_name || '—'}{viewTask.created_by_details?.marketing_category && <span className="text-xs text-muted-foreground ml-1">({viewTask.created_by_details.marketing_category.toUpperCase()})</span>}</p></div>
+                <div><Label className="text-xs text-muted-foreground">Assigned By</Label><p className="text-sm">{viewTask.assigned_by_name || '—'}{viewTask.assigned_by_details?.marketing_category && <span className="text-xs text-muted-foreground ml-1">({viewTask.assigned_by_details.marketing_category.toUpperCase()})</span>}</p></div>
+                <div><Label className="text-xs text-muted-foreground">Closed By</Label><p className="text-sm">{viewTask.status === 'completed' && viewTask.closed_by_name ? <>{viewTask.closed_by_name}{viewTask.closed_by_details?.marketing_category && <span className="text-xs text-muted-foreground ml-1">({viewTask.closed_by_details.marketing_category.toUpperCase()})</span>}</> : '—'}</p></div>
                 <div><Label className="text-xs text-muted-foreground">Due Date</Label><p className="text-sm">{new Date(viewTask.due_date).toLocaleString()}</p></div>
                 <div><Label className="text-xs text-muted-foreground">Created Date</Label><p className="text-sm">{viewTask.created_at ? new Date(viewTask.created_at).toLocaleString() : '—'}</p></div>
                 {viewTask.completed_at && <div><Label className="text-xs text-muted-foreground">Completed Date</Label><p className="text-sm text-green-600">{new Date(viewTask.completed_at).toLocaleString()}</p></div>}

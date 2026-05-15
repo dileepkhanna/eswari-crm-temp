@@ -28,6 +28,9 @@ import {
   Trash2,
   Plus,
   Eye,
+  TrendingUp,
+  Target,
+  BarChart,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
@@ -400,53 +403,168 @@ export default function BOEDashboard() {
       <TopBar title={isResearchPage ? "Research Data" : "BOE Dashboard"} subtitle="Business Outreach Executive" />
       <div className="space-y-4 p-3 sm:p-4 md:p-6">
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 shrink-0" />
+      {/* Stats Cards - Professional Design */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg sm:text-2xl font-bold">{totalCount}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Total Assigned</p>
+                <p className="text-2xl font-bold">{totalCount}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Total Assigned</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 shrink-0" />
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.today_assigned || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Today</p>
+                <p className="text-2xl font-bold">{stats?.today_assigned || 0}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Today</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-green-500" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Phone className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 shrink-0" />
+        <Card className="border-l-4 border-l-purple-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.this_week_assigned || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">This Week</p>
+                <p className="text-2xl font-bold">{stats?.this_week_assigned || 0}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">This Week</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-purple-500" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <MapPin className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500 shrink-0" />
+        <Card className="border-l-4 border-l-orange-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg sm:text-2xl font-bold">{stats?.this_month_assigned || 0}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">This Month</p>
+                <p className="text-2xl font-bold">{stats?.this_month_assigned || 0}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">This Month</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
+                <Target className="w-5 h-5 text-orange-500" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Call Status Overview - only on dashboard page */}
+      {!isResearchPage && (
+      <>
+        {/* Call Progress Bar */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Phone className="w-4 h-4 text-blue-600" />
+              Call Status Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            {(() => {
+              const pending = records.filter(r => r.call_status === 'pending').length;
+              const interested = records.filter(r => r.call_status === 'interested').length;
+              const notInterested = records.filter(r => r.call_status === 'not_interested').length;
+              const noAnswer = records.filter(r => r.call_status === 'no_answer').length;
+              const callback = records.filter(r => r.call_status === 'callback').length;
+              const total = records.length || 1;
+              return (
+                <>
+                  <div className="flex items-center gap-1 h-6 rounded-full overflow-hidden bg-muted">
+                    {pending > 0 && <div className="h-full bg-gray-400 flex items-center justify-center text-[10px] text-white font-medium px-1" style={{ width: `${(pending / total) * 100}%`, minWidth: '20px' }}>{pending}</div>}
+                    {interested > 0 && <div className="h-full bg-green-500 flex items-center justify-center text-[10px] text-white font-medium px-1" style={{ width: `${(interested / total) * 100}%`, minWidth: '20px' }}>{interested}</div>}
+                    {noAnswer > 0 && <div className="h-full bg-yellow-400 flex items-center justify-center text-[10px] text-white font-medium px-1" style={{ width: `${(noAnswer / total) * 100}%`, minWidth: '20px' }}>{noAnswer}</div>}
+                    {callback > 0 && <div className="h-full bg-orange-400 flex items-center justify-center text-[10px] text-white font-medium px-1" style={{ width: `${(callback / total) * 100}%`, minWidth: '20px' }}>{callback}</div>}
+                    {notInterested > 0 && <div className="h-full bg-red-400 flex items-center justify-center text-[10px] text-white font-medium px-1" style={{ width: `${(notInterested / total) * 100}%`, minWidth: '20px' }}>{notInterested}</div>}
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>Pending ({pending})</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>Interested ({interested})</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>No Answer ({noAnswer})</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-400"></span>Callback ({callback})</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>Not Interested ({notInterested})</span>
+                  </div>
+                </>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* Performance & Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Activity Summary */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BarChart className="w-4 h-4 text-indigo-600" />
+                Activity Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Total Assigned</span>
+                <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{stats?.total_assigned || 0}</span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
+                <span className="text-xs font-medium text-green-700 dark:text-green-300">Today's Records</span>
+                <span className="text-sm font-bold text-green-700 dark:text-green-300">{stats?.today_assigned || 0}</span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/20">
+                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">This Week</span>
+                <span className="text-sm font-bold text-purple-700 dark:text-purple-300">{stats?.this_week_assigned || 0}</span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                <span className="text-xs font-medium text-orange-700 dark:text-orange-300">This Month</span>
+                <span className="text-sm font-bold text-orange-700 dark:text-orange-300">{stats?.this_month_assigned || 0}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Conversion Performance */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-green-600" />
+                Conversion Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center py-2">
+                <p className="text-3xl font-bold text-green-600">
+                  {records.length > 0 ? Math.round((records.filter(r => r.call_status === 'interested').length / records.length) * 100) : 0}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Conversion Rate</p>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all"
+                  style={{ width: `${records.length > 0 ? (records.filter(r => r.call_status === 'interested').length / records.length) * 100 : 0}%` }}>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <p className="text-lg font-bold text-green-600">{records.filter(r => r.call_status === 'interested').length}</p>
+                  <p className="text-[10px] text-muted-foreground">Converted</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <p className="text-lg font-bold text-gray-600">{records.filter(r => r.call_status === 'pending').length}</p>
+                  <p className="text-[10px] text-muted-foreground">Pending Calls</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+      )}
 
       {/* Data List - only on Research Data page */}
       {isResearchPage && (
@@ -560,6 +678,21 @@ export default function BOEDashboard() {
             </div>
           ) : (
             <div className="space-y-2 sm:space-y-3">
+              {/* Top Pagination */}
+              <div className="flex items-center justify-between pb-2 border-b">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Showing {records.length} of {totalCount} (Page {currentPage}/{totalPages})
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(currentPage - 1)}>
+                    <ChevronLeft className="w-4 h-4" /> Prev
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(currentPage + 1)}>
+                    Next <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
               {records.map((record) => (
                 <div
                   key={record.id}
@@ -592,16 +725,22 @@ export default function BOEDashboard() {
                         <Eye className="w-3.5 h-3.5 text-blue-600" />
                       </Button>
                       <select
-                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        className={`h-8 rounded-md border px-2 text-xs font-medium ${
+                          record.call_status === 'interested' ? 'bg-green-50 border-green-300 text-green-700' :
+                          record.call_status === 'not_interested' ? 'bg-red-50 border-red-300 text-red-700' :
+                          record.call_status === 'no_answer' ? 'bg-yellow-50 border-yellow-300 text-yellow-700' :
+                          record.call_status === 'callback' ? 'bg-orange-50 border-orange-300 text-orange-700' :
+                          'bg-gray-50 border-gray-300 text-gray-700'
+                        }`}
                         value={record.call_status || 'pending'}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => { e.stopPropagation(); handleCallStatus(record.id, e.target.value); }}
                         disabled={callStatusLoading}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="no_answer">No Answer</option>
-                        <option value="not_interested">Not Interested</option>
-                        <option value="interested">Interested</option>
+                        <option value="pending" style={{ backgroundColor: '#f9fafb', color: '#374151' }}>⚪ Pending</option>
+                        <option value="no_answer" style={{ backgroundColor: '#fefce8', color: '#a16207' }}>🟡 No Answer</option>
+                        <option value="not_interested" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>🔴 Not Interested</option>
+                        <option value="interested" style={{ backgroundColor: '#f0fdf4', color: '#15803d' }}>🟢 Interested</option>
                       </select>
                       {record.call_status !== 'interested' ? (
                         <Button size="sm" className="h-8 px-2 bg-green-600 hover:bg-green-700 text-white text-xs" disabled={callStatusLoading}

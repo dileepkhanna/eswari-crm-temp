@@ -26,6 +26,7 @@ class BOELead(models.Model):
         ('assigned_cre', 'Assigned to CRE'),
         ('in_progress', 'In Progress'),
         ('converted', 'Converted'),
+        ('completed', 'Completed'),
         ('lost', 'Lost'),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='interested')

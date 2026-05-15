@@ -677,146 +677,206 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
       {!isResearchPage && (
         <div className="space-y-4">
           
-          {/* BRE Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-            <Card>
-              <CardContent className="p-3 sm:pt-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Search className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 shrink-0" />
+          {/* BRE Stats Cards - Professional with colored borders */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <Card className="border-l-4 border-l-blue-500">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg sm:text-2xl font-bold">{breStats.total}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Total Records</p>
+                    <p className="text-2xl font-bold">{breStats.total}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Total Records</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                    <Search className="w-5 h-5 text-blue-500" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-3 sm:pt-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <UserPlus className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500 shrink-0" />
+            <Card className="border-l-4 border-l-orange-500">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg sm:text-2xl font-bold">{breStats.new_count}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Unassigned</p>
+                    <p className="text-2xl font-bold">{breStats.new_count}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Unassigned</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
+                    <UserPlus className="w-5 h-5 text-orange-500" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-3 sm:pt-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 shrink-0" />
+            <Card className="border-l-4 border-l-green-500">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg sm:text-2xl font-bold">{breStats.assigned_count}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Assigned</p>
+                    <p className="text-2xl font-bold">{breStats.assigned_count}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Assigned</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-3 sm:pt-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 shrink-0" />
+            <Card className="border-l-4 border-l-purple-500">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg sm:text-2xl font-bold">{breStats.today_added}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Today</p>
+                    <p className="text-2xl font-bold">{breStats.today_added}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Today</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-purple-500" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-3 sm:pt-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500 shrink-0" />
+            <Card className="border-l-4 border-l-indigo-500">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg sm:text-2xl font-bold">{breStats.this_week_added || 0}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">This Week</p>
+                    <p className="text-2xl font-bold">{breStats.this_week_added || 0}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">This Week</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                    <BarChart className="w-5 h-5 text-indigo-500" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-3 sm:pt-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-teal-500 shrink-0" />
+            <Card className="border-l-4 border-l-teal-500">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg sm:text-2xl font-bold">{breStats.this_month_added || 0}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">This Month</p>
+                    <p className="text-2xl font-bold">{breStats.this_month_added || 0}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">This Month</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-teal-500" />
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Assignment Progress */}
+          {/* Assignment Progress Bar */}
           <Card>
-            <CardHeader className="p-3 sm:p-6 pb-2">
-              <CardTitle className="text-base sm:text-lg">Assignment Progress</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BarChart className="w-4 h-4 text-blue-600" />
+                Assignment Progress
+              </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 sm:p-6 pt-0">
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Assignment Rate</span>
-                  <span className="font-semibold">{breStats.total > 0 ? Math.round((breStats.assigned_count / breStats.total) * 100) : 0}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-green-500 h-3 rounded-full transition-all"
-                    style={{ width: `${breStats.total > 0 ? Math.round((breStats.assigned_count / breStats.total) * 100) : 0}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{breStats.assigned_count} assigned</span>
-                  <span>{breStats.new_count} pending</span>
+            <CardContent className="pb-4">
+              <div className="flex items-center gap-1 h-6 rounded-full overflow-hidden bg-muted">
+                {breStats.total > 0 && (
+                  <>
+                    {breStats.assigned_count > 0 && (
+                      <div className="h-full bg-green-500 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                        style={{ width: `${(breStats.assigned_count / breStats.total) * 100}%`, minWidth: '24px' }}>
+                        {breStats.assigned_count}
+                      </div>
+                    )}
+                    {breStats.new_count > 0 && (
+                      <div className="h-full bg-orange-400 flex items-center justify-center text-[10px] text-white font-medium px-1"
+                        style={{ width: `${(breStats.new_count / breStats.total) * 100}%`, minWidth: '24px' }}>
+                        {breStats.new_count}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>Assigned ({breStats.total > 0 ? Math.round((breStats.assigned_count / breStats.total) * 100) : 0}%)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-400"></span>Pending ({breStats.total > 0 ? Math.round((breStats.new_count / breStats.total) * 100) : 0}%)</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Weekly & Monthly Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* This Week Summary */}
             <Card>
-              <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
-                <CardTitle className="text-base">📅 This Week</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-indigo-600" />
+                  This Week
+                </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Records Added</span>
-                    <span className="font-semibold text-blue-600">{breStats.this_week_added || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Assigned to BOE</span>
-                    <span className="font-semibold text-green-600">{breStats.this_week_assigned || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Pending Assignment</span>
-                    <span className="font-semibold text-orange-600">{(breStats.this_week_added || 0) - (breStats.this_week_assigned || 0)}</span>
-                  </div>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Records Added</span>
+                  <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{breStats.this_week_added || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">Assigned to BOE</span>
+                  <span className="text-sm font-bold text-green-700 dark:text-green-300">{breStats.this_week_assigned || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                  <span className="text-xs font-medium text-orange-700 dark:text-orange-300">Pending Assignment</span>
+                  <span className="text-sm font-bold text-orange-700 dark:text-orange-300">{(breStats.this_week_added || 0) - (breStats.this_week_assigned || 0)}</span>
                 </div>
               </CardContent>
             </Card>
+
+            {/* This Month Summary */}
             <Card>
-              <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
-                <CardTitle className="text-base">📆 This Month</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-teal-600" />
+                  This Month
+                </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Records Added</span>
-                    <span className="font-semibold text-blue-600">{breStats.this_month_added || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Assigned to BOE</span>
-                    <span className="font-semibold text-green-600">{breStats.this_month_assigned || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Pending Assignment</span>
-                    <span className="font-semibold text-orange-600">{(breStats.this_month_added || 0) - (breStats.this_month_assigned || 0)}</span>
-                  </div>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Records Added</span>
+                  <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{breStats.this_month_added || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">Assigned to BOE</span>
+                  <span className="text-sm font-bold text-green-700 dark:text-green-300">{breStats.this_month_assigned || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                  <span className="text-xs font-medium text-orange-700 dark:text-orange-300">Pending Assignment</span>
+                  <span className="text-sm font-bold text-orange-700 dark:text-orange-300">{(breStats.this_month_added || 0) - (breStats.this_month_assigned || 0)}</span>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Performance Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-green-600" />
+                Performance Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-2xl font-bold text-green-600">
+                    {breStats.total > 0 ? Math.round((breStats.assigned_count / breStats.total) * 100) : 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Assignment Rate</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-2xl font-bold text-blue-600">{breStats.today_added}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Added Today</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-2xl font-bold text-purple-600">{breStats.this_week_added || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Weekly Total</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-2xl font-bold text-teal-600">{breStats.this_month_added || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Monthly Total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
