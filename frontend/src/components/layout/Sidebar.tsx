@@ -50,10 +50,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    'System Management': true,
-    'Common': true,
-    'ASE Technologies': true,
-    'Eswari Group': true,
+    'System Management': false,
+    'Common': false,
+    'ASE Technologies': false,
+    'Eswari Group': false,
+    'Eswari Capital': false,
   });
   const [overdueCount, setOverdueCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
@@ -356,10 +357,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   }
 
   const toggleGroup = (groupLabel: string) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupLabel]: !prev[groupLabel]
-    }));
+    setExpandedGroups(prev => {
+      const isCurrentlyOpen = prev[groupLabel];
+      // Close all groups, then toggle the clicked one (accordion behavior)
+      const allClosed: Record<string, boolean> = {};
+      Object.keys(prev).forEach(key => { allClosed[key] = false; });
+      return {
+        ...allClosed,
+        [groupLabel]: !isCurrentlyOpen,
+      };
+    });
   };
 
   const handleNavClick = () => {
@@ -441,7 +448,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           
           if (filteredItems.length === 0) return null;
           
-          const isExpanded = expandedGroups[group.label] !== false;
+          const isExpanded = expandedGroups[group.label] === true;
           
           return (
             <div key={group.label || `group-${groupIndex}`} className="space-y-1">

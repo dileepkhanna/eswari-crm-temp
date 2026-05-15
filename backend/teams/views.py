@@ -24,13 +24,17 @@ class TeamViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         return TeamSerializer
     
     def get_queryset(self):
-        """Filter teams based on user's company - Teams are only for ASE Technologies"""
+        """Filter teams based on user's company and query params"""
         user = self.request.user
         base_queryset = Team.objects.select_related('team_lead', 'company')
         
-        # Teams are only available for ASE Technologies (company_id=2)
-        # Filter to only show ASE Technologies teams
-        base_queryset = base_queryset.filter(company_id=2)
+        # Check for company filter parameter - only return teams for the requested company
+        company_id = self.request.query_params.get('company')
+        if company_id:
+            base_queryset = base_queryset.filter(company_id=company_id)
+        else:
+            # Default: Teams are only available for ASE Technologies (company_id=2)
+            base_queryset = base_queryset.filter(company_id=2)
         
         # Allow unauthenticated access for now (will be filtered by company)
         if not user.is_authenticated:
@@ -39,7 +43,7 @@ class TeamViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         if user.role == 'admin':
             return base_queryset
         else:
-            # All users can see teams in their company (if it's ASE Technologies)
+            # All users can see teams in their company
             return base_queryset
     
     @action(detail=True, methods=['get'])

@@ -864,14 +864,14 @@ export default function UserList(props?: UserListProps) {
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="font-semibold">User</TableHead>
-              <TableHead className="font-semibold">User ID</TableHead>
-              <TableHead className="font-semibold hidden lg:table-cell">Contact</TableHead>
-              <TableHead className="font-semibold">Role</TableHead>
-              <TableHead className="font-semibold hidden xl:table-cell">Company</TableHead>
-              <TableHead className="font-semibold hidden xl:table-cell">Manager</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold hidden lg:table-cell">Joined</TableHead>
+              <TableHead className="font-semibold w-[18%]">User</TableHead>
+              <TableHead className="font-semibold w-[15%]">User ID</TableHead>
+              <TableHead className="font-semibold w-[12%] hidden lg:table-cell">Contact</TableHead>
+              <TableHead className="font-semibold w-[10%]">Role</TableHead>
+              <TableHead className="font-semibold w-[12%] hidden xl:table-cell">Company</TableHead>
+              <TableHead className="font-semibold w-[10%] hidden xl:table-cell">Manager</TableHead>
+              <TableHead className="font-semibold w-[8%]">Status</TableHead>
+              <TableHead className="font-semibold w-[10%] hidden lg:table-cell">Joined</TableHead>
               <TableHead className="font-semibold w-10 px-2"></TableHead>
             </TableRow>
           </TableHeader>
@@ -905,7 +905,7 @@ export default function UserList(props?: UserListProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono block truncate max-w-full">
                     {user.user_id}
                   </code>
                 </TableCell>
