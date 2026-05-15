@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
-import { apiClient } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 import { transformUser } from '@/lib/transformUser';
 import UserFormModal from './UserFormModal';
 import PromotionModal from './PromotionModal';
@@ -624,7 +624,7 @@ export default function UserList(props?: UserListProps) {
   const fetchTeamsForCompany = async (companyId: number) => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:8000/api/teams/?company=${companyId}`, {
+      const res = await fetch(`${API_BASE_URL}/teams/?company=${companyId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {

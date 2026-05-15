@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import TopBar from '@/components/layout/TopBar';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { API_BASE_URL } from '@/lib/api';
 
 interface LeadRecord {
   id: number;
@@ -115,7 +116,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     try {
       if (!hasFetchedRef.current) setLoading(true);
       const token = localStorage.getItem('access_token');
-      let url = `http://localhost:8000/api/ase-leads/boe-leads/?page=${currentPage}&page_size=50`;
+      let url = `${API_BASE_URL}/ase-leads/boe-leads/?page=${currentPage}&page_size=50`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (statusFilter && statusFilter !== 'all') url += `&status=${statusFilter}`;
       if (dateFrom) url += `&date_from=${dateFrom}`;
@@ -157,7 +158,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     const fetchBoeUsers = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/creators/', {
+        const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/creators/`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (response.ok) {
@@ -202,7 +203,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     setAssignModalOpen(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/cre-users/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-users/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
@@ -223,7 +224,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     try {
       setAssignLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-leads/${assignRecord.id}/assign-cre/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/${assignRecord.id}/assign-cre/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to_cre: parseInt(selectedCre), call_notes: assignNotes }),
@@ -246,7 +247,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     try {
       setAddLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/create/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/create/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: addName, phone_number: addPhone, location: addLocation, notes: addNotes }),
@@ -279,7 +280,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     try {
       setEditLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-leads/${editRecord.id}/update/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/${editRecord.id}/update/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName, phone_number: editPhone, location: editLocation, notes: editNotes }),
@@ -301,7 +302,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     if (!confirm(`Delete lead "${record.name}"?`)) return;
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-leads/${record.id}/delete/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/${record.id}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -320,7 +321,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
   const handleExport = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/export/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/export/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Export failed');
@@ -341,7 +342,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
   const handleDownloadTemplate = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/template/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/template/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed');
@@ -366,7 +367,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
       const token = localStorage.getItem('access_token');
       const formData = new FormData();
       formData.append('file', importFile);
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/import/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/import/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -414,7 +415,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
       } else {
         body.ids = selectedIds;
       }
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/bulk-delete/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/bulk-delete/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -438,7 +439,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     setSelectedBulkCre('');
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:8000/api/ase-leads/cre-users/', {
+      const res = await fetch(`${API_BASE_URL}/ase-leads/cre-users/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
@@ -463,7 +464,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
       } else {
         body.ids = selectedIds;
       }
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-leads/bulk-assign/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/bulk-assign/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

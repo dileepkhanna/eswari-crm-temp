@@ -33,7 +33,7 @@ import {
   BarChart,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 import TopBar from '@/components/layout/TopBar';
 
 interface BOERecord {
@@ -131,7 +131,7 @@ export default function BOEDashboard() {
       // Only show loading spinner on first fetch — silent on polls
       if (!hasFetchedRef.current) setLoading(true);
       const token = localStorage.getItem('access_token');
-      let url = `http://localhost:8000/api/ase-leads/boe-assigned/?page=${currentPage}`;
+      let url = `${API_BASE_URL}/ase-leads/boe-assigned/?page=${currentPage}`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (dateFrom) url += `&date_from=${dateFrom}`;
       if (dateTo) url += `&date_to=${dateTo}`;
@@ -194,7 +194,7 @@ export default function BOEDashboard() {
     try {
       setCallStatusLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-assigned/${recordId}/call-status/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-assigned/${recordId}/call-status/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ call_status: callStatus }),
@@ -218,7 +218,7 @@ export default function BOEDashboard() {
     // Fetch CRE users
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/cre-users/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-users/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
@@ -239,7 +239,7 @@ export default function BOEDashboard() {
     try {
       setConvertLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-assigned/${convertRecord.id}/convert-to-lead/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-assigned/${convertRecord.id}/convert-to-lead/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to_cre: parseInt(selectedCre), call_notes: convertNotes }),
@@ -277,7 +277,7 @@ export default function BOEDashboard() {
     try {
       setAddLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-data/add/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/add/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: addName, phone_number: addPhone, location: addLocation, notes: addNotes }),
@@ -313,7 +313,7 @@ export default function BOEDashboard() {
     try {
       setEditLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-data/${editRecord.id}/edit/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/${editRecord.id}/edit/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName, phone_number: editPhone, location: editLocation, notes: editNotes }),
@@ -336,7 +336,7 @@ export default function BOEDashboard() {
     try {
       setDeleteLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/boe-data/${record.id}/delete/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/${record.id}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -381,7 +381,7 @@ export default function BOEDashboard() {
     try {
       setBulkDeleteLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/boe-data/bulk-delete/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/bulk-delete/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),

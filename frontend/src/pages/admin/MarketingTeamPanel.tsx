@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContextDjango';
-import { apiClient } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -96,9 +96,9 @@ export default function MarketingTeamPanel() {
       try {
         // Fetch users by team for each marketing category
         const [breRes, boeRes, creRes] = await Promise.all([
-          fetch('http://localhost:8000/api/auth/users/?company=2', { headers }),
-          fetch('http://localhost:8000/api/ase-leads/boe-users/', { headers }),
-          fetch('http://localhost:8000/api/ase-leads/cre-users/', { headers }),
+          fetch(`${API_BASE_URL}/auth/users/?company=2`, { headers }),
+          fetch(`${API_BASE_URL}/ase-leads/boe-users/`, { headers }),
+          fetch(`${API_BASE_URL}/ase-leads/cre-users/`, { headers }),
         ]);
         if (breRes.ok) {
           const data = await breRes.json();

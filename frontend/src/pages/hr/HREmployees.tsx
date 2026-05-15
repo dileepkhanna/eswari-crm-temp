@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
 import TopBar from '@/components/layout/TopBar';
@@ -404,7 +404,7 @@ export default function HREmployees() {
   const fetchTeamsForCompany = async (companyId: number) => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:8000/api/teams/?company=${companyId}`, {
+      const res = await fetch(`${API_BASE_URL}/teams/?company=${companyId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {

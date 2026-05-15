@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner';
 import TopBar from '@/components/layout/TopBar';
 import { TaskList } from '@/components/ase-marketing/tasks/TaskList';
+import { API_BASE_URL } from '@/lib/api';
 
 interface CRELead {
   id: number;
@@ -121,7 +122,7 @@ export default function CREDashboard() {
     try {
       if (!hasFetchedRef.current) setLoading(true);
       const token = localStorage.getItem('access_token');
-      let url = `http://localhost:8000/api/ase-leads/cre-leads/?page=${currentPage}&page_size=50`;
+      let url = `${API_BASE_URL}/ase-leads/cre-leads/?page=${currentPage}&page_size=50`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (statusFilter && statusFilter !== 'all') url += `&status=${statusFilter}`;
       if (dateFrom) url += `&date_from=${dateFrom}`;
@@ -193,7 +194,7 @@ export default function CREDashboard() {
     try {
       setUpdateLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/cre-leads/${updateRecord.id}/update-status/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/${updateRecord.id}/update-status/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: updateStatus, call_notes: updateNotes }),
@@ -215,7 +216,7 @@ export default function CREDashboard() {
     try {
       setAddLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/cre-leads/create/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/create/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: addName.trim(), phone_number: addPhone.trim(), location: addLocation.trim(), notes: addNotes.trim() }),
@@ -248,7 +249,7 @@ export default function CREDashboard() {
     try {
       setEditLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/cre-leads/${editRecord.id}/edit/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/${editRecord.id}/edit/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName.trim(), phone_number: editPhone.trim(), location: editLocation.trim(), notes: editNotes.trim() }),
@@ -270,7 +271,7 @@ export default function CREDashboard() {
     try {
       setDeleteLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/cre-leads/${record.id}/delete/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/${record.id}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -300,7 +301,7 @@ export default function CREDashboard() {
     try {
       setTaskLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/cre-leads/${taskRecord.id}/convert-task/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/${taskRecord.id}/convert-task/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -734,7 +735,7 @@ export default function CREDashboard() {
                           const newStatus = e.target.value;
                           try {
                             const token = localStorage.getItem('access_token');
-                            const response = await fetch(`http://localhost:8000/api/ase-leads/cre-leads/${record.id}/update-status/`, {
+                            const response = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/${record.id}/update-status/`, {
                               method: 'PATCH',
                               headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                               body: JSON.stringify({ status: newStatus }),

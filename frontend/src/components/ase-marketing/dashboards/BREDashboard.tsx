@@ -41,7 +41,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 import TopBar from '@/components/layout/TopBar';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -128,7 +128,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
       } else {
         body.ids = selectedIds;
       }
-      const response = await fetch('http://localhost:8000/api/ase-leads/bre-research/bulk-delete/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/bre-research/bulk-delete/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -167,7 +167,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
     const fetchBreStats = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const response = await fetch('http://localhost:8000/api/ase-leads/bre-stats/', {
+        const response = await fetch(`${API_BASE_URL}/ase-leads/bre-stats/`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (response.ok) {
@@ -355,7 +355,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
     try {
       setAssignLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/bre-research/${assignLeadId}/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/bre-research/${assignLeadId}/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to: parseInt(selectedBOEUser) }),
@@ -385,7 +385,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
     setAutoAssignSelectedUsers([]);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:8000/api/ase-leads/boe-users/', {
+      const res = await fetch(`${API_BASE_URL}/ase-leads/boe-users/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
@@ -410,7 +410,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
       const body: any = { boe_user_ids: autoAssignSelectedUsers, company: 2 };
       if (autoAssignLimit) body.limit = parseInt(autoAssignLimit);
 
-      const response = await fetch('http://localhost:8000/api/ase-leads/bre-research/auto-assign/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/bre-research/auto-assign/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -472,7 +472,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
     try {
       setEditLoading(true);
       const token = localStorage.getItem('access_token');
-      await fetch(`http://localhost:8000/api/ase-leads/bre-research/${editLeadId}/`, {
+      await fetch(`${API_BASE_URL}/ase-leads/bre-research/${editLeadId}/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -503,7 +503,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
     try {
       setDeleteLoading(true);
       const token = localStorage.getItem('access_token');
-      await fetch(`http://localhost:8000/api/ase-leads/bre-research/${deleteLeadId}/delete/`, {
+      await fetch(`${API_BASE_URL}/ase-leads/bre-research/${deleteLeadId}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -542,7 +542,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
       } else {
         body.ids = selectedIds;
       }
-      const response = await fetch('http://localhost:8000/api/ase-leads/bre-research/bulk-assign/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/bre-research/bulk-assign/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -587,7 +587,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
       
       // Use fetch directly for file upload since apiClient.post sends JSON
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/ase-leads/bulk-upload/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/bulk-upload/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -892,7 +892,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
               <Button variant="outline" size="sm" onClick={async () => {
                 try {
                   const token = localStorage.getItem('access_token');
-                  const response = await fetch('http://localhost:8000/api/ase-leads/bulk-upload/template/', {
+                  const response = await fetch(`${API_BASE_URL}/ase-leads/bulk-upload/template/`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                   });
                   if (!response.ok) throw new Error('Failed to export');
@@ -913,7 +913,7 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
               <Button variant="outline" size="sm" onClick={async () => {
                 try {
                   const token = localStorage.getItem('access_token');
-                  const response = await fetch('http://localhost:8000/api/ase-leads/bulk-upload/template/', {
+                  const response = await fetch(`${API_BASE_URL}/ase-leads/bulk-upload/template/`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                   });
                   if (!response.ok) throw new Error('Failed to download');

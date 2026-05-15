@@ -9,6 +9,7 @@ import BREDashboard from './BREDashboard';
 import BOELeads from './BOELeads';
 import CREDashboard from './CREDashboard';
 import { TaskList } from '@/components/ase-marketing/tasks/TaskList';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function MarketingLeadDashboard({ dashboardOnly = false }: { dashboardOnly?: boolean } = {}) {
   const { data: stats, loading: statsLoading } = useDashboardStats();
@@ -26,15 +27,15 @@ export default function MarketingLeadDashboard({ dashboardOnly = false }: { dash
     const fetchAll = async () => {
       try {
         // BRE stats
-        const breRes = await fetch('http://localhost:8000/api/ase-leads/bre-stats/', { headers });
+        const breRes = await fetch(`${API_BASE_URL}/ase-leads/bre-stats/`, { headers });
         if (breRes.ok) { const data = await breRes.json(); setBreStats(data); }
 
         // BOE leads count
-        const boeRes = await fetch('http://localhost:8000/api/ase-leads/boe-leads/?page_size=1', { headers });
+        const boeRes = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/?page_size=1`, { headers });
         if (boeRes.ok) { const data = await boeRes.json(); setBoeLeadsCount(data.count || 0); }
 
         // CRE leads count + stats
-        const creRes = await fetch('http://localhost:8000/api/ase-leads/cre-leads/?page_size=1', { headers });
+        const creRes = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/?page_size=1`, { headers });
         if (creRes.ok) {
           const data = await creRes.json();
           setCreLeadsCount(data.count || 0);

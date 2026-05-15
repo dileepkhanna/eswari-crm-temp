@@ -3,6 +3,8 @@ import { logger } from '@/lib/logger';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '';
 
+export { API_BASE_URL };
+
 // Utility function to construct proper media URLs
 export const getMediaUrl = (path: string): string => {
   if (!path) return '';

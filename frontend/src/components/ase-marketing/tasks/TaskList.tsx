@@ -12,6 +12,7 @@ import { PriorityBadge } from '@/components/ase-marketing/shared';
 import { CheckCircle, Clock, ListTodo, ChevronLeft, ChevronRight, AlertTriangle, XCircle, Eye, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Task } from '@/hooks/ase-marketing/useASEMarketing';
+import { API_BASE_URL } from '@/lib/api';
 
 interface TaskListProps {
   title?: string;
@@ -72,7 +73,7 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
     try {
       setRejectingId(taskId);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/tasks/${taskId}/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/tasks/${taskId}/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'cancelled' }),
@@ -95,7 +96,7 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
       const token = localStorage.getItem('access_token');
       const userStr = localStorage.getItem('user');
       const currentUser = userStr ? JSON.parse(userStr) : null;
-      const response = await fetch('http://localhost:8000/api/ase-leads/tasks/', {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/tasks/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,7 +140,7 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
     try {
       setEditLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/tasks/${editTask.id}/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/tasks/${editTask.id}/`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -167,7 +168,7 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
     if (!confirm('Delete this task? This cannot be undone.')) return;
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/ase-leads/tasks/${taskId}/delete/`, {
+      const response = await fetch(`${API_BASE_URL}/ase-leads/tasks/${taskId}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
