@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,8 +22,11 @@ interface TaskListProps {
 export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListProps) {
   const { user } = useAuth();
   const canDelete = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'team_lead';
+  const canFilterByEmployee = user?.role === 'admin' || user?.role === 'manager';
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [employeeFilter, setEmployeeFilter] = useState('all');
+  const [employees, setEmployees] = useState<{id: number; name: string}[]>([]);
   const [page, setPage] = useState(1);
   const [completingId, setCompletingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
@@ -33,6 +36,7 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
   const params: Record<string, any> = { page };
   if (statusFilter !== 'all') params.status = statusFilter;
   if (priorityFilter !== 'all') params.priority = priorityFilter;
+  if (employeeFilter !== 'all') params.assigned_to = employeeFilter;
 
   // Add Task
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -55,6 +59,26 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
   const [editLoading, setEditLoading] = useState(false);
 
   const { data, loading, error, refetch } = useMyTasks(params);
+
+  // Fetch employees for filter (admin/manager only)
+  useEffect(() => {
+    if (!canFilterByEmployee) return;
+    const fetchEmployees = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API_BASE_URL}/ase-leads/cre-users/`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setEmployees(Array.isArray(data) ? data.map((u: any) => ({ id: u.id, name: u.name || `${u.first_name} ${u.last_name}`.trim() || u.username })) : []);
+        }
+      } catch (err) {
+        setEmployees([]);
+      }
+    };
+    fetchEmployees();
+  }, [canFilterByEmployee]);
 
   const handleComplete = async (taskId: number) => {
     try {
@@ -221,6 +245,20 @@ export function TaskList({ title = 'My Tasks', showFilters = true }: TaskListPro
                     <SelectItem value="low">Low</SelectItem>
                   </SelectContent>
                 </Select>
+
+                {canFilterByEmployee && (
+                  <Select value={employeeFilter} onValueChange={(v) => { setEmployeeFilter(v); setPage(1); }}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={String(emp.id)}>{emp.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </>
             )}
             <Button size="sm" onClick={() => setAddModalOpen(true)}>

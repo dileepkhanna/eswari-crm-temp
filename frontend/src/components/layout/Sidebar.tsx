@@ -156,7 +156,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   // ASE Technologies specific sections
   const aseSpecificItems: NavItem[] = [
     { label: 'Employees', icon: UsersIcon, href: '/ase-employees', roles: ['admin'] },
-    { label: 'Technical Team', icon: Users2, href: '/technical-team', roles: ['admin'] },
     { label: 'Marketing Team', icon: TrendingUp, href: '/marketing-team', roles: ['admin', 'manager'] },
     { label: 'Calls', icon: PhoneIcon, href: '/ase-customers', roles: ['admin', 'manager', 'employee'] },
     { label: 'Leads', icon: LeadsIcon, href: '/ase-leads', roles: ['admin', 'manager', 'employee'] },

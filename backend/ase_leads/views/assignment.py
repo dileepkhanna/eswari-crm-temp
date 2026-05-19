@@ -280,16 +280,17 @@ def assign_to_cre(request, pk):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate target user is a CRE team member
-    if not hasattr(target_user, 'team') or target_user.team is None:
-        return Response(
-            {'error': 'Target user is not assigned to any team.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    # Validate target user is a CRE team member or has manager/team_lead/admin role
+    allowed_roles = ('manager', 'team_lead', 'admin')
+    is_cre_member = (
+        hasattr(target_user, 'team') and target_user.team is not None
+        and target_user.team.marketing_category == 'cre'
+    )
+    is_allowed_role = target_user.role in allowed_roles
 
-    if target_user.team.marketing_category != 'cre':
+    if not is_cre_member and not is_allowed_role:
         return Response(
-            {'error': 'Target user must be a CRE team member.'},
+            {'error': 'Target user must be a CRE team member or have manager/team_lead/admin role.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -351,11 +352,13 @@ def boe_users(request):
 @permission_classes([IsAuthenticated, ASEMarketingPermission])
 def cre_users(request):
     """
-    List all CRE team members for assignment dropdowns.
+    List all CRE team members and managers/team_leads/admins for assignment dropdowns.
 
-    Returns a list of users who belong to a team with marketing_category='cre'.
+    Returns a list of users who belong to a team with marketing_category='cre'
+    (all roles), plus any users with manager/team_lead/admin roles.
     """
     from teams.models import Team
+    from django.db.models import Q
 
     company = request.user.company if request.user.role != 'admin' else None
 
@@ -366,15 +369,24 @@ def cre_users(request):
 
     cre_team_ids = cre_teams_qs.values_list('id', flat=True)
 
-    # Get users in those teams
-    users = User.objects.filter(team_id__in=cre_team_ids, is_active=True).values(
-        'id', 'first_name', 'last_name', 'email', 'username'
+    # Get all CRE team members (any role) + managers/team_leads/admins
+    users_qs = User.objects.filter(is_active=True).filter(
+        Q(team_id__in=cre_team_ids) | Q(role__in=['manager', 'team_lead', 'admin'])
     )
+    if company:
+        # Include users from same company OR admin/manager/team_lead users without a company
+        users_qs = users_qs.filter(
+            Q(company=company) | Q(company__isnull=True, role__in=['manager', 'team_lead', 'admin'])
+        )
+
+    users = users_qs.distinct().values('id', 'first_name', 'last_name', 'email', 'username', 'role')
 
     # Add 'name' field for frontend compatibility
     result = []
     for u in users:
         name = f"{u['first_name']} {u['last_name']}".strip() or u['username']
-        result.append({**u, 'name': name})
+        role_label = u['role'].replace('_', ' ').title() if u['role'] != 'employee' else ''
+        display_name = f"{name} ({role_label})" if role_label else name
+        result.append({**u, 'name': display_name})
 
     return Response(result)

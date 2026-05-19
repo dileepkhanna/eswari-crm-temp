@@ -859,7 +859,7 @@ export default function BOEDashboard() {
       <Dialog open={convertModalOpen} onOpenChange={setConvertModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Convert to Lead & Assign CRE</DialogTitle>
+            <DialogTitle>Convert to Lead & Assign</DialogTitle>
           </DialogHeader>
           {convertRecord && (
             <div className="space-y-4 py-4">
@@ -870,10 +870,10 @@ export default function BOEDashboard() {
               </div>
 
               <div className="space-y-2">
-                <Label>Assign to CRE Employee *</Label>
+                <Label>Assign to Employee *</Label>
                 <Select value={selectedCre} onValueChange={setSelectedCre}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select CRE employee" />
+                    <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
                     {creUsers.map((u) => (
@@ -882,7 +882,7 @@ export default function BOEDashboard() {
                   </SelectContent>
                 </Select>
                 {creUsers.length === 0 && (
-                  <p className="text-xs text-red-500">No CRE employees found. Please add CRE team members first.</p>
+                  <p className="text-xs text-red-500">No employees found. Please add team members first.</p>
                 )}
               </div>
 

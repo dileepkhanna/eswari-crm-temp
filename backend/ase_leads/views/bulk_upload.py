@@ -809,23 +809,30 @@ def boe_convert_to_lead(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def cre_users_list(request):
-    """List all CRE team members for assignment dropdown."""
+    """List all CRE team members and managers/team_leads/admins for assignment dropdown."""
     from django.contrib.auth import get_user_model
+    from django.db.models import Q
     from teams.models import Team
     User = get_user_model()
 
     # Get CRE team
     cre_team = Team.objects.filter(marketing_category='cre', is_active=True).first()
-    if not cre_team:
-        return Response([])
 
-    users = User.objects.filter(team=cre_team, is_active=True).values(
-        'id', 'first_name', 'last_name', 'username'
-    )
+    # Get all CRE team members (any role) + managers/team_leads/admins
+    filter_q = Q(role__in=['manager', 'team_lead', 'admin'])
+    if cre_team:
+        filter_q = filter_q | Q(team=cre_team)
+
+    users = User.objects.filter(
+        is_active=True
+    ).filter(filter_q).distinct().values('id', 'first_name', 'last_name', 'username', 'role')
+
     result = []
     for u in users:
         name = f"{u['first_name']} {u['last_name']}".strip() or u['username']
-        result.append({'id': u['id'], 'name': name})
+        role_label = u['role'].replace('_', ' ').title() if u['role'] != 'employee' else ''
+        display_name = f"{name} ({role_label})" if role_label else name
+        result.append({'id': u['id'], 'name': display_name})
     return Response(result)
 
 
@@ -981,10 +988,11 @@ def boe_leads_list(request):
     if date_to:
         qs = qs.filter(created_at__date__lte=date_to)
 
-    # Created by filter (admin only)
+    # Created by / assigned to filter (admin/manager)
     created_by_filter = request.query_params.get('created_by', '').strip()
     if created_by_filter and user.role in ('admin', 'manager'):
-        qs = qs.filter(created_by_id=created_by_filter)
+        from django.db.models import Q
+        qs = qs.filter(Q(created_by_id=created_by_filter) | Q(assigned_to_cre_id=created_by_filter))
 
     # CRE assigned filter
     assigned_cre_filter = request.query_params.get('assigned_cre', '').strip()
@@ -1014,6 +1022,7 @@ def boe_leads_list(request):
             'status': item.status,
             'created_by_name': item.created_by_name,
             'assigned_to_cre_name': item.assigned_to_cre_name,
+            'task_created': item.task_created,
             'created_at': item.created_at.isoformat(),
         })
 
@@ -1130,6 +1139,7 @@ def boe_leads_delete(request, pk):
 def boe_leads_assign_cre(request, pk):
     """BOE or Admin assigns a lead to CRE."""
     from django.contrib.auth import get_user_model
+    from teams.models import Team
     User = get_user_model()
 
     user = request.user
@@ -1150,6 +1160,15 @@ def boe_leads_assign_cre(request, pk):
     except User.DoesNotExist:
         return Response({'error': 'CRE user not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Validate that the user is a CRE team member or has manager/team_lead/admin role
+    cre_team = Team.objects.filter(marketing_category='cre', is_active=True).first()
+    allowed_roles = ('manager', 'team_lead', 'admin')
+    is_cre_member = cre_team and cre_user.team_id == cre_team.id
+    is_allowed_role = cre_user.role in allowed_roles
+
+    if not is_cre_member and not is_allowed_role:
+        return Response({'error': 'Selected user must be a CRE team member or have manager/team_lead/admin role.'}, status=status.HTTP_400_BAD_REQUEST)
+
     lead.assigned_to_cre = cre_user
     lead.status = 'assigned_cre'
     if request.data.get('call_notes'):
@@ -1160,7 +1179,25 @@ def boe_leads_assign_cre(request, pk):
     return Response({'id': lead.id, 'message': f'Lead assigned to {cre_name}.'})
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def boe_leads_mark_task_created(request, pk):
+    """Mark a BOE lead as having a task created for it."""
+    user = request.user
+    try:
+        if user.role in ('admin', 'manager', 'team_lead'):
+            lead = BOELead.objects.get(pk=pk)
+        else:
+            lead = BOELead.objects.get(pk=pk, created_by=user)
+    except BOELead.DoesNotExist:
+        return Response({'error': 'Lead not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if lead.task_created:
+        return Response({'error': 'Task already created for this lead.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    lead.task_created = True
+    lead.save(update_fields=['task_created'])
+    return Response({'id': lead.id, 'task_created': True, 'message': 'Lead marked as task created.'})# ══════════════════════════════════════════════════════════════════════════════
 # BOE Leads Export / Import
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1745,23 +1782,30 @@ def boe_leads_bulk_assign(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def boe_leads_creators(request):
-    """Return distinct users who created BOE leads (for filter dropdown)."""
+    """Return distinct users who created or are assigned CRE for BOE leads (for filter dropdown)."""
     from django.contrib.auth import get_user_model
+    from django.db.models import Q
     User = get_user_model()
 
     user = request.user
     if user.role in ('admin', 'manager', 'team_lead'):
-        creator_ids = BOELead.objects.values_list('created_by_id', flat=True).distinct()
+        # Get both creators and CRE-assigned users
+        creator_ids = set(BOELead.objects.values_list('created_by_id', flat=True).distinct())
+        cre_ids = set(BOELead.objects.filter(assigned_to_cre__isnull=False).values_list('assigned_to_cre_id', flat=True).distinct())
+        all_ids = creator_ids | cre_ids
     else:
-        creator_ids = BOELead.objects.filter(created_by=user).values_list('created_by_id', flat=True).distinct()
+        creator_ids = set(BOELead.objects.filter(created_by=user).values_list('created_by_id', flat=True).distinct())
+        all_ids = creator_ids
 
-    users = User.objects.filter(id__in=creator_ids, is_active=True).values(
-        'id', 'first_name', 'last_name', 'username'
+    users = User.objects.filter(id__in=all_ids, is_active=True).values(
+        'id', 'first_name', 'last_name', 'username', 'role'
     )
     result = []
     for u in users:
         name = f"{u['first_name']} {u['last_name']}".strip() or u['username']
-        result.append({'id': u['id'], 'first_name': u['first_name'], 'last_name': u['last_name'], 'name': name})
+        role_label = u['role'].replace('_', ' ').title() if u['role'] not in ('employee',) else ''
+        display_name = f"{name} ({role_label})" if role_label else name
+        result.append({'id': u['id'], 'first_name': u['first_name'], 'last_name': u['last_name'], 'name': display_name})
     return Response(result)
 
 

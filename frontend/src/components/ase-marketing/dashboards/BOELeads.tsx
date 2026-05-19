@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
+  ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TopBar from '@/components/layout/TopBar';
@@ -41,6 +42,7 @@ interface LeadRecord {
   created_by_name: string;
   assigned_to_name: string;
   assigned_to_cre_name: string | null;
+  task_created: boolean;
   created_at: string;
 }
 
@@ -65,7 +67,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [createdByFilter, setCreatedByFilter] = useState('');
-  const [boeUsers, setBoeUsers] = useState<{id: number; first_name: string; last_name: string}[]>([]);
+  const [boeUsers, setBoeUsers] = useState<{id: number; first_name: string; last_name: string; name?: string}[]>([]);
   const hasFetchedRef = useRef(false);
 
   // Bulk operations
@@ -111,6 +113,16 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
+
+  // Create Task modal
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskRecord, setTaskRecord] = useState<LeadRecord | null>(null);
+  const [taskType, setTaskType] = useState('call');
+  const [taskPriority, setTaskPriority] = useState('medium');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskLoading, setTaskLoading] = useState(false);
+  const canCreateTask = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'team_lead';
 
   const fetchLeads = async () => {
     try {
@@ -314,6 +326,63 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
       fetchLeads();
     } catch (err: any) {
       toast.error(err.message || 'Cannot delete — only leads you created can be deleted');
+    }
+  };
+
+  // Create Task from Lead
+  const handleOpenCreateTask = (record: LeadRecord) => {
+    if (record.task_created) {
+      toast.error('Task already created for this lead');
+      return;
+    }
+    setTaskRecord(record);
+    setTaskType('call');
+    setTaskPriority('medium');
+    setTaskDescription('');
+    // Default due date: tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setTaskDueDate(tomorrow.toISOString().slice(0, 16));
+    setTaskModalOpen(true);
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskRecord) return;
+    if (!taskDueDate) { toast.error('Due date is required'); return; }
+    if (taskRecord.task_created) { toast.error('Task already created for this lead'); return; }
+    setTaskLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/ase-leads/tasks/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: `Follow up with ${taskRecord.name}`,
+          task_type: taskType,
+          priority: taskPriority,
+          due_date: new Date(taskDueDate).toISOString(),
+          description: taskDescription || `Lead: ${taskRecord.name}\nPhone: ${taskRecord.phone_number}${taskRecord.location ? `\nLocation: ${taskRecord.location}` : ''}${taskRecord.notes ? `\nNotes: ${taskRecord.notes}` : ''}`,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to create task');
+
+      // Mark the BOE lead as task_created
+      await fetch(`${API_BASE_URL}/ase-leads/boe-leads/${taskRecord.id}/mark-task/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      toast.success('Task created successfully');
+      setTaskModalOpen(false);
+      fetchLeads(); // Refresh to show the tick mark
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create task');
+    } finally {
+      setTaskLoading(false);
     }
   };
 
@@ -578,7 +647,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
               <option value="">All Employees</option>
               {boeUsers.map((u) => (
                 <option key={u.id} value={String(u.id)}>
-                  {u.first_name} {u.last_name}
+                  {u.name || `${u.first_name} ${u.last_name}`}
                 </option>
               ))}
             </select>
@@ -719,6 +788,17 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleOpenEdit(record)} title="Edit">
                         <Edit className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
+                      {canCreateTask && record.assigned_to_cre_name && record.assigned_to_cre_name === user?.name && (
+                        record.task_created ? (
+                          <Button size="sm" variant="ghost" className="h-8 px-2 cursor-default" title="Task Created" disabled>
+                            <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleOpenCreateTask(record)} title="Create Task">
+                            <ClipboardList className="w-3.5 h-3.5 text-orange-500" />
+                          </Button>
+                        )
+                      )}
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleDeleteLead(record)} title="Delete">
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
                       </Button>
@@ -877,7 +957,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
       <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign to CRE</DialogTitle>
+            <DialogTitle>Assign to CRE / Manager</DialogTitle>
           </DialogHeader>
           {assignRecord && (
             <div className="space-y-4 py-4">
@@ -888,10 +968,10 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
               </div>
 
               <div className="space-y-2">
-                <Label>Select CRE Employee *</Label>
+                <Label>Select Employee *</Label>
                 <Select value={selectedCre} onValueChange={setSelectedCre}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select CRE employee" />
+                    <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
                     {creUsers.map((u) => (
@@ -900,7 +980,7 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
                   </SelectContent>
                 </Select>
                 {creUsers.length === 0 && (
-                  <p className="text-xs text-red-500">No CRE employees found.</p>
+                  <p className="text-xs text-red-500">No employees found.</p>
                 )}
               </div>
 
@@ -997,14 +1077,14 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
       <Dialog open={bulkAssignModalOpen} onOpenChange={setBulkAssignModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Bulk Assign to CRE ({selectAllRecords ? totalCount : selectedIds.length} records)</DialogTitle>
+            <DialogTitle>Bulk Assign ({selectAllRecords ? totalCount : selectedIds.length} records)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Select CRE Employee *</Label>
+              <Label>Select Employee *</Label>
               <Select value={selectedBulkCre} onValueChange={setSelectedBulkCre}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose CRE employee..." />
+                  <SelectValue placeholder="Choose employee..." />
                 </SelectTrigger>
                 <SelectContent>
                   {bulkCreUsers.map((u) => (
@@ -1019,6 +1099,83 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
             <Button onClick={handleBulkAssign} disabled={bulkAssignLoading || !selectedBulkCre}>
               {bulkAssignLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Assign {selectAllRecords ? totalCount : selectedIds.length} Records
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Task Modal */}
+      <Dialog open={taskModalOpen} onOpenChange={setTaskModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Task</DialogTitle>
+          </DialogHeader>
+          {taskRecord && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="font-medium">{taskRecord.name}</p>
+                <p className="text-sm text-muted-foreground">{taskRecord.phone_number}</p>
+                {taskRecord.location && <p className="text-sm text-muted-foreground">{taskRecord.location}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Task Type *</Label>
+                <Select value={taskType} onValueChange={setTaskType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="call">Make Call</SelectItem>
+                    <SelectItem value="email">Send Email</SelectItem>
+                    <SelectItem value="meeting">Schedule Meeting</SelectItem>
+                    <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="proposal">Prepare Proposal</SelectItem>
+                    <SelectItem value="followup">Follow Up</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Priority *</Label>
+                <Select value={taskPriority} onValueChange={setTaskPriority}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Due Date *</Label>
+                <Input
+                  type="datetime-local"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Textarea
+                  placeholder="Add task description..."
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTaskModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateTask} disabled={taskLoading || !taskDueDate} className="bg-orange-600 hover:bg-orange-700">
+              {taskLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ClipboardList className="w-4 h-4 mr-2" />}
+              Create Task
             </Button>
           </DialogFooter>
         </DialogContent>

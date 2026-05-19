@@ -68,6 +68,9 @@ class BOELead(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Task tracking
+    task_created = models.BooleanField(default=False, help_text="Whether a task has been created for this lead")
+
     class Meta:
         db_table = 'ase_leads_boelead'
         ordering = ['-created_at']

@@ -51,10 +51,11 @@ def _has_cre_access(user):
 
     Returns True for:
       - Admin users (full system access)
+      - Manager users (can work like CRE)
       - Marketing Lead users (full funnel management)
       - CRE users (their primary responsibility)
     """
-    if user.role == 'admin':
+    if user.role in ('admin', 'manager'):
         return True
 
     if not hasattr(user, 'team') or user.team is None:

@@ -98,6 +98,11 @@ def my_tasks(request):
     if task_type:
         tasks = tasks.filter(task_type=task_type)
 
+    # Filter by assigned_to (for admin/manager to filter by employee)
+    assigned_to_filter = request.query_params.get('assigned_to')
+    if assigned_to_filter and request.user.role in ('admin', 'manager', 'team_lead'):
+        tasks = tasks.filter(assigned_to_id=assigned_to_filter)
+
     # Ordering: by default, pending/in_progress at top, completed next, cancelled at bottom
     # Within each group, newest first
     ordering = request.query_params.get('ordering', '')
