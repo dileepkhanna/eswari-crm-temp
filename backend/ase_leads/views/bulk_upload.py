@@ -303,11 +303,23 @@ def bre_research_list(request):
     from django.core.paginator import Paginator
 
     user = request.user
-    # Admin without company sees all records
-    if user.role == 'admin' and not user.company:
-        qs = BREResearchData.objects.all()
-    elif user.role in ('admin', 'manager'):
-        # Admin/Manager with company sees all records from that company
+    # Admin sees all records, optionally filtered by company query param
+    if user.role == 'admin':
+        company_id = request.query_params.get('company', '').strip()
+        if company_id:
+            qs = BREResearchData.objects.filter(company_id=company_id)
+        elif user.company:
+            # Default to ASE Technologies company for the marketing panel
+            from accounts.models import Company
+            ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+            if ase_company:
+                qs = BREResearchData.objects.filter(company=ase_company)
+            else:
+                qs = BREResearchData.objects.all()
+        else:
+            qs = BREResearchData.objects.all()
+    elif user.role == 'manager':
+        # Manager sees all records from their company
         company = user.company
         qs = BREResearchData.objects.filter(company=company)
     else:
@@ -390,14 +402,9 @@ def bre_research_list(request):
 def bre_research_update(request, pk):
     """Update a BRE research data record."""
     user = request.user
-    if user.role == 'admin' and not user.company:
+    if user.role == 'admin':
         try:
             item = BREResearchData.objects.get(pk=pk)
-        except BREResearchData.DoesNotExist:
-            return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    elif user.role == 'admin':
-        try:
-            item = BREResearchData.objects.get(pk=pk, company=user.company)
         except BREResearchData.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     else:
@@ -442,14 +449,9 @@ def bre_research_update(request, pk):
 def bre_research_delete(request, pk):
     """Delete a BRE research data record."""
     user = request.user
-    if user.role == 'admin' and not user.company:
+    if user.role == 'admin':
         try:
             item = BREResearchData.objects.get(pk=pk)
-        except BREResearchData.DoesNotExist:
-            return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    elif user.role == 'admin':
-        try:
-            item = BREResearchData.objects.get(pk=pk, company=user.company)
         except BREResearchData.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     else:
@@ -474,11 +476,14 @@ def bre_research_bulk_delete(request):
     select_all = request.data.get('select_all', False)
     user = request.user
     
-    # Admin without company operates on all records
-    if user.role == 'admin' and not user.company:
-        base_qs = BREResearchData.objects.all()
-    elif user.role == 'admin':
-        base_qs = BREResearchData.objects.filter(company=user.company)
+    # Admin operates on ASE records
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
+            base_qs = BREResearchData.objects.filter(company=ase_company)
+        else:
+            base_qs = BREResearchData.objects.all()
     else:
         # Employees can only delete their own data
         base_qs = BREResearchData.objects.filter(company=user.company, created_by=user)
@@ -536,11 +541,14 @@ def bre_research_bulk_assign(request):
         return Response({'error': 'Assigned user not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
     user = request.user
-    # Admin without company operates on all records
-    if user.role == 'admin' and not user.company:
-        base_qs = BREResearchData.objects.all()
-    elif user.role == 'admin':
-        base_qs = BREResearchData.objects.filter(company=user.company)
+    # Admin operates on ASE records
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
+            base_qs = BREResearchData.objects.filter(company=ase_company)
+        else:
+            base_qs = BREResearchData.objects.all()
     else:
         # Employees can only assign their own data
         base_qs = BREResearchData.objects.filter(company=user.company, created_by=user)
@@ -1374,10 +1382,15 @@ def bre_dashboard_stats(request):
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
-    # Admin without company sees all records
-    if user.role == 'admin' and not user.company:
-        all_records = BREResearchData.objects.all()
-    elif user.role in ('admin', 'manager'):
+    # Admin sees all ASE records
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
+            all_records = BREResearchData.objects.filter(company=ase_company)
+        else:
+            all_records = BREResearchData.objects.all()
+    elif user.role == 'manager':
         company = user.company
         all_records = BREResearchData.objects.filter(company=company)
     else:
