@@ -8,9 +8,9 @@ class AppSettings(models.Model):
     app_name = models.CharField(max_length=100, default='ESWARI CONNECTS')
     logo_url = models.TextField(blank=True, null=True, help_text='URL or data URL for the application logo')
     favicon_url = models.TextField(blank=True, null=True, help_text='URL or data URL for the favicon')
-    primary_color = models.CharField(max_length=50, default='152 45% 28%', help_text='HSL format: "152 45% 28%"')
-    accent_color = models.CharField(max_length=50, default='45 90% 50%', help_text='HSL format: "45 90% 50%"')
-    sidebar_color = models.CharField(max_length=50, default='152 35% 15%', help_text='HSL format: "152 35% 15%"')
+    primary_color = models.CharField(max_length=50, default='152 45% 28%', help_text='Color in HSL, HEX, or RGB format')
+    accent_color = models.CharField(max_length=50, default='45 90% 50%', help_text='Color in HSL, HEX, or RGB format')
+    sidebar_color = models.CharField(max_length=50, default='152 35% 15%', help_text='Color in HSL, HEX, or RGB format')
     custom_css = models.TextField(blank=True, null=True, help_text='Custom CSS styles')
     
     created_at = models.DateTimeField(auto_now_add=True)

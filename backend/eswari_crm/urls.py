@@ -26,6 +26,7 @@ from django.views.decorators.cache import cache_control
 import os
 from . import views
 from accounts.hr_reports import dashboard_metrics, employee_statistics, leave_statistics
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 def serve_media_with_cors(request, path):
     """Serve media files with CORS headers"""
@@ -63,6 +64,44 @@ urlpatterns = [
     path("api/hr/reports/leaves/", leave_statistics, name="hr_leave_statistics"),
     path("api/documentation/", include("documentation.urls")),
     path("api/", include("birthdays.urls")),  # Birthday calendar URLs
+    path("api/insights/", include("analytics.urls")),  # Unified analytics (renamed from 'analytics' to avoid ad-blocker filters)
+    path("api/bulk/", include("bulk_operations.urls")),  # Bulk operations
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # API v1 — Versioned endpoints (mirrors /api/ for mobile app stability)
+    # The mobile app should migrate to /api/v1/ for future-proof compatibility
+    # ═══════════════════════════════════════════════════════════════════════
+    path("api/v1/health/", views.health_check, name="v1_health_check"),
+    path("api/v1/auth/", include("accounts.urls")),
+    path("api/v1/", include("leads.urls")),
+    path("api/v1/", include("projects.urls")),
+    path("api/v1/", include("tasks.urls")),
+    path("api/v1/leaves/", include("leaves.urls")),
+    path("api/v1/announcements/", include("announcements.urls")),
+    path("api/v1/activity-logs/", include("activity_logs.urls")),
+    path("api/v1/", include("holidays.urls")),
+    path("api/v1/", include("customers.urls")),
+    path("api/v1/", include("ase_customers.urls")),
+    path("api/v1/", include("ase_leads.urls")),
+    path("api/v1/capital/", include("capital.urls")),
+    path("api/v1/", include("teams.urls")),
+    path("api/v1/tech/", include("tech_projects.urls")),
+    path("api/v1/app-settings/", include("app_settings.urls")),
+    path("api/v1/notifications/", include("notifications.urls")),
+    path("api/v1/hr/reports/dashboard/", dashboard_metrics, name="v1_hr_dashboard_metrics"),
+    path("api/v1/hr/reports/employees/", employee_statistics, name="v1_hr_employee_statistics"),
+    path("api/v1/hr/reports/leaves/", leave_statistics, name="v1_hr_leave_statistics"),
+    path("api/v1/documentation/", include("documentation.urls")),
+    path("api/v1/", include("birthdays.urls")),
+    path("api/v1/insights/", include("analytics.urls")),
+    path("api/v1/bulk/", include("bulk_operations.urls")),
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # API Documentation (Swagger / OpenAPI)
+    # ═══════════════════════════════════════════════════════════════════════
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
 
 # Add media URLs with CORS support

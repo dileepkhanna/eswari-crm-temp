@@ -41,6 +41,7 @@ import AdminPendingUsers from '@/pages/admin/AdminPendingUsers';
 import TechnicalTeamPanel from '@/pages/admin/TechnicalTeamPanel';
 import EnhancedTechnicalTeamPanel from '@/pages/admin/EnhancedTechnicalTeamPanel';
 import MarketingTeamPanel from '@/pages/admin/MarketingTeamPanel';
+import AdminUnifiedAnalytics from '@/pages/admin/AdminUnifiedAnalytics';
 import BOELeads from '@/components/ase-marketing/dashboards/BOELeads';
 import MarketingTasks from '@/components/ase-marketing/tasks/MarketingTasksPage';
 
@@ -198,6 +199,7 @@ const AppRouter = () => {
         <Route path="reports" element={<AdminReports />} />
         <Route path="documentation" element={<AdminDocumentation />} />
         <Route path="birthdays" element={<AdminBirthdays />} />
+        <Route path="unified-analytics" element={<AdminUnifiedAnalytics />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

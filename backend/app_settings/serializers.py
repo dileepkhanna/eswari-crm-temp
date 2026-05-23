@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import AppSettings
+import re
+
 
 class AppSettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,31 +15,45 @@ class AppSettingsSerializer(serializers.ModelSerializer):
     
     def validate_logo_url(self, value):
         """Allow any string for logo URL (including blob URLs and data URLs)"""
-        # No validation needed - allow any string including blob: and data: URLs
         return value
     
     def validate_favicon_url(self, value):
         """Allow any string for favicon URL (including blob URLs and data URLs)"""
-        # No validation needed - allow any string including blob: and data: URLs
         return value
     
     def validate_primary_color(self, value):
-        """Validate HSL color format"""
-        if value and not self._is_valid_hsl(value):
-            raise serializers.ValidationError("Primary color must be in HSL format (e.g., '152 45% 28%')")
+        """Validate color format (HSL, HEX, or RGB)"""
+        if value and not self._is_valid_color(value):
+            raise serializers.ValidationError("Primary color must be in HSL (e.g., '215 80% 35%'), HEX (e.g., '#2563eb'), or RGB (e.g., 'rgb(37, 99, 235)') format")
         return value
     
     def validate_accent_color(self, value):
-        """Validate HSL color format"""
-        if value and not self._is_valid_hsl(value):
-            raise serializers.ValidationError("Accent color must be in HSL format (e.g., '45 90% 50%')")
+        """Validate color format (HSL, HEX, or RGB)"""
+        if value and not self._is_valid_color(value):
+            raise serializers.ValidationError("Accent color must be in HSL (e.g., '45 90% 50%'), HEX (e.g., '#eab308'), or RGB (e.g., 'rgb(234, 179, 8)') format")
         return value
     
     def validate_sidebar_color(self, value):
-        """Validate HSL color format"""
-        if value and not self._is_valid_hsl(value):
-            raise serializers.ValidationError("Sidebar color must be in HSL format (e.g., '152 35% 15%')")
+        """Validate color format (HSL, HEX, or RGB)"""
+        if value and not self._is_valid_color(value):
+            raise serializers.ValidationError("Sidebar color must be in HSL (e.g., '152 35% 15%'), HEX (e.g., '#064e3b'), or RGB (e.g., 'rgb(6, 78, 59)') format")
         return value
+    
+    def _is_valid_color(self, value):
+        """Validate color in HSL, HEX, or RGB format"""
+        if not value:
+            return True
+        value = value.strip()
+        # Check HEX format (#RGB, #RRGGBB, #RRGGBBAA)
+        if re.match(r'^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$', value):
+            return True
+        # Check RGB format: rgb(r, g, b) or just "r, g, b" or "r g b"
+        if re.match(r'^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$', value, re.IGNORECASE):
+            return True
+        # Check HSL format: "H S% L%"
+        if self._is_valid_hsl(value):
+            return True
+        return False
     
     def _is_valid_hsl(self, value):
         """Basic HSL format validation"""

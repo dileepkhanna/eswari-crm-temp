@@ -139,6 +139,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   // Admin-only items (shown for all companies at the top)
   const adminOnlyItems: NavItem[] = [
+    { label: 'Unified Analytics', icon: BarChart, href: '/unified-analytics', roles: ['admin'] },
     { label: 'Employees', icon: UsersIcon, href: '/users', roles: ['admin'] },
     { label: 'Pending Users', icon: UserCircle, href: '/pending-users', roles: ['admin'] },
     { label: 'Companies', icon: BuildingIcon, href: '/companies', roles: ['admin'] },

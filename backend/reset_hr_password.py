@@ -13,7 +13,6 @@ try:
     user = User.objects.get(username=username)
     user.set_password(new_password)
     user.save()
-    
     print(f"\n{'='*50}")
     print(f"Password Reset Successful!")
     print(f"{'='*50}")
@@ -28,7 +27,7 @@ try:
     print(f"3. Username: {user.username}")
     print(f"4. Password: {new_password}")
     print(f"{'='*50}\n")
-    
+        
 except User.DoesNotExist:
     print(f"\n{'='*50}")
     print(f"Error: User '{username}' not found!")

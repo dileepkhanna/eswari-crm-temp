@@ -29,3 +29,11 @@ pywebpush
 
 # Firebase Cloud Messaging for mobile push notifications
 firebase-admin==7.4.0
+
+# API Documentation (OpenAPI/Swagger)
+drf-spectacular==0.27.2
+
+# WebSocket support for real-time updates
+channels==4.1.0
+channels-redis==4.2.0
+daphne==4.1.2

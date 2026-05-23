@@ -2,6 +2,70 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { apiClient } from '@/lib/api';
 
 import { logger } from '@/lib/logger';
+
+/** Convert any color format (HEX, RGB, HSL) to HSL string "H S% L%" */
+function ensureHsl(value: string): string {
+  if (!value) return '0 0% 0%';
+  const trimmed = value.trim();
+  
+  // Already HSL format (e.g. "215 80% 35%")
+  const hslParts = trimmed.split(' ');
+  if (hslParts.length === 3 && hslParts[1].endsWith('%') && hslParts[2].endsWith('%')) {
+    return trimmed;
+  }
+  
+  // HEX format
+  if (trimmed.startsWith('#') || /^[a-f0-9]{3,8}$/i.test(trimmed)) {
+    let hex = trimmed.startsWith('#') ? trimmed : '#' + trimmed;
+    if (hex.length === 4) {
+      hex = `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+    }
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (result) {
+      const r = parseInt(result[1], 16) / 255;
+      const g = parseInt(result[2], 16) / 255;
+      const b = parseInt(result[3], 16) / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0, s = 0;
+      const l = (max + min) / 2;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    }
+  }
+  
+  // RGB format: rgb(r, g, b)
+  const rgbMatch = trimmed.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1]) / 255;
+    const g = parseInt(rgbMatch[2]) / 255;
+    const b = parseInt(rgbMatch[3]) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+  }
+  
+  // Fallback: return as-is (assume it's already HSL)
+  return trimmed;
+}
+
 interface AppSettings {
   id: string;
   app_name: string;
@@ -64,11 +128,17 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (s.sidebar_color) {
       root.style.setProperty('--sidebar-background', s.sidebar_color);
       // Update gradient sidebar to use the new color
-      const [h, s_val, l_val] = s.sidebar_color.split(' ');
-      const lightness = parseInt(l_val.replace('%', ''));
-      const darkerLightness = Math.max(lightness - 5, 0); // Make it 5% darker for gradient
-      const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
-      root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${s.sidebar_color}) 0%, hsl(${gradientColor}) 100%)`);
+      try {
+        const hslValue = ensureHsl(s.sidebar_color);
+        const [h, s_val, l_val] = hslValue.split(' ');
+        const lightness = parseInt(l_val.replace('%', ''));
+        const darkerLightness = Math.max(lightness - 5, 0);
+        const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
+        root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${hslValue}) 0%, hsl(${gradientColor}) 100%)`);
+      } catch {
+        // Fallback: just use the color as-is without gradient
+        root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${s.sidebar_color}) 0%, hsl(${s.sidebar_color}) 100%)`);
+      }
       logger.log('🎨 Set --sidebar-background to:', s.sidebar_color);
     }
     

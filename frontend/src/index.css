@@ -751,35 +751,16 @@ input[type="color"]::-webkit-color-swatch-wrapper {
   z-index: 1002;
 }
 
-/* Fix for color picker in modal/dialog contexts */
-.color-picker-container {
-  position: relative;
-  z-index: 1000;
-  isolation: isolate;
+/* React Colorful - Color Picker Styles */
+.react-colorful {
+  width: 200px !important;
+  height: 200px !important;
 }
 
-.color-picker-container input[type="color"] {
-  position: relative;
-  z-index: 1001;
-  pointer-events: auto !important;
+.react-colorful__saturation {
+  border-radius: 6px 6px 0 0;
 }
 
-/* Additional fixes to prevent closing */
-input[type="color"]:active,
-input[type="color"]:focus-visible,
-input[type="color"]:focus-within {
-  z-index: 99999 !important;
-  isolation: isolate;
-}
-
-/* Prevent modal/dialog interference */
-.color-picker-container:focus-within {
-  z-index: 99999;
-  isolation: isolate;
-}
-
-/* Override any modal z-index issues */
-[role="dialog"] .color-picker-container input[type="color"]:focus,
-[role="dialog"] .color-picker-container input[type="color"]:active {
-  z-index: 999999 !important;
+.react-colorful__last-control {
+  border-radius: 0 0 6px 6px;
 }

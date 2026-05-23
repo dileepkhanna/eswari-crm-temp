@@ -33,6 +33,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lamb
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",  # ASGI server for WebSocket support (must be listed first)
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -45,6 +46,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "rest_framework_simplejwt",
+    "drf_spectacular",  # OpenAPI/Swagger documentation
+    "channels",  # WebSocket support
     
     # Local apps
     "accounts",
@@ -65,6 +68,8 @@ INSTALLED_APPS = [
     "notifications",
     "documentation",  # Documentation system
     "birthdays",      # Birthday calendar system
+    "analytics",      # Unified cross-company analytics
+    "bulk_operations",  # Bulk assign/update operations
 ]
 
 MIDDLEWARE = [
@@ -223,7 +228,55 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    # API Documentation schema
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # API Versioning
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1'],
+    'VERSION_PARAM': 'version',
 }
+
+# drf-spectacular (OpenAPI/Swagger) settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Eswari CRM API',
+    'DESCRIPTION': 'Unified CRM API for Eswari Group, ASE Technologies, and Eswari Capital',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {'name': 'Auth', 'description': 'Authentication & user management'},
+        {'name': 'Leads', 'description': 'Eswari Group real estate leads'},
+        {'name': 'Customers', 'description': 'Eswari Group customers & call tracking'},
+        {'name': 'ASE Leads', 'description': 'ASE Technologies digital marketing leads'},
+        {'name': 'Capital', 'description': 'Eswari Capital loans & services'},
+        {'name': 'Tasks', 'description': 'Task management'},
+        {'name': 'Projects', 'description': 'Project management'},
+        {'name': 'Teams', 'description': 'Team management for ASE Technologies'},
+        {'name': 'Analytics', 'description': 'Unified cross-company analytics'},
+        {'name': 'HR', 'description': 'HR reports & employee management'},
+        {'name': 'Notifications', 'description': 'Push notifications'},
+    ],
+}
+
+# ASGI / Channels configuration for WebSocket support
+ASGI_APPLICATION = "eswari_crm.asgi.application"
+
+# Channel layers - use in-memory for development, Redis for production
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
+# For production with Redis, uncomment below:
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [("127.0.0.1", 6379)],
+#         },
+#     },
+# }
 
 # JWT Settings
 from datetime import timedelta

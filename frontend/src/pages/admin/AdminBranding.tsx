@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from 'sonner';
 import { Upload, Palette, Code, Building2, Loader2, Globe, Building } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ColorPickerField } from '@/components/ui/color-picker';
 import type { Company } from '@/types';
 
 import { logger } from '@/lib/logger';
@@ -65,11 +66,14 @@ const AdminBranding = () => {
         root.style.setProperty('--sidebar-background', formData.sidebar_color);
         // Update gradient sidebar
         try {
-          const [h, s_val, l_val] = formData.sidebar_color.split(' ');
-          const lightness = parseInt(l_val.replace('%', ''));
-          const darkerLightness = Math.max(lightness - 5, 0);
-          const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
-          root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${formData.sidebar_color}) 0%, hsl(${gradientColor}) 100%)`);
+          const parts = formData.sidebar_color.split(' ');
+          if (parts.length === 3 && parts[2].includes('%')) {
+            const [h, s_val, l_val] = parts;
+            const lightness = parseInt(l_val.replace('%', ''));
+            const darkerLightness = Math.max(lightness - 5, 0);
+            const gradientColor = `${h} ${s_val} ${darkerLightness}%`;
+            root.style.setProperty('--gradient-sidebar', `linear-gradient(180deg, hsl(${formData.sidebar_color}) 0%, hsl(${gradientColor}) 100%)`);
+          }
           logger.log('🎨 Preview: Set --sidebar-background to:', formData.sidebar_color);
         } catch (error) {
           logger.warn('Error updating sidebar gradient:', error);
@@ -407,46 +411,6 @@ const AdminBranding = () => {
     }
   };
 
-  const hslToHex = (hsl: string): string => {
-    const parts = hsl.split(' ').map(p => parseFloat(p));
-    if (parts.length < 3) return '#3b82f6';
-    const [h, s, l] = parts;
-    const sNorm = s / 100;
-    const lNorm = l / 100;
-    const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
-    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-    const m = lNorm - c / 2;
-    let r = 0, g = 0, b = 0;
-    if (h < 60) { r = c; g = x; }
-    else if (h < 120) { r = x; g = c; }
-    else if (h < 180) { g = c; b = x; }
-    else if (h < 240) { g = x; b = c; }
-    else if (h < 300) { r = x; b = c; }
-    else { r = c; b = x; }
-    const toHex = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-  };
-
-  const hexToHsl = (hex: string): string => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return '215 80% 35%';
-    const r = parseInt(result[1], 16) / 255;
-    const g = parseInt(result[2], 16) / 255;
-    const b = parseInt(result[3], 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0;
-    const l = (max + min) / 2;
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-        case g: h = ((b - r) / d + 2) / 6; break;
-        case b: h = ((r - g) / d + 4) / 6; break;
-      }
-    }
-    return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-  };
 
   if (isLoading) {
     return (
@@ -589,186 +553,29 @@ const AdminBranding = () => {
               <Palette className="h-5 w-5" />
               Color Palette
             </CardTitle>
-            <CardDescription>Customize your application colors (HSL format)</CardDescription>
+            <CardDescription>Customize your application colors. Supports HEX, RGB, and HSL formats.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="primary_color">Primary Color</Label>
-                <div className="space-y-2">
-                  <div className="flex gap-2 items-center">
-                    <div className="color-picker-container shrink-0">
-                      <input
-                        type="color"
-                        value={hslToHex(formData.primary_color)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setFormData(prev => ({ ...prev, primary_color: hexToHsl(e.target.value) }));
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        onBlur={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        onInput={(e) => e.stopPropagation()}
-                        className="w-12 h-10 rounded-md border border-input cursor-pointer"
-                        style={{ padding: '2px', position: 'relative', zIndex: 9999 }}
-                        title="Click to select primary color"
-                        tabIndex={0}
-                      />
-                    </div>
-                    <Input
-                      id="primary_color"
-                      value={formData.primary_color}
-                      onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
-                      placeholder="215 80% 35%"
-                      className="flex-1 min-w-0"
-                    />
-                  </div>
-                  {/* Preset Colors */}
-                  <div className="flex gap-1 flex-wrap">
-                    <p className="text-xs text-muted-foreground w-full mb-1">Quick Colors:</p>
-                    {[
-                      { name: 'Blue', hsl: '215 80% 35%', hex: '#2563eb' },
-                      { name: 'Green', hsl: '152 45% 28%', hex: '#059669' },
-                      { name: 'Purple', hsl: '262 80% 50%', hex: '#8b5cf6' },
-                      { name: 'Red', hsl: '0 75% 55%', hex: '#ef4444' },
-                      { name: 'Orange', hsl: '25 95% 53%', hex: '#f97316' },
-                      { name: 'Teal', hsl: '173 80% 40%', hex: '#0d9488' },
-                      { name: 'Pink', hsl: '330 80% 60%', hex: '#ec4899' },
-                      { name: 'Indigo', hsl: '239 84% 67%', hex: '#6366f1' },
-                    ].map((color) => (
-                      <button
-                        key={color.name}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, primary_color: color.hsl }))}
-                        className="w-8 h-8 rounded border-2 border-border hover:border-primary transition-colors"
-                        style={{ backgroundColor: color.hex }}
-                        title={`${color.name} - ${color.hsl}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="accent_color">Accent Color</Label>
-                <div className="space-y-2">
-                  <div className="flex gap-2 items-center">
-                    <div className="color-picker-container shrink-0">
-                      <input
-                        type="color"
-                        value={hslToHex(formData.accent_color)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setFormData(prev => ({ ...prev, accent_color: hexToHsl(e.target.value) }));
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        onBlur={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        onInput={(e) => e.stopPropagation()}
-                        className="w-12 h-10 rounded-md border border-input cursor-pointer"
-                        style={{ padding: '2px', position: 'relative', zIndex: 9999 }}
-                        title="Click to select accent color"
-                        tabIndex={0}
-                      />
-                    </div>
-                    <Input
-                      id="accent_color"
-                      value={formData.accent_color}
-                      onChange={(e) => setFormData(prev => ({ ...prev, accent_color: e.target.value }))}
-                      placeholder="38 95% 55%"
-                      className="flex-1 min-w-0"
-                    />
-                  </div>
-                  {/* Preset Colors */}
-                  <div className="flex gap-1 flex-wrap">
-                    <p className="text-xs text-muted-foreground w-full mb-1">Quick Colors:</p>
-                    {[
-                      { name: 'Yellow', hsl: '45 90% 50%', hex: '#eab308' },
-                      { name: 'Orange', hsl: '25 95% 53%', hex: '#f97316' },
-                      { name: 'Pink', hsl: '330 80% 60%', hex: '#ec4899' },
-                      { name: 'Cyan', hsl: '190 70% 45%', hex: '#06b6d4' },
-                      { name: 'Lime', hsl: '84 80% 50%', hex: '#84cc16' },
-                      { name: 'Rose', hsl: '351 95% 71%', hex: '#fb7185' },
-                      { name: 'Amber', hsl: '43 96% 56%', hex: '#f59e0b' },
-                      { name: 'Emerald', hsl: '142 76% 36%', hex: '#059669' },
-                    ].map((color) => (
-                      <button
-                        key={color.name}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, accent_color: color.hsl }))}
-                        className="w-8 h-8 rounded border-2 border-border hover:border-primary transition-colors"
-                        style={{ backgroundColor: color.hex }}
-                        title={`${color.name} - ${color.hsl}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="sidebar_color">Sidebar Color</Label>
-                <div className="space-y-2">
-                  <div className="flex gap-2 items-center">
-                    <div className="color-picker-container shrink-0">
-                      <input
-                        type="color"
-                        value={hslToHex(formData.sidebar_color)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setFormData(prev => ({ ...prev, sidebar_color: hexToHsl(e.target.value) }));
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        onBlur={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        onInput={(e) => e.stopPropagation()}
-                        className="w-12 h-10 rounded-md border border-input cursor-pointer"
-                        style={{ padding: '2px', position: 'relative', zIndex: 9999 }}
-                        title="Click to select sidebar color"
-                        tabIndex={0}
-                      />
-                    </div>
-                    <Input
-                      id="sidebar_color"
-                      value={formData.sidebar_color}
-                      onChange={(e) => setFormData(prev => ({ ...prev, sidebar_color: e.target.value }))}
-                      placeholder="220 30% 12%"
-                      className="flex-1 min-w-0"
-                    />
-                  </div>
-                  {/* Preset Colors */}
-                  <div className="flex gap-1 flex-wrap">
-                    <p className="text-xs text-muted-foreground w-full mb-1">Quick Colors:</p>
-                    {[
-                      { name: 'Dark Blue', hsl: '220 30% 12%', hex: '#1e293b' },
-                      { name: 'Dark Green', hsl: '152 35% 15%', hex: '#064e3b' },
-                      { name: 'Dark Purple', hsl: '262 50% 15%', hex: '#2e1065' },
-                      { name: 'Dark Gray', hsl: '220 15% 15%', hex: '#374151' },
-                      { name: 'Black', hsl: '0 0% 8%', hex: '#1f2937' },
-                      { name: 'Dark Teal', hsl: '173 50% 12%', hex: '#042f2e' },
-                      { name: 'Dark Brown', hsl: '25 30% 15%', hex: '#451a03' },
-                      { name: 'Dark Slate', hsl: '215 25% 12%', hex: '#0f172a' },
-                    ].map((color) => (
-                      <button
-                        key={color.name}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, sidebar_color: color.hsl }))}
-                        className="w-8 h-8 rounded border-2 border-border hover:border-primary transition-colors"
-                        style={{ backgroundColor: color.hex }}
-                        title={`${color.name} - ${color.hsl}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <ColorPickerField
+                label="Primary Color"
+                value={formData.primary_color}
+                onChange={(value) => setFormData(prev => ({ ...prev, primary_color: value }))}
+                placeholder="#2563eb or 215 80% 35%"
+              />
+              <ColorPickerField
+                label="Accent Color"
+                value={formData.accent_color}
+                onChange={(value) => setFormData(prev => ({ ...prev, accent_color: value }))}
+                placeholder="#06b6d4 or 190 70% 45%"
+              />
+              <ColorPickerField
+                label="Sidebar Color"
+                value={formData.sidebar_color}
+                onChange={(value) => setFormData(prev => ({ ...prev, sidebar_color: value }))}
+                placeholder="#1e293b or 220 30% 12%"
+              />
             </div>
-            
-
           </CardContent>
         </Card>
 
