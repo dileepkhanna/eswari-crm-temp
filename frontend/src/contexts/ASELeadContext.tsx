@@ -61,10 +61,10 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
 
   // ASE context always uses the ASE company — never the globally selected company
   // This prevents cross-company data leaks when admin switches between panels
-  const aseCompanyId = availableCompanies.find(c => c.code === 'ASE')?.id
-    || ((user?.company as any)?.code === 'ASE' ? (user?.company as any)?.id : undefined)
+  const aseCompanyId = availableCompanies.find(c => c.code === 'ASE' || c.code === 'ASE_TECH')?.id
+    || ((user?.company as any)?.code === 'ASE' || (user?.company as any)?.code === 'ASE_TECH' ? (user?.company as any)?.id : undefined)
     // For non-admin users whose company IS ASE, selectedCompany is their own company
-    || (selectedCompany?.code === 'ASE' ? selectedCompany?.id : undefined);
+    || (selectedCompany?.code === 'ASE' || selectedCompany?.code === 'ASE_TECH' ? selectedCompany?.id : undefined);
   const [leads, setLeads] = useState<ASELead[]>([]);
   const [stats, setStats] = useState<ASELeadStats | null>(null);
   const [loading, setLoading] = useState(false);
