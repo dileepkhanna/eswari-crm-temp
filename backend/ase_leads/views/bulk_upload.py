@@ -616,17 +616,24 @@ def boe_assigned_list(request):
     user = request.user
     company = user.company
     
-    # Admin sees all assigned data; BOE sees only their own
-    if user.role in ('admin', 'manager'):
-        if company:
+    # Admin sees all ASE assigned data; BOE sees only their own
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
             qs = BREResearchData.objects.filter(
-                company=company,
+                company=ase_company,
                 status__in=['assigned', 'converted'],
             ).select_related('created_by', 'assigned_to', 'assigned_to_cre')
         else:
             qs = BREResearchData.objects.filter(
                 status__in=['assigned', 'converted'],
             ).select_related('created_by', 'assigned_to', 'assigned_to_cre')
+    elif user.role == 'manager':
+        qs = BREResearchData.objects.filter(
+            company=company,
+            status__in=['assigned', 'converted'],
+        ).select_related('created_by', 'assigned_to', 'assigned_to_cre')
     else:
         # BOE employee sees only their assigned data
         qs = BREResearchData.objects.filter(
@@ -675,8 +682,15 @@ def boe_assigned_list(request):
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
-    if user.role in ('admin', 'manager'):
-        all_assigned = BREResearchData.objects.filter(company=company, status='assigned') if company else BREResearchData.objects.filter(status='assigned')
+    if user.role == 'admin':
+        from accounts.models import Company as CompanyModel
+        ase_co = CompanyModel.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_co:
+            all_assigned = BREResearchData.objects.filter(company=ase_co, status='assigned')
+        else:
+            all_assigned = BREResearchData.objects.filter(status='assigned')
+    elif user.role == 'manager':
+        all_assigned = BREResearchData.objects.filter(company=company, status='assigned')
     else:
         all_assigned = BREResearchData.objects.filter(company=company, assigned_to=user, status='assigned')
     stats = {
@@ -969,12 +983,16 @@ def boe_leads_list(request):
 
     user = request.user
     
-    # Admin sees all leads; BOE sees only their own
-    if user.role in ('admin', 'manager'):
-        if user.company:
-            qs = BOELead.objects.filter(company=user.company).select_related('assigned_to_cre', 'source_research', 'created_by')
+    # Admin sees all ASE leads; BOE sees only their own
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
+            qs = BOELead.objects.filter(company=ase_company).select_related('assigned_to_cre', 'source_research', 'created_by')
         else:
             qs = BOELead.objects.all().select_related('assigned_to_cre', 'source_research', 'created_by')
+    elif user.role == 'manager':
+        qs = BOELead.objects.filter(company=user.company).select_related('assigned_to_cre', 'source_research', 'created_by')
     else:
         qs = BOELead.objects.filter(created_by=user).select_related('assigned_to_cre', 'source_research', 'created_by')
 
@@ -1219,7 +1237,9 @@ def boe_leads_export(request):
 
     user = request.user
     if user.role == 'admin':
-        qs = BOELead.objects.filter(company=user.company) if user.company else BOELead.objects.all()
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        qs = BOELead.objects.filter(company=ase_company) if ase_company else BOELead.objects.all()
     else:
         qs = BOELead.objects.filter(created_by=user)
 
@@ -1463,8 +1483,15 @@ def cre_leads_list(request):
     user = request.user
     company = user.company
 
-    # Admin, manager and team_lead see all CRE-assigned leads; regular employee sees only their own
-    if user.role in ('admin', 'manager', 'team_lead'):
+    # Admin sees all ASE CRE-assigned leads; manager/team_lead see their company; employee sees own
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
+            qs = BOELead.objects.filter(company=ase_company, assigned_to_cre__isnull=False)
+        else:
+            qs = BOELead.objects.filter(assigned_to_cre__isnull=False)
+    elif user.role in ('manager', 'team_lead'):
         if company:
             qs = BOELead.objects.filter(company=company, assigned_to_cre__isnull=False)
         else:
@@ -1501,7 +1528,11 @@ def cre_leads_list(request):
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
-    if user.role in ('admin', 'team_lead'):
+    if user.role == 'admin':
+        from accounts.models import Company as CompanyMdl
+        ase_co2 = CompanyMdl.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        all_cre = BOELead.objects.filter(company=ase_co2, assigned_to_cre__isnull=False) if ase_co2 else BOELead.objects.filter(assigned_to_cre__isnull=False)
+    elif user.role == 'team_lead':
         all_cre = BOELead.objects.filter(company=company, assigned_to_cre__isnull=False) if company else BOELead.objects.filter(assigned_to_cre__isnull=False)
     else:
         all_cre = BOELead.objects.filter(assigned_to_cre=user, company=company)
@@ -1725,7 +1756,12 @@ def boe_leads_bulk_delete(request):
 
     if select_all:
         from django.db.models import Q
-        qs = BOELead.objects.filter(company=user.company) if user.company else BOELead.objects.all()
+        from accounts.models import Company
+        if user.role == 'admin':
+            ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+            qs = BOELead.objects.filter(company=ase_company) if ase_company else BOELead.objects.all()
+        else:
+            qs = BOELead.objects.filter(company=user.company) if user.company else BOELead.objects.all()
         search = request.data.get('search', '').strip()
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(phone_number__icontains=search) | Q(location__icontains=search))
@@ -1767,7 +1803,11 @@ def boe_leads_bulk_assign(request):
 
     if select_all:
         from django.db.models import Q
-        if user.role in ('admin', 'manager', 'team_lead'):
+        if user.role == 'admin':
+            from accounts.models import Company
+            ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+            qs = BOELead.objects.filter(company=ase_company) if ase_company else BOELead.objects.all()
+        elif user.role in ('manager', 'team_lead'):
             qs = BOELead.objects.filter(company=user.company) if user.company else BOELead.objects.all()
         else:
             # Employees can only assign their own leads
@@ -1840,6 +1880,12 @@ def bre_research_auto_assign(request):
 
     user = request.user
     company = user.company
+    # For admin users, default to ASE company for marketing panel operations
+    if user.role == 'admin':
+        from accounts.models import Company
+        ase_company = Company.objects.filter(code__in=['ASE', 'ASE_TECH']).first()
+        if ase_company:
+            company = ase_company
     if not company:
         company_id = request.data.get('company')
         if company_id:
