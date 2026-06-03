@@ -599,27 +599,6 @@ export default function UserFormModal({
                 {/* Team Selection — show when teams are available for the selected company */}
                 {teams.length > 0 && selectedCompanyEdit && selectedCompanyEdit > 0 && (
                   <>
-                    {/* Team Category Filter */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Team Category</label>
-                      <Select 
-                        value={teamCategory}
-                        onValueChange={setTeamCategory}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Teams</SelectItem>
-                          <SelectItem value="technical">Technical Team</SelectItem>
-                          <SelectItem value="marketing">Marketing Team</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Filter teams by category to find them easily
-                      </p>
-                    </div>
-
                     {/* Team/Category Selection */}
                     <FormField
                       control={editForm.control}
@@ -627,8 +606,8 @@ export default function UserFormModal({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            {teamCategory === 'marketing' ? 'Marketing Category' : 'Team'} {editUser.role === 'team_lead' && <span className="text-destructive">*</span>}
-                            {editUser.role !== 'team_lead' && '(Optional)'}
+                            Team {editUser.role === 'team_lead' && <span className="text-destructive">*</span>}
+                            {editUser.role !== 'team_lead' && ' (Optional)'}
                           </FormLabel>
                           <Select 
                             onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))} 
@@ -637,57 +616,31 @@ export default function UserFormModal({
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder={
-                                  loadingTeams 
-                                    ? "Loading teams..." 
-                                    : editUser.role === 'team_lead'
-                                      ? teamCategory === 'marketing' ? "Select marketing category" : "Select team (required for team lead)"
-                                      : teamCategory === 'marketing' ? "Select marketing category (optional)" : "Select team (optional)"
-                                } />
+                                <SelectValue placeholder={loadingTeams ? "Loading teams..." : "Select team"} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {editUser.role !== 'team_lead' && <SelectItem value="0">No Team</SelectItem>}
-                              {teamCategory === 'marketing' ? (
-                                // Show marketing categories
-                                <>
-                                  {filteredTeams.filter(t => t.marketing_category === 'bre').length > 0 && (
-                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'bre')?.id.toString() || "0"}>
-                                      BRE - Business Research Executive
-                                    </SelectItem>
-                                  )}
-                                  {filteredTeams.filter(t => t.marketing_category === 'boe').length > 0 && (
-                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'boe')?.id.toString() || "0"}>
-                                      BOE - Business Outreach Executive
-                                    </SelectItem>
-                                  )}
-                                  {filteredTeams.filter(t => t.marketing_category === 'cre').length > 0 && (
-                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'cre')?.id.toString() || "0"}>
-                                      CRE - Client Research Executive
-                                    </SelectItem>
-                                  )}
-                                  {filteredTeams.filter(t => t.marketing_category === 'marketing_lead').length > 0 && (
-                                    <SelectItem value={filteredTeams.find(t => t.marketing_category === 'marketing_lead')?.id.toString() || "0"}>
-                                      Marketing Team Lead
-                                    </SelectItem>
-                                  )}
-                                </>
-                              ) : (
-                                // Show team names for technical or all
-                                filteredTeams.map((team) => (
-                                  <SelectItem key={team.id} value={team.id.toString()}>
-                                    {team.name}
-                                  </SelectItem>
-                                ))
+                              {editUser.role !== 'team_lead' && (
+                                <SelectItem value="0">
+                                  <span className="text-muted-foreground">— No Team —</span>
+                                </SelectItem>
                               )}
+                              {teams.map((team) => (
+                                <SelectItem key={team.id} value={team.id.toString()}>
+                                  {team.name}
+                                  {team.marketing_category && (
+                                    <span className="ml-2 text-xs text-muted-foreground">
+                                      ({team.marketing_category.toUpperCase()})
+                                    </span>
+                                  )}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            {teamCategory === 'marketing' 
-                              ? "Select the marketing category for this user"
-                              : editUser.role === 'team_lead' 
-                                ? "Team Lead must be assigned to a team to manage"
-                                : "Assign this user to a specific team (for ASE Technologies)"}
+                            {editUser.role === 'team_lead'
+                              ? "Team Lead must be assigned to a team to manage"
+                              : "Assign this user to a specific team (for ASE Technologies)"}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1072,95 +1025,48 @@ export default function UserFormModal({
               {/* Team Selection — show when teams are available for the selected company */}
               {teams.length > 0 && selectedCompanyCreate && selectedCompanyCreate > 0 && (
                 <>
-                  {/* Team Category Filter */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Team Category</label>
-                    <Select 
-                      value={teamCategory}
-                      onValueChange={setTeamCategory}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Teams</SelectItem>
-                        <SelectItem value="technical">Technical Team</SelectItem>
-                        <SelectItem value="marketing">Marketing Team</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Filter teams by category to find them easily
-                    </p>
-                  </div>
-
-                  {/* Team/Category Selection */}
+                  {/* Team/Category Selection — single flat list, no confusing category filter */}
                   <FormField
                     control={createForm.control}
                     name="team"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {teamCategory === 'marketing' ? 'Marketing Category' : 'Team'} {selectedRole === 'team_lead' && <span className="text-destructive">*</span>}
-                          {selectedRole !== 'team_lead' && '(Optional)'}
+                          Team {selectedRole === 'team_lead' && <span className="text-destructive">*</span>}
+                          {selectedRole !== 'team_lead' && ' (Optional)'}
                         </FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))} 
+                        <Select
+                          onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))}
                           value={field.value?.toString() || "0"}
                           disabled={loadingTeams}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder={
-                                loadingTeams 
-                                  ? "Loading teams..." 
-                                  : selectedRole === 'team_lead'
-                                    ? teamCategory === 'marketing' ? "Select marketing category" : "Select team (required for team lead)"
-                                    : teamCategory === 'marketing' ? "Select marketing category (optional)" : "Select team (optional)"
-                              } />
+                              <SelectValue placeholder={loadingTeams ? "Loading teams..." : "Select team"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {selectedRole !== 'team_lead' && <SelectItem value="0">No Team</SelectItem>}
-                            {teamCategory === 'marketing' ? (
-                              // Show marketing categories
-                              <>
-                                {filteredTeams.filter(t => t.marketing_category === 'bre').length > 0 && (
-                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'bre')?.id.toString() || "0"}>
-                                    BRE - Business Research Executive
-                                  </SelectItem>
-                                )}
-                                {filteredTeams.filter(t => t.marketing_category === 'boe').length > 0 && (
-                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'boe')?.id.toString() || "0"}>
-                                    BOE - Business Outreach Executive
-                                  </SelectItem>
-                                )}
-                                {filteredTeams.filter(t => t.marketing_category === 'cre').length > 0 && (
-                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'cre')?.id.toString() || "0"}>
-                                    CRE - Client Research Executive
-                                  </SelectItem>
-                                )}
-                                {filteredTeams.filter(t => t.marketing_category === 'marketing_lead').length > 0 && (
-                                  <SelectItem value={filteredTeams.find(t => t.marketing_category === 'marketing_lead')?.id.toString() || "0"}>
-                                    Marketing Team Lead
-                                  </SelectItem>
-                                )}
-                              </>
-                            ) : (
-                              // Show team names for technical or all
-                              filteredTeams.map((team) => (
-                                <SelectItem key={team.id} value={team.id.toString()}>
-                                  {team.name}
-                                </SelectItem>
-                              ))
+                            {selectedRole !== 'team_lead' && (
+                              <SelectItem value="0">
+                                <span className="text-muted-foreground">— No Team —</span>
+                              </SelectItem>
                             )}
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id.toString()}>
+                                {team.name}
+                                {team.marketing_category && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({team.marketing_category.toUpperCase()})
+                                  </span>
+                                )}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          {teamCategory === 'marketing' 
-                            ? "Select the marketing category for this user"
-                            : selectedRole === 'team_lead' 
-                              ? "Team Lead must be assigned to a team to manage"
-                              : "Assign this user to a specific team (for ASE Technologies)"}
+                          {selectedRole === 'team_lead'
+                            ? "Team Lead must be assigned to a team to manage"
+                            : "Assign this user to a specific team (for ASE Technologies)"}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
