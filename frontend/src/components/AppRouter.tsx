@@ -30,6 +30,7 @@ import AdminSEO from '@/pages/admin/AdminSEO';
 import AdminTeam from '@/pages/admin/AdminTeam';
 import AdminConversionAnalytics from '@/pages/admin/AdminConversionAnalytics';
 import AdminASECustomers from '@/pages/admin/AdminASECustomers';
+import AdminASEDashboard from '@/pages/admin/AdminASEDashboard';
 import AdminASELeads from '@/pages/admin/AdminASELeads';
 import AdminASETasks from '@/pages/admin/AdminASETasks';
 import AdminASEActivity from '@/pages/admin/AdminASEActivity';
@@ -160,6 +161,7 @@ const AppRouter = () => {
       {/* Admin Routes */}
       <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
         <Route index element={<DashboardIndex adminEl={<AdminDashboard />} managerEl={<AdminDashboard />} staffEl={<AdminDashboard />} basePath="/admin" />} />
+        <Route path="ase-dashboard" element={<AdminASEDashboard />} />
         <Route path="ase-customers" element={<AdminASECustomers />} />
         <Route path="ase-leads" element={<AdminASELeads />} />
         <Route path="ase-tasks" element={<AdminASETasks />} />
