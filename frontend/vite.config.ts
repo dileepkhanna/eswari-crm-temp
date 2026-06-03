@@ -46,6 +46,7 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     assetsDir: "assets",
     sourcemap: false,
+    target: 'es2022', // Support top-level await
     rollupOptions: {
       output: {
         manualChunks: {
