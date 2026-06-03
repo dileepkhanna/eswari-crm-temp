@@ -11,7 +11,7 @@ import ASELeadFormModal from '@/components/ase-leads/ASELeadFormModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon } from 'lucide-react';
+import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon, PhoneCallIcon, CheckCircleIcon, ArrowRightIcon, CalendarClockIcon } from 'lucide-react';
 import { ASELead, ASELeadFormData } from '@/types/ase-customer';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -23,6 +23,7 @@ export default function AdminASELeads() {
   const { selectedCompany } = useCompany();
   const {
     leads,
+    stats,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     priorityFilter, setPriorityFilter,
@@ -238,6 +239,59 @@ export default function AdminASELeads() {
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         <AnnouncementBanner userRole={user?.role || 'admin'} maxDisplay={2} />
 
+        {/* ── Stats Cards ─────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {/* Total Leads */}
+          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+              <PhoneCallIcon className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Total Leads</p>
+              <p className="text-3xl font-bold text-blue-600 leading-none">{totalCount}</p>
+            </div>
+          </div>
+
+          {/* New Leads */}
+          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+              <PhoneCallIcon className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">New</p>
+              <p className="text-3xl font-bold text-green-600 leading-none">
+                {stats?.by_status?.['new']?.count ?? leads.filter(l => l.status === 'new').length}
+              </p>
+            </div>
+          </div>
+
+          {/* Demo Done */}
+          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+              <ArrowRightIcon className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Demo Done</p>
+              <p className="text-3xl font-bold text-indigo-600 leading-none">
+                {stats?.by_status?.['demo_done']?.count ?? leads.filter(l => l.status === 'demo_done').length}
+              </p>
+            </div>
+          </div>
+
+          {/* Presentation */}
+          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
+              <CalendarClockIcon className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Presentation</p>
+              <p className="text-3xl font-bold text-orange-500 leading-none">
+                {stats?.by_status?.['presentation']?.count ?? leads.filter(l => l.status === 'presentation').length}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="glass-card p-3 md:p-6">
           {/* Header */}
           {/* Single Row: Search + Filters + Actions + Add Lead */}
@@ -353,65 +407,65 @@ export default function AdminASELeads() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * 50 + 1}–{Math.min(currentPage * 50, totalCount)} of {totalCount} leads
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline" size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >«</Button>
-                <Button
-                  variant="outline" size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeftIcon className="w-4 h-4" />
-                </Button>
+                <div className="flex flex-row items-center justify-between gap-2 mt-4 pt-4 border-t w-full">
+                  <p className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing {(currentPage - 1) * 50 + 1}–{Math.min(currentPage * 50, totalCount)} of {totalCount} leads
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                    >«</Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeftIcon className="w-4 h-4" />
+                    </Button>
 
-                {/* Page number buttons — show up to 5 around current */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
-                  .reduce<(number | '...')[]>((acc, p, i, arr) => {
-                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...');
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((p, i) =>
-                    p === '...' ? (
-                      <span key={`ellipsis-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
-                    ) : (
-                      <Button
-                        key={p}
-                        variant={currentPage === p ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-8 w-8 p-0 text-xs"
-                        onClick={() => setCurrentPage(p as number)}
-                      >{p}</Button>
-                    )
-                  )}
+                    {/* Page number buttons — show up to 5 around current */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                      .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                        if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...');
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        p === '...' ? (
+                          <span key={`ellipsis-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
+                        ) : (
+                          <Button
+                            key={p}
+                            variant={currentPage === p ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-8 w-8 p-0 text-xs"
+                            onClick={() => setCurrentPage(p as number)}
+                          >{p}</Button>
+                        )
+                      )}
 
-                <Button
-                  variant="outline" size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRightIcon className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline" size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >»</Button>
-              </div>
-            </div>
-          )}
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRightIcon className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                    >»</Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

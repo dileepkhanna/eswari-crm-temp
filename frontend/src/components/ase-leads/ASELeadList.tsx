@@ -474,11 +474,11 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
 
       {/* Desktop table view */}
       <div className="hidden md:block border rounded-lg">
-        <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '70vh' }}>
-          <table className="w-full text-sm" style={{ minWidth: '900px' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: '65vh' }}>
+          <table className="w-full text-sm table-fixed">
           <thead className="sticky top-0 bg-background z-10">
             <tr className="border-b text-muted-foreground text-xs">
-              <th className="text-left py-2 px-3 font-medium w-6">
+              <th className="text-left py-2 px-2 font-medium w-8">
                 <input
                   type="checkbox"
                   className="rounded cursor-pointer"
@@ -487,49 +487,49 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                   onChange={onToggleAll}
                 />
               </th>
-              <th className="text-left py-2 px-3 font-medium">Name</th>
-              <th className="text-left py-2 px-3 font-medium">Phone</th>
-              <th className="text-left py-2 px-3 font-medium">Services</th>
-              <th className="text-left py-2 px-3 font-medium">Budget</th>
-              <th className="text-left py-2 px-3 font-medium">Priority</th>
-              <th className="text-left py-2 px-3 font-medium">Status</th>
-              <th className="text-left py-2 px-3 font-medium">Assigned To</th>
-              <th className="text-left py-2 px-3 font-medium">Created</th>
-              <th className="text-left py-2 px-3 font-medium">Actions</th>
+              <th className="text-left py-2 px-2 font-medium w-[18%]">Name</th>
+              <th className="text-left py-2 px-2 font-medium w-[13%]">Phone</th>
+              <th className="text-left py-2 px-2 font-medium w-[16%]">Services</th>
+              <th className="text-left py-2 px-2 font-medium w-[12%]">Budget</th>
+              <th className="text-left py-2 px-2 font-medium w-[9%]">Priority</th>
+              <th className="text-left py-2 px-2 font-medium w-[13%]">Status</th>
+              <th className="text-left py-2 px-2 font-medium w-[10%]">Assigned</th>
+              <th className="text-left py-2 px-2 font-medium w-[7%]">Created</th>
+              <th className="text-left py-2 px-2 font-medium w-[9%]">Actions</th>
             </tr>
           </thead>
           <tbody>
             {leads.map((lead) => (
               <tr key={lead.id} className={`border-b transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
-                <td className="py-3 px-3">
+                <td className="py-2.5 px-2">
                   <input type="checkbox" className="rounded cursor-pointer" checked={selectedIds.has(lead.id)} onChange={() => onToggleOne(lead.id)} />
                 </td>
-                <td className="py-3 px-3">
-                  <div className="font-medium text-sm leading-tight">{lead.company_name}</div>
-                  <div className="text-xs text-muted-foreground">{lead.contact_person}</div>
+                <td className="py-2.5 px-2">
+                  <div className="font-medium text-sm leading-tight truncate">{lead.company_name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{lead.contact_person}</div>
                 </td>
-                <td className="py-3 px-3">
+                <td className="py-2.5 px-2">
                   {lead.phone ? (
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <PhoneIcon className="w-3 h-3 flex-shrink-0" />
-                      <span>{lead.phone}</span>
+                      <span className="text-xs truncate">{lead.phone}</span>
                     </div>
-                  ) : <span className="text-muted-foreground">-</span>}
+                  ) : <span className="text-muted-foreground text-xs">-</span>}
                 </td>
-                <td className="py-3 px-3">
-                  <div className="text-xs text-muted-foreground max-w-[120px] truncate">
+                <td className="py-2.5 px-2">
+                  <div className="text-xs text-muted-foreground truncate">
                     {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0
                       ? lead.service_interests_display.join(', ')
                       : lead.industry || '-'}
                   </div>
                 </td>
-                <td className="py-3 px-3 text-sm">
-                  {lead.budget_amount ? <span>₹{lead.budget_amount}</span>
-                    : lead.estimated_project_value ? <span>₹{lead.estimated_project_value}</span>
+                <td className="py-2.5 px-2 text-xs">
+                  {lead.budget_amount ? <span className="truncate block">₹{lead.budget_amount}</span>
+                    : lead.estimated_project_value ? <span className="truncate block">₹{lead.estimated_project_value}</span>
                     : <span className="text-muted-foreground">-</span>}
                 </td>
-                <td className="py-3 px-3">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs border font-medium ${
+                <td className="py-2.5 px-2">
+                  <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] border font-medium whitespace-nowrap ${
                     lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
                     lead.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-300' :
                     lead.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
@@ -538,13 +538,13 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
                   </span>
                 </td>
-                <td className="py-3 px-3">
+                <td className="py-2.5 px-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-medium cursor-pointer hover:opacity-80 ${getStatusColor(lead.status)}`}>
+                      <button className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium cursor-pointer hover:opacity-80 whitespace-nowrap ${getStatusColor(lead.status)}`}>
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusDot(lead.status)}`} />
                         <span>{STATUS_OPTIONS.find(s => s.value === lead.status)?.label || lead.status}</span>
-                        <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-2.5 h-2.5 opacity-60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
@@ -559,28 +559,28 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>
-                <td className="py-3 px-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                <td className="py-2.5 px-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
                       {(lead.assigned_to_name || lead.created_by_name || 'U').charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <div className="text-xs font-medium leading-tight" title={lead.assigned_to_name || 'Unassigned'}>
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium leading-tight truncate" title={lead.assigned_to_name || 'Unassigned'}>
                         {lead.assigned_to_name ? lead.assigned_to_name.split(' ')[0] : 'Unassigned'}
                       </div>
-                      <div className="text-xs text-muted-foreground" title={lead.created_by_name || '-'}>
+                      <div className="text-[10px] text-muted-foreground truncate" title={lead.created_by_name || '-'}>
                         by {lead.created_by_name ? lead.created_by_name.split(' ')[0] : '-'}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="py-3 px-3">
-                  <span className="text-xs text-muted-foreground">
+                <td className="py-2.5 px-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
                   </span>
                 </td>
-                <td className="py-3 px-3">
-                  <div className="flex items-center gap-1">
+                <td className="py-2.5 px-2">
+                  <div className="flex items-center gap-0.5">
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" title="View Details" onClick={() => setViewLead(lead)}>
                       <EyeIcon className="w-3.5 h-3.5" />
                     </Button>
