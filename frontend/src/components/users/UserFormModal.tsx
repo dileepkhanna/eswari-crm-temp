@@ -396,7 +396,7 @@ export default function UserFormModal({
       designation: data.designation || undefined, joining_date: data.joining_date || undefined,
       managerId: data.managerId === 'none' ? undefined : data.managerId,
       company: data.company, 
-      team: data.team ?? 0, // Send 0 to remove team, or team id to assign/change
+      team: (data.team && data.team > 0) ? data.team : 0, // 0 = explicitly remove team
       newPassword: data.newPassword || undefined,
       permanent_address: data.permanent_address, present_address: data.present_address,
       bank_name: data.bank_name, bank_account_number: data.bank_account_number,
