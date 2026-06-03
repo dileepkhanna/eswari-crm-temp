@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus, Phone, Mail, Trash2 } from "lucide-react";
+import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,7 +75,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
+  const [assignedToFilter, setAssignedToFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [dueDateFilter, setDueDateFilter] = useState<string>("all");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -92,10 +94,34 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       const matchesStatus = statusFilter === "all" || task.status === statusFilter;
       const matchesProject = projectFilter === "all" || task.assignedProject === projectFilter;
       
-      // User filter - filter by assigned to or created by
-      const matchesUser = userFilter === "all" || 
-        task.assignedTo === userFilter || 
-        task.lead?.createdBy === userFilter;
+      // User filter - filter by created by
+      const matchesUser = userFilter === "all" || task.lead?.createdBy === userFilter;
+      
+      // Assigned to filter
+      const matchesAssignedTo = assignedToFilter === "all" || task.assignedTo === assignedToFilter;
+      
+      // Due date filter
+      let matchesDueDate = true;
+      if (dueDateFilter !== "all" && task.nextActionDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDate = new Date(task.nextActionDate);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        if (dueDateFilter === "overdue") {
+          matchesDueDate = dueDate < today;
+        } else if (dueDateFilter === "today") {
+          matchesDueDate = dueDate.getTime() === today.getTime();
+        } else if (dueDateFilter === "this_week") {
+          const weekEnd = new Date(today);
+          weekEnd.setDate(today.getDate() + 7);
+          matchesDueDate = dueDate >= today && dueDate <= weekEnd;
+        } else if (dueDateFilter === "upcoming") {
+          matchesDueDate = dueDate > today;
+        }
+      } else if (dueDateFilter !== "all" && !task.nextActionDate) {
+        matchesDueDate = false;
+      }
 
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
@@ -107,9 +133,9 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         matchesDate = new Date(task.createdAt) >= startOfDay(dateRange.from);
       }
 
-      return matchesSearch && matchesStatus && matchesProject && matchesUser && matchesDate;
+      return matchesSearch && matchesStatus && matchesProject && matchesUser && matchesAssignedTo && matchesDueDate && matchesDate;
     });
-  }, [tasks, searchQuery, statusFilter, projectFilter, userFilter, dateRange]);
+  }, [tasks, searchQuery, statusFilter, projectFilter, userFilter, assignedToFilter, dueDateFilter, dateRange]);
 
   // Check if user can see any phone numbers (for table headers) - MOVED AFTER filteredTasks
   const canSeeAnyPhoneNumbers = useMemo(() => {
@@ -245,36 +271,41 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
     <div className="space-y-4 md:space-y-6">
       {/* Filters */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3">
-          <div className="relative w-full">
+        {/* Single Row with all filters */}
+        <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center">
+          {/* Search */}
+          <div className="relative w-full lg:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search tasks..."
+              placeholder="Search tasks by title, company, contact..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 input-field w-full"
+              className="pl-10 h-10"
             />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          
+          {/* Filter Dropdowns */}
+          <div className="flex gap-2 flex-wrap w-full lg:w-auto">
+            {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="h-10 w-[140px]">
+                <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="site_visit">Site Visit</SelectItem>
                 <SelectItem value="family_visit">Family Visit</SelectItem>
-                <SelectItem value="perfect_family_visit">Perfect Family Visit</SelectItem>
+                <SelectItem value="perfect_family_visit">Perfect F. Visit</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
 
+            {/* Project Filter */}
             <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Project" />
+              <SelectTrigger className="h-10 w-[140px]">
+                <SelectValue placeholder="All Projects" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
@@ -286,12 +317,13 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               </SelectContent>
             </Select>
 
-            <Select value={userFilter} onValueChange={setUserFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="User" />
+            {/* Assigned To Filter */}
+            <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
+              <SelectTrigger className="h-10 w-[140px]">
+                <SelectValue placeholder="All Assignees" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Users</SelectItem>
+                <SelectItem value="all">All Assignees</SelectItem>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
                     {employee.name}
@@ -300,55 +332,58 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               </SelectContent>
             </Select>
 
+            {/* Due Date Filter with Popover */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="justify-start text-left font-normal w-full"
-                >
-                  <Calendar className="mr-2 h-4 w-4 shrink-0" />
-                  <span className="truncate text-xs">
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
-                        </>
-                      ) : (
-                        format(dateRange.from, "MMM dd")
-                      )
-                    ) : (
-                      "Date"
-                    )}
-                  </span>
+                <Button variant="outline" className="h-10 w-[140px] justify-start text-left font-normal">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {dueDateFilter !== "all" 
+                    ? dueDateFilter.replace('_', ' ').charAt(0).toUpperCase() + dueDateFilter.replace('_', ' ').slice(1)
+                    : "Due Date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  initialFocus
-                  mode="range"
-                  selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                  numberOfMonths={1}
-                  className="pointer-events-auto"
-                />
+              <PopoverContent className="w-[200px] p-0" align="start">
+                <div className="p-2 space-y-1">
+                  <button 
+                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-accent ${dueDateFilter === "all" ? "bg-accent" : ""}`}
+                    onClick={() => { setDueDateFilter("all"); }}
+                  >
+                    All Dates
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-accent ${dueDateFilter === "overdue" ? "bg-accent" : ""}`}
+                    onClick={() => { setDueDateFilter("overdue"); }}
+                  >
+                    Overdue
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-accent ${dueDateFilter === "today" ? "bg-accent" : ""}`}
+                    onClick={() => { setDueDateFilter("today"); }}
+                  >
+                    Today
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-accent ${dueDateFilter === "this_week" ? "bg-accent" : ""}`}
+                    onClick={() => { setDueDateFilter("this_week"); }}
+                  >
+                    This Week
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-accent ${dueDateFilter === "upcoming" ? "bg-accent" : ""}`}
+                    onClick={() => { setDueDateFilter("upcoming"); }}
+                  >
+                    Upcoming
+                  </button>
+                </div>
               </PopoverContent>
             </Popover>
-
-            {dateRange.from && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setDateRange({})}
-                className="w-full"
-              >
-                Clear
-              </Button>
-            )}
           </div>
         </div>
 
+        {/* Action Buttons Row */}
         <div className="flex gap-2 flex-wrap justify-between items-start sm:items-center">
           <div className="flex gap-2 items-center flex-wrap">
+            <span className="text-sm text-muted-foreground">{filteredTasks.length} task(s)</span>
             <TaskExcelImportExport tasks={filteredTasks} onImport={handleImportTasks} getProjectName={getProjectName} />
             {someSelected && canDelete && (
               <Button 
@@ -639,6 +674,8 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Advanced Filters Sheet - removed, filters now inline */}
   </div>
 );
 }

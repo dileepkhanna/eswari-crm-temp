@@ -12,14 +12,9 @@ class ASELead(models.Model):
     # Status choices for digital marketing leads
     STATUS_CHOICES = [
         ('new', 'New Lead'),
-        ('contacted', 'Contacted'),
-        ('qualified', 'Qualified'),
-        ('proposal_sent', 'Proposal Sent'),
-        ('negotiating', 'Negotiating'),
-        ('won', 'Won'),
-        ('lost', 'Lost'),
-        ('on_hold', 'On Hold'),
-        ('nurturing', 'Nurturing'),
+        ('demo_done', 'Demo Done'),
+        ('presentation', 'Presentation'),
+        ('custom', 'Custom'),
     ]
     
     # Service interest choices
@@ -87,6 +82,7 @@ class ASELead(models.Model):
     
     # Status and Management
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', help_text="Current status")
+    custom_status = models.CharField(max_length=100, blank=True, null=True, help_text="Custom status text when status is 'custom'")
     priority = models.CharField(max_length=10, choices=[
         ('low', 'Low'),
         ('medium', 'Medium'),

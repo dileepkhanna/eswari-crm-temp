@@ -126,6 +126,62 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             'data': event['data'],
         })
 
+    async def ase_data_changed(self, event):
+        """ASE data (calls/leads/tasks) changed - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'ase_data_changed',
+            'data': event['data'],
+        })
+    
+    async def lead_created(self, event):
+        """Lead created - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'lead_created',
+            'data': event['data'],
+        })
+    
+    async def lead_deleted(self, event):
+        """Lead deleted - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'lead_deleted',
+            'data': event['data'],
+        })
+    
+    async def customer_created(self, event):
+        """Customer created - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'customer_created',
+            'data': event['data'],
+        })
+    
+    async def customer_updated(self, event):
+        """Customer updated - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'customer_updated',
+            'data': event['data'],
+        })
+    
+    async def task_created(self, event):
+        """Task created - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'task_created',
+            'data': event['data'],
+        })
+    
+    async def task_updated(self, event):
+        """Task updated - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'task_updated',
+            'data': event['data'],
+        })
+    
+    async def task_deleted(self, event):
+        """Task deleted - triggers refetch on clients."""
+        await self.send_json({
+            'type': 'task_deleted',
+            'data': event['data'],
+        })
+
     # ═══════════════════════════════════════════════════════════════════════
     # Authentication
     # ═══════════════════════════════════════════════════════════════════════

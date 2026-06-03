@@ -36,8 +36,12 @@ export class ASELeadService {
     assigned_to?: string;
     created_by?: string;
     company?: string | number;
+    date_from?: string;
+    date_to?: string;
+    month?: string;
     page?: number;
     page_size?: number;
+    [key: string]: any;
   }): Promise<{
     results: ASELead[];
     count: number;

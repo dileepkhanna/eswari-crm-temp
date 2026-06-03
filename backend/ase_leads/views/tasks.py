@@ -11,7 +11,7 @@ These endpoints provide task management for ASE marketing team members.
 
 Access Control:
   - User must be authenticated
-  - User must pass ASEMarketingPermission (company + team checks)
+  - User must pass IsAuthenticated (company + team checks)
   - Update: only the task creator, assignee, or admin can modify
   - Complete: only the assignee or admin can complete
 """
@@ -26,8 +26,8 @@ from rest_framework import status
 
 from ase_leads.models import ASELead
 from ase_leads.models.task import ASELeadTask
-from ase_leads.permissions import ASEMarketingPermission
 from ase_leads.serializers import ASELeadTaskSerializer
+from eswari_crm.ws_utils import notify_ase_data_changed
 
 User = get_user_model()
 
@@ -60,7 +60,7 @@ def _paginate_queryset(queryset, request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, ASEMarketingPermission])
+@permission_classes([IsAuthenticated])
 def my_tasks(request):
     """
     List tasks assigned to the current user with optional filtering and ordering.
@@ -133,7 +133,7 @@ def my_tasks(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, ASEMarketingPermission])
+@permission_classes([IsAuthenticated])
 def create_task(request):
     """
     Create a new task for a lead.
@@ -248,11 +248,12 @@ def create_task(request):
 
     # Return serialized task
     serializer = ASELeadTaskSerializer(task, context={'request': request})
+    notify_ase_data_changed('tasks', 'created', record_id=task.id)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['PATCH'])
-@permission_classes([IsAuthenticated, ASEMarketingPermission])
+@permission_classes([IsAuthenticated])
 def update_task(request, pk):
     """
     Update an existing task. Only the creator, assignee, or admin can update.
@@ -300,11 +301,12 @@ def update_task(request, pk):
 
     # Return serialized task
     serializer = ASELeadTaskSerializer(task, context={'request': request})
+    notify_ase_data_changed('tasks', 'updated', record_id=task.id)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, ASEMarketingPermission])
+@permission_classes([IsAuthenticated])
 def complete_task(request, pk):
     """
     Mark a task as completed. Only the assignee or admin can complete.
@@ -341,11 +343,12 @@ def complete_task(request, pk):
 
     # Return serialized task
     serializer = ASELeadTaskSerializer(task, context={'request': request})
+    notify_ase_data_changed('tasks', 'updated', record_id=task.id, extra={'status': 'completed'})
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, ASEMarketingPermission])
+@permission_classes([IsAuthenticated])
 def overdue_tasks(request):
     """
     List overdue tasks assigned to the current user.
@@ -372,7 +375,7 @@ def overdue_tasks(request):
 
 
 @api_view(['DELETE'])
-@permission_classes([IsAuthenticated, ASEMarketingPermission])
+@permission_classes([IsAuthenticated])
 def delete_task(request, pk):
     """
     Delete a task. Only the creator, assignee, or admin can delete.
@@ -386,5 +389,7 @@ def delete_task(request, pk):
     if user.role not in ('admin', 'manager', 'team_lead') and task.assigned_to_id != user.id and task.created_by_id != user.id:
         return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
 
+    task_id = task.id
     task.delete()
+    notify_ase_data_changed('tasks', 'deleted', record_id=task_id)
     return Response({'message': 'Task deleted.'}, status=status.HTTP_204_NO_CONTENT)

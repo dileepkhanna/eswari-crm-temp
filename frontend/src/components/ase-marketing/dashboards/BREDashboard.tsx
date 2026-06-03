@@ -166,20 +166,14 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
   useEffect(() => {
     const fetchBreStats = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`${API_BASE_URL}/ase-leads/bre-stats/`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setBreStats(data);
-        }
+        const data = await apiClient.get('/ase-leads/bre-stats/');
+        if (data) setBreStats(data);
       } catch (err) {
         // silently fail
       }
     };
     fetchBreStats();
-    // Auto-poll stats every 10 seconds for live updates
+    // Auto-poll stats every 5 seconds for live updates
     const interval = setInterval(fetchBreStats, 5000);
     return () => clearInterval(interval);
   }, []);

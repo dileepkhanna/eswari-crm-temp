@@ -5,13 +5,15 @@ import TopBar from '@/components/layout/TopBar';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useASEWebSocket } from '@/hooks/useASEWebSocket';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { PlusIcon, SearchIcon, UserIcon, PhoneIcon, MailIcon, CalendarIcon, MoreVerticalIcon, ArrowRightIcon, UploadIcon, DownloadIcon, UsersIcon, Trash2Icon, XIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { PlusIcon, SearchIcon, UserIcon, PhoneIcon, MailIcon, CalendarIcon, MoreVerticalIcon, ArrowRightIcon, UploadIcon, DownloadIcon, UsersIcon, Trash2Icon, XIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, FilterIcon } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import ASECustomerFormModal from '@/components/ase-customers/ASECustomerFormModal';
 import ASECustomerConvertModal from '@/components/ase-customers/ASECustomerConvertModal';
 import ASECustomerImportExportModal from '@/components/ase-customers/ASECustomerImportExportModal';
@@ -32,6 +34,10 @@ export default function AdminASECustomers() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [overdueFilter, setOverdueFilter] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [dateFromFilter, setDateFromFilter] = useState<string>('');
+  const [dateToFilter, setDateToFilter] = useState<string>('');
+  const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<ASECustomer | null>(null);
   const [convertCustomer, setConvertCustomer] = useState<ASECustomer | null>(null);
@@ -55,6 +61,8 @@ export default function AdminASECustomers() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [backendFilteredCustomers, setBackendFilteredCustomers] = useState<ASECustomer[]>([]);
   const [useBackendFiltered, setUseBackendFiltered] = useState(false);
+  const [backendFilteredCount, setBackendFilteredCount] = useState(0);
+  const [backendFilteredPages, setBackendFilteredPages] = useState(1);
   
   const { 
     customers, 
@@ -77,6 +85,9 @@ export default function AdminASECustomers() {
     refreshOverdueCount,
   } = useASECustomers();
 
+  // Real-time updates via WebSocket
+  useASEWebSocket('calls', () => { fetchCustomers(); });
+
   const { fetchLeads: fetchASELeads } = useASELead();
 
   // Derive the ASE company ID from loaded customers (most reliable source)
@@ -87,11 +98,9 @@ export default function AdminASECustomers() {
 
   const loadEmployees = async () => {
     try {
-      // Use the dedicated teammates endpoint — works for all roles (employee, manager, admin, hr)
-      const companyId = aseCompanyId;
-      const url = companyId
-        ? `/api/ase/customers/teammates/?company=${companyId}`
-        : `/api/ase/customers/teammates/`;
+      // Use the dedicated teammates endpoint — always filter by ASE Technologies (company=2)
+      const companyId = aseCompanyId || 2; // ASE Technologies is always company 2
+      const url = `/api/ase/customers/teammates/?company=${companyId}`;
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -133,37 +142,19 @@ export default function AdminASECustomers() {
         // Apply server-side filters
         if (searchTerm) apiParams.search = searchTerm;
         if (statusFilter !== 'all') apiParams.call_status = statusFilter;
-        if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned') {
-          apiParams.assigned_to = assigneeFilter;
+        if (assigneeFilter !== 'all') {
+          apiParams.assigned_to = assigneeFilter; // handles both numeric ID and 'unassigned'
         }
         if (conversionFilter === 'converted') apiParams.is_converted = 'true';
         else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+        if (overdueFilter) apiParams.overdue = 'true';
+        if (selectedDate) apiParams.date = selectedDate;
+        if (monthFilter !== 'all') apiParams.month = monthFilter;
+        if (dateFromFilter) apiParams.date_from = dateFromFilter;
+        if (dateToFilter) apiParams.date_to = dateToFilter;
         
         const res = await ASECustomerService.getCustomers(apiParams);
         let allCustomers = res.results;
-        
-        // Apply client-side filters
-        const now = new Date();
-        allCustomers = allCustomers.filter(c => {
-          // Unassigned filter
-          if (assigneeFilter === 'unassigned' && c.assigned_to) return false;
-          
-          // Date filter
-          if (selectedDate) {
-            const filterDateStr = new Date(selectedDate).toDateString();
-            if (new Date(c.created_at).toDateString() !== filterDateStr) return false;
-          }
-          
-          // Overdue filter
-          if (overdueFilter) {
-            const isOverdue = c.scheduled_date && 
-              new Date(c.scheduled_date) < now && 
-              c.call_status === 'pending';
-            if (!isOverdue) return false;
-          }
-          
-          return true;
-        });
         
         setAllFilteredCustomers(allCustomers);
       } catch (error) {
@@ -174,13 +165,14 @@ export default function AdminASECustomers() {
     };
     
     fetchAllForStats();
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, aseCompanyId]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, monthFilter, dateFromFilter, dateToFilter, aseCompanyId]);
 
-  // Fetch paginated customers with backend filters when assignee filter is active
+  // Fetch paginated customers with backend filters when advanced filters are active
   useEffect(() => {
     const fetchBackendFiltered = async () => {
-      // Only use backend filtering when assignee filter is active
-      if (assigneeFilter === 'all') {
+      // Use backend filtering when assignee, date, or month filters are active
+      const hasAdvancedFilters = assigneeFilter !== 'all' || monthFilter !== 'all' || dateFromFilter || dateToFilter || overdueFilter;
+      if (!hasAdvancedFilters) {
         setUseBackendFiltered(false);
         return;
       }
@@ -195,39 +187,23 @@ export default function AdminASECustomers() {
         // Apply server-side filters
         if (searchTerm) apiParams.search = searchTerm;
         if (statusFilter !== 'all') apiParams.call_status = statusFilter;
-        if (assigneeFilter !== 'unassigned') {
-          apiParams.assigned_to = assigneeFilter;
+        if (assigneeFilter !== 'all') {
+          apiParams.assigned_to = assigneeFilter; // handles 'unassigned' on backend
         }
         if (conversionFilter === 'converted') apiParams.is_converted = 'true';
         else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+        if (overdueFilter) apiParams.overdue = 'true';
+        if (selectedDate) apiParams.date = selectedDate;
+        if (monthFilter !== 'all') apiParams.month = monthFilter;
+        if (dateFromFilter) apiParams.date_from = dateFromFilter;
+        if (dateToFilter) apiParams.date_to = dateToFilter;
         
         const res = await ASECustomerService.getCustomers(apiParams);
         let results = res.results;
         
-        // Apply client-side filters
-        const now = new Date();
-        results = results.filter(c => {
-          // Unassigned filter
-          if (assigneeFilter === 'unassigned' && c.assigned_to) return false;
-          
-          // Date filter
-          if (selectedDate) {
-            const filterDateStr = new Date(selectedDate).toDateString();
-            if (new Date(c.created_at).toDateString() !== filterDateStr) return false;
-          }
-          
-          // Overdue filter
-          if (overdueFilter) {
-            const isOverdue = c.scheduled_date && 
-              new Date(c.scheduled_date) < now && 
-              c.call_status === 'pending';
-            if (!isOverdue) return false;
-          }
-          
-          return true;
-        });
-        
         setBackendFilteredCustomers(results);
+        setBackendFilteredCount(res.count || results.length);
+        setBackendFilteredPages(Math.ceil((res.count || results.length) / 50) || 1);
         setUseBackendFiltered(true);
       } catch (error) {
         logger.error('Error fetching backend filtered customers:', error);
@@ -236,7 +212,7 @@ export default function AdminASECustomers() {
     };
     
     fetchBackendFiltered();
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, aseCompanyId, currentPage]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, monthFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage]);
 
   const handleCreateCustomer = async (customerData: any) => {
     try {
@@ -406,19 +382,29 @@ export default function AdminASECustomers() {
 
   const handleDownloadTemplate = () => {
     const templateData = [
-      { phone: '1234567890', name: 'John Doe', company_name: 'ABC Corp' },
-      { phone: '0987654321', name: 'Jane Smith', company_name: 'XYZ Ltd' },
+      { 
+        'Name*': 'Rahul Kumar', 
+        'Phone*': '9876543210', 
+        'Email': 'rahul@gmail.com',
+        'Company Name': 'TechCorp',
+        'Services': 'seo, social_media, web_design',
+        'Notes': 'Interested in SEO package',
+        'Scheduled Date': '2026-06-15',
+      },
+      { 
+        'Name*': 'Priya Sharma', 
+        'Phone*': '8765432109', 
+        'Email': 'priya@outlook.com',
+        'Company Name': 'DigiMark Solutions',
+        'Services': 'content_marketing, ppc',
+        'Notes': 'Follow up next week',
+        'Scheduled Date': '2026-06-20',
+      },
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    const instructions = [
-      { Field: 'phone', Required: 'Yes', Description: 'Phone number (required)' },
-      { Field: 'name', Required: 'No', Description: 'Customer full name (optional)' },
-      { Field: 'company_name', Required: 'No', Description: 'Company name (optional)' },
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(instructions), 'Instructions');
-    XLSX.writeFile(wb, 'ase_customers_import_template.xlsx');
+    XLSX.writeFile(wb, 'ase_calls_import_template.xlsx');
     toast.success('Template downloaded');
   };
 
@@ -558,7 +544,7 @@ export default function AdminASECustomers() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter, monthFilter]);
 
   // Calculate today's stats from ALL filtered customers (across all pages)
   const todayStats = useMemo(() => {
@@ -683,208 +669,103 @@ export default function AdminASECustomers() {
 
         {/* Main Content */}
         <div className="glass-card p-3 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 md:mb-6">
-            <div>
-              <h2 className="text-xl font-semibold">ASE Call Management</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Manage your ASE call contacts and interactions
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Search and Filters Row - Mobile Responsive */}
-            <div className="space-y-3">
-              {/* Search Bar - Full Width on Mobile */}
-              <div className="relative">
+          <div className="space-y-3">
+            {/* Single Row: Search + Filters + Actions + Add Call */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search calls by name or phone number..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 input-field"
+                  className="pl-10 h-9 input-field"
                 />
               </div>
-              {/* Filters - Stack on Mobile, Row on Desktop */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Overdue tab */}
-                <button
-                  onClick={() => {
-                    setOverdueFilter(v => !v);
-                    if (!overdueFilter) {
-                      setStatusFilter('all');
-                    }
-                  }}
-                  className={cn(
-                    "h-7 min-h-7 px-3 text-xs rounded-full border font-medium transition-colors",
-                    overdueFilter
-                      ? "bg-red-500 text-white border-red-500"
-                      : "bg-background text-red-600 border-red-400 hover:bg-red-50"
-                  )}
-                >
-                  Overdue
-                  {overdueCount > 0 && (
-                    <span className={cn(
-                      "ml-1.5 inline-flex items-center justify-center rounded-full font-bold leading-none",
-                      overdueFilter
-                        ? "bg-white text-red-500 min-w-[16px] h-[16px] px-1 text-[10px]"
-                        : "bg-red-500 text-white min-w-[16px] h-[16px] px-1 text-[10px]"
-                    )}>
-                      {overdueCount > 99 ? '99+' : overdueCount}
-                    </span>
-                  )}
-                </button>
-
-                <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setOverdueFilter(false); }}>
-                  <SelectTrigger className="select-trigger-pill w-36">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    {ASE_CALL_STATUS_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={conversionFilter} onValueChange={setConversionFilter}>
-                  <SelectTrigger className="select-trigger-pill w-36">
-                    <SelectValue placeholder="All Calls" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Calls</SelectItem>
-                    <SelectItem value="converted">Converted</SelectItem>
-                    <SelectItem value="not_converted">Not Converted</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <div className="relative flex items-center">
-                  <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="h-7 min-h-7 pr-7 rounded-full text-xs border-gray-300 w-36"
-                    style={{ fontSize: '12px' }}
-                  />
-                  {selectedDate && (
-                    <button
-                      onClick={clearDateFilter}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      title="Clear date filter"
-                    >
-                      <XIcon className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                <Button
-                  variant={selectedDate === new Date().toISOString().split('T')[0] ? 'default' : 'outline'}
-                  onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                  className="h-7 min-h-7 px-3 text-xs rounded-full"
-                >
-                  Today
-                </Button>
-
-                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <SelectTrigger className="select-trigger-pill w-36" style={{ display: user?.role === 'employee' ? 'none' : undefined }}>
-                    <SelectValue placeholder="All Assignees" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Assignees</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {employees.map(emp => {
-                      // Format name: capitalize first letter of each word
-                      const firstName = emp.first_name ? emp.first_name.charAt(0).toUpperCase() + emp.first_name.slice(1).toLowerCase() : '';
-                      const lastName = emp.last_name ? emp.last_name.charAt(0).toUpperCase() + emp.last_name.slice(1).toLowerCase() : '';
-                      const displayName = `${firstName} ${lastName}`.trim() || emp.username;
-                      
-                      return (
-                        <SelectItem key={emp.id} value={emp.id.toString()}>
-                          {displayName}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {/* Action Buttons Row - Mobile Responsive */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+              {/* Filters Button */}
+              <Button
+                variant={(() => {
+                  const hasFilters = statusFilter !== 'all' || conversionFilter !== 'all' || assigneeFilter !== 'all' || overdueFilter || selectedDate || monthFilter !== 'all' || dateFromFilter || dateToFilter;
+                  return hasFilters ? 'default' : 'outline';
+                })()}
+                onClick={() => setAdvancedFilterOpen(true)}
+                className="h-9 px-3 text-xs gap-1.5"
+                size="sm"
+              >
+                <FilterIcon className="w-3.5 h-3.5" />
+                Filters
+                {(() => {
+                  let count = 0;
+                  if (statusFilter !== 'all') count++;
+                  if (conversionFilter !== 'all') count++;
+                  if (assigneeFilter !== 'all') count++;
+                  if (overdueFilter) count++;
+                  if (selectedDate) count++;
+                  if (monthFilter !== 'all' || dateFromFilter || dateToFilter) count++;
+                  return count > 0 ? <span className="ml-1 bg-white/20 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
+                })()}
+              </Button>
+              {/* Action Buttons */}
               {selectedIds.size > 0 ? (
-                // Bulk Actions - Stack on Mobile
-                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full sm:w-auto">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      {selectedIds.size} call{selectedIds.size !== 1 ? 's' : ''} selected
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setShowBulkAssignDialog(true)}
-                      className="h-9 min-h-9 text-green-600 border-green-600 hover:bg-green-50"
-                    >
-                      <UsersIcon className="w-4 h-4 mr-2" />
-                      Assign Employee
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowBulkStatusDialog(true)}
-                      className="h-9 min-h-9 text-purple-600 border-purple-600 hover:bg-purple-50"
-                    >
-                      <ChevronDownIcon className="w-4 h-4 mr-2" />
-                      Update Status
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleBulkExport}
-                      className="h-9 min-h-9 text-blue-600 border-blue-600 hover:bg-blue-50"
-                    >
-                      <DownloadIcon className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="h-9 min-h-9 text-red-600 border-red-600 hover:bg-red-50"
-                    >
-                      <Trash2Icon className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
+                  <Button variant="outline" size="sm" className="h-9 text-green-600 border-green-600" onClick={() => setShowBulkAssignDialog(true)}>
+                    <UsersIcon className="w-3.5 h-3.5 mr-1" /> Assign
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-9 text-purple-600 border-purple-600" onClick={() => setShowBulkStatusDialog(true)}>
+                    <ChevronDownIcon className="w-3.5 h-3.5 mr-1" /> Status
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-9 text-red-600 border-red-600" onClick={() => setShowDeleteDialog(true)}>
+                    <Trash2Icon className="w-3.5 h-3.5 mr-1" /> Delete
+                  </Button>
                 </div>
               ) : (
-                // Regular Actions - Stack on Mobile
-                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-9 min-h-9 flex-1 sm:flex-none">
-                    <DownloadIcon className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Download Template</span>
-                    <span className="sm:hidden">Template</span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-9" onClick={handleDownloadTemplate}>
+                    <DownloadIcon className="w-3.5 h-3.5 mr-1" /> <span className="hidden lg:inline">Template</span>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setIsImportExportModalOpen(true)} className="h-9 min-h-9 flex-1 sm:flex-none">
-                    <UploadIcon className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Import Excel</span>
-                    <span className="sm:hidden">Import</span>
+                  <Button variant="outline" size="sm" className="h-9" onClick={() => setIsImportExportModalOpen(true)}>
+                    <UploadIcon className="w-3.5 h-3.5 mr-1" /> <span className="hidden lg:inline">Import</span>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleExportAll} className="h-9 min-h-9 flex-1 sm:flex-none">
-                    <DownloadIcon className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Export Data</span>
-                    <span className="sm:hidden">Export</span>
+                  <Button variant="outline" size="sm" className="h-9" onClick={handleExportAll}>
+                    <DownloadIcon className="w-3.5 h-3.5 mr-1" /> <span className="hidden lg:inline">Export</span>
                   </Button>
                 </div>
               )}
-              
-              <Button className="btn-primary h-9 min-h-9 w-full sm:w-auto" onClick={() => setIsCreateModalOpen(true)}>
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Add Call
+              {/* Add Call */}
+              <Button className="btn-primary h-9" onClick={() => setIsCreateModalOpen(true)}>
+                <PlusIcon className="w-4 h-4 mr-1" /> Add Call
               </Button>
             </div>
+            {/* Active filter badges */}
+            {(statusFilter !== 'all' || overdueFilter || assigneeFilter !== 'all' || monthFilter !== 'all' || dateFromFilter) && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {statusFilter !== 'all' && (
+                  <span className="h-6 px-2 text-[10px] rounded-full bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
+                    {ASE_CALL_STATUS_OPTIONS.find(o => o.value === statusFilter)?.label || statusFilter}
+                    <button onClick={() => setStatusFilter('all')}><XIcon className="w-2.5 h-2.5" /></button>
+                  </span>
+                )}
+                {overdueFilter && (
+                  <span className="h-6 px-2 text-[10px] rounded-full bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
+                    Overdue {overdueCount > 0 && `(${overdueCount})`}
+                    <button onClick={() => setOverdueFilter(false)}><XIcon className="w-2.5 h-2.5" /></button>
+                  </span>
+                )}
+                {assigneeFilter !== 'all' && (
+                  <span className="h-6 px-2 text-[10px] rounded-full bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
+                    {assigneeFilter === 'unassigned' ? 'Unassigned' : employees.find(e => e.id.toString() === assigneeFilter)?.first_name || 'Assignee'}
+                    <button onClick={() => setAssigneeFilter('all')}><XIcon className="w-2.5 h-2.5" /></button>
+                  </span>
+                )}
+                {(monthFilter !== 'all' || dateFromFilter) && (
+                  <span className="h-6 px-2 text-[10px] rounded-full bg-green-100 text-green-700 border border-green-200 flex items-center gap-1">
+                    {monthFilter !== 'all' ? new Date(monthFilter + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : `${dateFromFilter} → ${dateToFilter}`}
+                    <button onClick={() => { setMonthFilter('all'); setDateFromFilter(''); setDateToFilter(''); }}><XIcon className="w-2.5 h-2.5" /></button>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           {/* Customer List */}
           <div className="mt-4" />
@@ -902,7 +783,7 @@ export default function AdminASECustomers() {
               <div className="p-4 border-b flex items-center justify-between">
                 <span className="text-sm font-medium">Call List</span>
                 <span className="text-sm text-muted-foreground">
-                  {totalCount} call{totalCount !== 1 ? 's' : ''}
+                  {useBackendFiltered ? backendFilteredCount : totalCount} call{(useBackendFiltered ? backendFilteredCount : totalCount) !== 1 ? 's' : ''}
                 </span>
               </div>
               
@@ -1454,10 +1335,10 @@ export default function AdminASECustomers() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {(useBackendFiltered ? backendFilteredPages : totalPages) > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * 50 + 1} - {Math.min(currentPage * 50, totalCount)} of {totalCount} calls
+                  Showing {(currentPage - 1) * 50 + 1} - {Math.min(currentPage * 50, useBackendFiltered ? backendFilteredCount : totalCount)} of {useBackendFiltered ? backendFilteredCount : totalCount} calls
                 </p>
                 <div className="flex items-center gap-1">
                   <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>{'«'}</Button>
@@ -1465,8 +1346,9 @@ export default function AdminASECustomers() {
                     <ChevronLeftIcon className="w-4 h-4" />
                   </Button>
                   {(() => {
-                    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2);
+                    const effectivePages = useBackendFiltered ? backendFilteredPages : totalPages;
+                    const pages = Array.from({ length: effectivePages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === effectivePages || Math.abs(p - currentPage) <= 2);
                     const items: (number | string)[] = [];
                     pages.forEach((p, i) => {
                       if (i > 0 && p - pages[i - 1] > 1) items.push('...');
@@ -1480,10 +1362,10 @@ export default function AdminASECustomers() {
                       )
                     );
                   })()}
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === (useBackendFiltered ? backendFilteredPages : totalPages)}>
                     <ChevronRightIcon className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>{'»'}</Button>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(useBackendFiltered ? backendFilteredPages : totalPages)} disabled={currentPage === (useBackendFiltered ? backendFilteredPages : totalPages)}>{'»'}</Button>
                 </div>
               </div>
             )}
@@ -1721,6 +1603,236 @@ export default function AdminASECustomers() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Advanced Filters Sheet */}
+        <Sheet open={advancedFilterOpen} onOpenChange={setAdvancedFilterOpen}>
+          <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <FilterIcon className="w-5 h-5" />
+                Advanced Filters
+              </SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-6">
+              {/* Quick Month Presets */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Quick Select</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['This Month', 'Last Month', 'Last 3 Months'].map((preset) => (
+                    <Button
+                      key={preset}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        const now = new Date();
+                        if (preset === 'This Month') {
+                          const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+                          setDateFromFilter(from);
+                          setDateToFilter(now.toISOString().split('T')[0]);
+                          setMonthFilter(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+                        } else if (preset === 'Last Month') {
+                          const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                          const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+                          setDateFromFilter(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-01`);
+                          setDateToFilter(`${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`);
+                          setMonthFilter(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
+                        } else if (preset === 'Last 3 Months') {
+                          const threeAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                          setDateFromFilter(`${threeAgo.getFullYear()}-${String(threeAgo.getMonth() + 1).padStart(2, '0')}-01`);
+                          setDateToFilter(now.toISOString().split('T')[0]);
+                          setMonthFilter('all');
+                        }
+                        setSelectedDate('');
+                      }}
+                    >
+                      {preset}
+                    </Button>
+                  ))}
+                  {['This Week', 'Today', 'All Time'].map((preset) => (
+                    <Button
+                      key={preset}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        const now = new Date();
+                        if (preset === 'Today') {
+                          const today = now.toISOString().split('T')[0];
+                          setDateFromFilter(today);
+                          setDateToFilter(today);
+                          setMonthFilter('all');
+                        } else if (preset === 'This Week') {
+                          const day = now.getDay();
+                          const monday = new Date(now);
+                          monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+                          setDateFromFilter(monday.toISOString().split('T')[0]);
+                          setDateToFilter(now.toISOString().split('T')[0]);
+                          setMonthFilter('all');
+                        } else {
+                          setDateFromFilter('');
+                          setDateToFilter('');
+                          setMonthFilter('all');
+                        }
+                        setSelectedDate('');
+                      }}
+                    >
+                      {preset}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Call Status</label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); if (e.target.value !== 'all') setOverdueFilter(false); }}
+                >
+                  <option value="all">All Status</option>
+                  {ASE_CALL_STATUS_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assignee Filter */}
+              {user?.role !== 'employee' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Assigned To</label>
+                  <select
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={assigneeFilter}
+                    onChange={(e) => setAssigneeFilter(e.target.value)}
+                  >
+                    <option value="all">All Assignees</option>
+                    <option value="unassigned">Unassigned</option>
+                    {employees.map(emp => {
+                      const displayName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.username;
+                      return <option key={emp.id} value={emp.id.toString()}>{displayName}</option>;
+                    })}
+                  </select>
+                </div>
+              )}
+
+              {/* Conversion & Overdue Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Conversion</label>
+                  <select
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={conversionFilter}
+                    onChange={(e) => setConversionFilter(e.target.value)}
+                  >
+                    <option value="all">All Calls</option>
+                    <option value="converted">Converted</option>
+                    <option value="not_converted">Not Converted</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Overdue</label>
+                  <Button
+                    variant={overdueFilter ? 'default' : 'outline'}
+                    className={`w-full h-9 text-sm ${overdueFilter ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                    onClick={() => { setOverdueFilter(!overdueFilter); if (!overdueFilter) setStatusFilter('all'); }}
+                  >
+                    {overdueFilter ? '✓ Overdue Only' : 'Show Overdue'}
+                    {overdueCount > 0 && ` (${overdueCount})`}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Month Picker */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Filter by Month</label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={monthFilter}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setMonthFilter(v);
+                    if (v !== 'all') {
+                      const [y, m] = v.split('-');
+                      const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+                      setDateFromFilter(`${v}-01`);
+                      setDateToFilter(`${v}-${String(lastDay).padStart(2, '0')}`);
+                      setSelectedDate('');
+                    } else {
+                      setDateFromFilter('');
+                      setDateToFilter('');
+                    }
+                  }}
+                >
+                  <option value="all">All Months</option>
+                  {(() => {
+                    const items = [];
+                    const now = new Date();
+                    for (let i = 0; i < 24; i++) {
+                      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                      items.push(<option key={value} value={value}>{label}</option>);
+                    }
+                    return items;
+                  })()}
+                </select>
+              </div>
+
+              {/* Custom Date Range */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Custom Date Range</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">From</label>
+                    <Input
+                      type="date"
+                      value={dateFromFilter}
+                      onChange={(e) => { setDateFromFilter(e.target.value); setMonthFilter('all'); }}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">To</label>
+                    <Input
+                      type="date"
+                      value={dateToFilter}
+                      onChange={(e) => { setDateToFilter(e.target.value); setMonthFilter('all'); }}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setConversionFilter('all');
+                    setAssigneeFilter('all');
+                    setOverdueFilter(false);
+                    setMonthFilter('all');
+                    setDateFromFilter('');
+                    setDateToFilter('');
+                    setSelectedDate('');
+                  }}
+                >
+                  Clear All
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => setAdvancedFilterOpen(false)}
+                >
+                  Apply & Close
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ from django.utils import timezone
 from accounts.permissions import CompanyAccessPermission
 from .models import ASECustomer
 from .serializers import ASECustomerSerializer, ASECustomerListSerializer, CallLogSerializer, CustomerNoteSerializer
+from eswari_crm.ws_utils import notify_ase_data_changed
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     # Filter fields
     filterset_fields = [
         'call_status',
-        'assigned_to',
         'is_converted',
     ]
     
@@ -64,27 +64,82 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             company_id = self.request.query_params.get('company')
             if company_id:
                 qs = qs.filter(company_id=company_id)
-            return qs
-        if user.role == 'hr':
-            return qs.filter(company=user.company)
-
-        qs = qs.filter(company=user.company)
-
-        if user.role == 'employee':
-            # Show records assigned to OR created by this employee
-            return qs.filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
-
-        if user.role == 'manager':
+        elif user.role == 'hr':
+            qs = qs.filter(company=user.company)
+        elif user.role == 'employee':
+            qs = qs.filter(company=user.company).filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
+        elif user.role == 'manager':
             employee_ids = list(
                 user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
             )
             employee_ids.append(user.id)
-            # Also show unassigned records in the company so managers can assign them
-            return qs.filter(
+            qs = qs.filter(company=user.company).filter(
                 Q(assigned_to__id__in=employee_ids) |
                 Q(created_by__id__in=employee_ids) |
                 Q(assigned_to__isnull=True)
             ).distinct()
+        else:
+            qs = qs.filter(company=user.company)
+
+        # ── Additional backend filters ────────────────────────────────────────
+        # Overdue filter: scheduled_date < now AND call_status = 'pending'
+        overdue = self.request.query_params.get('overdue')
+        if overdue == 'true':
+            qs = qs.filter(scheduled_date__lt=timezone.now(), call_status='pending')
+
+        # Assigned to filter (handles both numeric ID and 'unassigned')
+        assigned_to = self.request.query_params.get('assigned_to')
+        if assigned_to == 'unassigned':
+            qs = qs.filter(assigned_to__isnull=True)
+        elif assigned_to and assigned_to.isdigit():
+            qs = qs.filter(assigned_to_id=int(assigned_to))
+
+        # Date filter (created_at date)
+        date_filter = self.request.query_params.get('date')
+        if date_filter:
+            from datetime import datetime
+            try:
+                filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+                qs = qs.filter(created_at__date=filter_date)
+            except ValueError:
+                pass
+
+        # Scheduled date filter
+        scheduled_date = self.request.query_params.get('scheduled_date')
+        if scheduled_date:
+            from datetime import datetime
+            try:
+                sched_date = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                qs = qs.filter(scheduled_date__date=sched_date)
+            except ValueError:
+                pass
+
+        # Month filter (format: YYYY-MM) - filters by created_at month
+        month_filter = self.request.query_params.get('month')
+        if month_filter:
+            try:
+                year, month = month_filter.split('-')
+                qs = qs.filter(created_at__year=int(year), created_at__month=int(month))
+            except (ValueError, IndexError):
+                pass
+
+        # Date range filter (date_from and date_to)
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            from datetime import datetime
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+                qs = qs.filter(created_at__date__gte=from_date)
+            except ValueError:
+                pass
+        if date_to:
+            from datetime import datetime
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+                qs = qs.filter(created_at__date__lte=to_date)
+            except ValueError:
+                pass
 
         return qs
     
@@ -108,7 +163,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             if 'assigned_to' in validated_data:
                 validated_data.pop('assigned_to')
             
-            serializer.save(
+            instance = serializer.save(
                 created_by=user,
                 company=user.company,
                 assigned_to=user,  # auto-assign to creator
@@ -119,7 +174,9 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             if not company:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'company': 'This field is required.'})
-            serializer.save(created_by=user)
+            instance = serializer.save(created_by=user)
+        
+        notify_ase_data_changed('calls', 'created', record_id=instance.id)
     
     def perform_update(self, serializer):
         """Auto-create a CallLog entry when call_status changes."""
@@ -136,25 +193,26 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 custom_status=updated.custom_call_status if new_status == 'custom' else None,
                 notes=None,
             )
+        notify_ase_data_changed('calls', 'updated', record_id=updated.id)
     
     def perform_destroy(self, instance):
         """
         Custom delete logic with role-based permissions.
-        - Employees can only delete customers they created or are assigned to
-        - Managers can delete any customer in their team
-        - Admin/HR can delete any customer in their company
         """
         user = self.request.user
+        record_id = instance.id
         
         # Admin and HR can delete any customer in their accessible companies
         if user.role in ['admin', 'hr']:
             instance.delete()
+            notify_ase_data_changed('calls', 'deleted', record_id=record_id)
             return
         
         # Managers can delete any customer in their company
         if user.role == 'manager':
             if instance.company_id == user.company_id:
                 instance.delete()
+                notify_ase_data_changed('calls', 'deleted', record_id=record_id)
                 return
             else:
                 from rest_framework.exceptions import PermissionDenied
@@ -164,6 +222,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         if user.role == 'employee':
             if instance.assigned_to_id == user.id or instance.created_by_id == user.id:
                 instance.delete()
+                notify_ase_data_changed('calls', 'deleted', record_id=record_id)
                 return
             else:
                 from rest_framework.exceptions import PermissionDenied
@@ -536,9 +595,13 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_import(self, request):
         """
-        Bulk import ASE customers in a single DB transaction.
+        Advanced bulk import ASE customers.
+        - Skips rows with empty phone numbers
+        - Detects duplicate numbers and tells you which employee already added it
+        - Handles empty fields gracefully (only phone is required)
+        
         Expects: {"customers": [{phone, name, company_name, ...}, ...]}
-        Returns: {"imported": N, "errors": [...]}
+        Returns: {"imported": N, "duplicates": N, "skipped": N, "errors": [...]}
         """
         from django.db import transaction as db_transaction
 
@@ -549,9 +612,13 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         user = request.user
         company = getattr(user, 'company', None)
         if not company:
-            return Response({'error': 'User has no company assigned'}, status=status.HTTP_400_BAD_REQUEST)
+            # Admin without company — use ASE (company_id=2) by default
+            from accounts.models import Company
+            company = Company.objects.filter(code='ASE').first()
+            if not company:
+                return Response({'error': 'ASE company not found'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Build assignee pool: employee → self, manager → team + self, admin/hr → no auto-assign
+        # Build assignee pool
         from accounts.models import User as UserModel
         if user.role == 'employee':
             assignees = [user]
@@ -566,40 +633,120 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
 
         to_create = []
         errors = []
+        duplicates = 0
+        skipped = 0
 
-        # Pre-fetch existing phones in this company to detect duplicates efficiently
-        existing_phones = set(
-            ASECustomer.objects.filter(company=company).values_list('phone', flat=True)
-        )
-        seen_phones = set()  # track duplicates within the import batch itself
+        # Pre-fetch existing phones with their creator info
+        existing_records = ASECustomer.objects.filter(company=company).select_related('created_by').values_list('phone', 'created_by__first_name', 'created_by__last_name', 'created_by__username')
+        existing_phone_map = {}
+        for phone, fn, ln, uname in existing_records:
+            name = f"{fn or ''} {ln or ''}".strip() or uname or 'Unknown'
+            existing_phone_map[phone] = name
+
+        seen_phones = set()  # track duplicates within the import batch
 
         for i, row in enumerate(rows):
             phone = str(row.get('phone', '')).strip()
-            if not phone:
-                errors.append({'row': i + 1, 'error': 'Phone is required'})
+            
+            # Clean phone: remove spaces, dashes, plus signs for comparison
+            phone_clean = phone.replace(' ', '').replace('-', '').replace('+', '')
+            
+            # Skip completely empty rows (no phone at all)
+            if not phone_clean:
+                skipped += 1
                 continue
-            if phone in existing_phones:
-                errors.append({'row': i + 1, 'phone': phone, 'error': f"Phone '{phone}' already exists in your company"})
+            
+            # Require name
+            name_val = str(row.get('name', '')).strip()
+            if not name_val:
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone or '(empty)',
+                    'error': 'Name is required',
+                    'type': 'validation',
+                })
+                skipped += 1
                 continue
-            if phone in seen_phones:
-                errors.append({'row': i + 1, 'phone': phone, 'error': f"Phone '{phone}' is duplicated in this import"})
+            
+            # Check duplicate in existing database
+            if phone_clean in existing_phone_map:
+                employee_name = existing_phone_map[phone_clean]
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': f"This number is already added by {employee_name}",
+                    'type': 'duplicate',
+                    'added_by': employee_name,
+                })
+                duplicates += 1
                 continue
-            seen_phones.add(phone)
+            
+            # Also check with original phone format
+            if phone in existing_phone_map:
+                employee_name = existing_phone_map[phone]
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': f"This number is already added by {employee_name}",
+                    'type': 'duplicate',
+                    'added_by': employee_name,
+                })
+                duplicates += 1
+                continue
+            
+            # Check duplicate within batch
+            if phone_clean in seen_phones:
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': f"Duplicate phone in this file (row appeared earlier)",
+                    'type': 'batch_duplicate',
+                })
+                duplicates += 1
+                continue
+            
+            seen_phones.add(phone_clean)
+            
             try:
                 assigned_to = assignees[len(to_create) % len(assignees)] if assignees else None
+                
+                # Handle empty fields gracefully - name and phone are required
+                name = str(row.get('name', '')).strip() or None
+                email = str(row.get('email', '')).strip() or None
+                company_name = str(row.get('company_name', '')).strip() or None
+                notes = str(row.get('notes', '')).strip() or None
+                service_interests = row.get('service_interests') or row.get('services') or []
+                if isinstance(service_interests, str):
+                    service_interests = [s.strip().lower() for s in service_interests.split(',') if s.strip()]
+                
+                # Parse scheduled_date
+                scheduled_date_val = row.get('scheduled_date') or None
+                if scheduled_date_val and isinstance(scheduled_date_val, str):
+                    scheduled_date_val = scheduled_date_val.strip()
+                    if scheduled_date_val:
+                        try:
+                            from datetime import datetime as dt
+                            scheduled_date_val = dt.strptime(scheduled_date_val, '%Y-%m-%d')
+                        except ValueError:
+                            scheduled_date_val = None
+                    else:
+                        scheduled_date_val = None
+                
                 to_create.append(ASECustomer(
-                    phone=phone,
-                    name=row.get('name') or None,
-                    email=row.get('email') or None,
-                    company_name=row.get('company_name') or None,
-                    call_status=row.get('call_status', 'pending'),
-                    notes=row.get('notes') or None,
+                    phone=phone_clean,
+                    name=name,
+                    email=email,
+                    company_name=company_name,
+                    call_status=row.get('call_status', 'pending') or 'pending',
+                    notes=notes,
+                    service_interests=service_interests if service_interests else [],
+                    scheduled_date=scheduled_date_val,
                     company=company,
                     created_by=user,
                     assigned_to=assigned_to,
                 ))
             except Exception as e:
-                errors.append({'row': i + 1, 'error': str(e)})
+                errors.append({'row': i + 1, 'error': str(e), 'type': 'error'})
 
         imported = 0
         if to_create:
@@ -607,7 +754,13 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 created = ASECustomer.objects.bulk_create(to_create, batch_size=500)
                 imported = len(created)
 
-        return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
+        return Response({
+            'imported': imported,
+            'duplicates': duplicates,
+            'skipped': skipped,
+            'total_rows': len(rows),
+            'errors': errors,
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
     def import_customers(self, request):

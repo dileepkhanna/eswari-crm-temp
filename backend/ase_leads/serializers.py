@@ -57,6 +57,7 @@ class ASELeadNestedSerializer(serializers.ModelSerializer):
             'email',
             'phone',
             'status',
+            'custom_status',
             'status_display',
             'priority',
             'priority_display',
@@ -358,6 +359,7 @@ class ASELeadSerializer(serializers.ModelSerializer):
             
             # Status and Management
             'status',
+            'custom_status',
             'priority',
             
             # Assignment and Company
@@ -711,6 +713,7 @@ class ASELeadListSerializer(serializers.ModelSerializer):
             'lead_source',
             'referral_source',
             'status',
+            'custom_status',
             'priority',
             'assigned_to',
             'assigned_to_name',

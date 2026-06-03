@@ -66,6 +66,7 @@ interface CREUser {
 export default function BOEDashboard() {
   const location = useLocation();
   const isResearchPage = location.pathname.includes('/research');
+  const showDataList = true; // Always show data list for BOE users
   
   // State
   const [records, setRecords] = useState<BOERecord[]>([]);
@@ -130,25 +131,20 @@ export default function BOEDashboard() {
     try {
       // Only show loading spinner on first fetch — silent on polls
       if (!hasFetchedRef.current) setLoading(true);
-      const token = localStorage.getItem('access_token');
-      let url = `${API_BASE_URL}/ase-leads/boe-assigned/?page=${currentPage}`;
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
-      if (dateFrom) url += `&date_from=${dateFrom}`;
-      if (dateTo) url += `&date_to=${dateTo}`;
-      if (callStatusFilter && callStatusFilter !== 'all') url += `&call_status=${callStatusFilter}`;
+      let endpoint = `/ase-leads/boe-assigned/?page=${currentPage}`;
+      if (debouncedSearch) endpoint += `&search=${encodeURIComponent(debouncedSearch)}`;
+      if (dateFrom) endpoint += `&date_from=${dateFrom}`;
+      if (dateTo) endpoint += `&date_to=${dateTo}`;
+      if (callStatusFilter && callStatusFilter !== 'all') endpoint += `&call_status=${callStatusFilter}`;
 
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Failed to fetch');
-      const data = await response.json();
+      const data = await apiClient.get(endpoint);
       setRecords(data.results || []);
       setTotalCount(data.count || 0);
       setTotalPages(data.total_pages || 1);
       if (data.stats) setStats(data.stats);
       hasFetchedRef.current = true;
     } catch (err) {
-      toast.error('Failed to load assigned data');
+      if (!hasFetchedRef.current) toast.error('Failed to load assigned data');
     } finally {
       setLoading(false);
     }
@@ -193,13 +189,7 @@ export default function BOEDashboard() {
   const handleCallStatus = async (recordId: number, callStatus: string) => {
     try {
       setCallStatusLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-assigned/${recordId}/call-status/`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ call_status: callStatus }),
-      });
-      if (!response.ok) throw new Error('Failed to update');
+      await apiClient.patch(`/ase-leads/boe-assigned/${recordId}/call-status/`, { call_status: callStatus });
       toast.success(`Marked as ${callStatus}`);
       fetchRecords();
     } catch (err) {
@@ -217,14 +207,8 @@ export default function BOEDashboard() {
     setConvertModalOpen(true);
     // Fetch CRE users
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/cre-users/`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCreUsers(data);
-      }
+      const data = await apiClient.get('/ase-leads/cre-users/');
+      if (data) setCreUsers(data);
     } catch (err) {
       setCreUsers([]);
     }
@@ -238,14 +222,9 @@ export default function BOEDashboard() {
     }
     try {
       setConvertLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-assigned/${convertRecord.id}/convert-to-lead/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_to_cre: parseInt(selectedCre), call_notes: convertNotes }),
+      const data = await apiClient.post(`/ase-leads/boe-assigned/${convertRecord.id}/convert-to-lead/`, {
+        assigned_to_cre: parseInt(selectedCre), call_notes: convertNotes,
       });
-      if (!response.ok) throw new Error('Failed to convert');
-      const data = await response.json();
       toast.success(data.message || 'Converted to lead successfully');
       setConvertModalOpen(false);
       fetchRecords();
@@ -276,14 +255,9 @@ export default function BOEDashboard() {
     }
     try {
       setAddLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/add/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: addName, phone_number: addPhone, location: addLocation, notes: addNotes }),
+      await apiClient.post('/ase-leads/boe-data/add/', {
+        name: addName, phone_number: addPhone, location: addLocation, notes: addNotes,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to add');
       toast.success('Data added successfully');
       setAddModalOpen(false);
       setAddName(''); setAddPhone(''); setAddLocation(''); setAddNotes('');
@@ -312,14 +286,9 @@ export default function BOEDashboard() {
     }
     try {
       setEditLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/${editRecord.id}/edit/`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, phone_number: editPhone, location: editLocation, notes: editNotes }),
+      await apiClient.patch(`/ase-leads/boe-data/${editRecord.id}/edit/`, {
+        name: editName, phone_number: editPhone, location: editLocation, notes: editNotes,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to update');
       toast.success('Data updated successfully');
       setEditModalOpen(false);
       fetchRecords();
@@ -335,15 +304,7 @@ export default function BOEDashboard() {
     if (!confirm(`Delete "${record.name}"? This cannot be undone.`)) return;
     try {
       setDeleteLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/${record.id}/delete/`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete');
-      }
+      await apiClient.delete(`/ase-leads/boe-data/${record.id}/delete/`);
       toast.success('Record deleted');
       fetchRecords();
     } catch (err: any) {
@@ -380,14 +341,9 @@ export default function BOEDashboard() {
     if (!confirm(`Delete ${selectedIds.size} selected record(s)? This cannot be undone.`)) return;
     try {
       setBulkDeleteLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/ase-leads/boe-data/bulk-delete/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      const data = await apiClient.post('/ase-leads/boe-data/bulk-delete/', {
+        ids: Array.from(selectedIds),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to bulk delete');
       toast.success(data.message || `${selectedIds.size} record(s) deleted`);
       setSelectedIds(new Set());
       fetchRecords();
@@ -566,8 +522,8 @@ export default function BOEDashboard() {
       </>
       )}
 
-      {/* Data List - only on Research Data page */}
-      {isResearchPage && (
+      {/* Data List - always visible for BOE users */}
+      {showDataList && (
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -12,6 +12,7 @@ from django.db import transaction
 from accounts.permissions import CompanyAccessPermission
 from .models import ASELead
 from .serializers import ASELeadSerializer, ASELeadListSerializer
+from eswari_crm.ws_utils import notify_ase_data_changed
 
 
 class ASELeadPagination(PageNumberPagination):
@@ -67,45 +68,60 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = ASELead.objects.select_related('company', 'assigned_to', 'created_by').all()
 
-        # Superuser sees everything with optional company filter
+        # Role-based scoping
         if user.is_superuser:
             company_id = self.request.query_params.get('company')
             if company_id:
                 qs = qs.filter(company_id=company_id)
-            return qs
-
-        if user.role == 'admin':
+        elif user.role == 'admin':
             company_id = self.request.query_params.get('company')
             if company_id:
-                return qs.filter(company_id=company_id)
-            return qs.filter(company=user.company)
-
-        if user.role == 'hr':
-            return qs.filter(company=user.company)
-
-        # For employee and manager — always scope to their company first
-        if not user.company:
+                qs = qs.filter(company_id=company_id)
+            else:
+                qs = qs.filter(company=user.company)
+        elif user.role == 'hr':
+            qs = qs.filter(company=user.company)
+        elif not user.company:
             return qs.none()
-
-        qs = qs.filter(company=user.company)
-
-        if user.role == 'employee':
-            # Employee sees ONLY leads assigned to them OR created by them
-            return qs.filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
-
-        if user.role == 'manager':
-            # Manager sees leads of their team (employees under them + themselves)
+        elif user.role == 'employee':
+            qs = qs.filter(company=user.company).filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
+        elif user.role == 'manager':
             employee_ids = list(
-                user.__class__.objects.filter(
-                    manager=user, company=user.company
-                ).values_list('id', flat=True)
+                user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
             )
             employee_ids.append(user.id)
-            return qs.filter(
+            qs = qs.filter(company=user.company).filter(
                 Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
             ).distinct()
+        else:
+            return qs.none()
 
-        return qs.none()  # unknown role — return nothing
+        # Date filters
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        month = self.request.query_params.get('month')
+
+        if month:
+            try:
+                year, mon = month.split('-')
+                qs = qs.filter(created_at__year=int(year), created_at__month=int(mon))
+            except (ValueError, IndexError):
+                pass
+
+        if date_from:
+            from datetime import datetime
+            try:
+                qs = qs.filter(created_at__date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        if date_to:
+            from datetime import datetime
+            try:
+                qs = qs.filter(created_at__date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
+        return qs
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -145,7 +161,15 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 serializer.save(created_by=user, company=user.company)
         else:
             serializer.save(created_by=user, company=user.company)
+        
+        # Notify all ASE clients of new lead
+        notify_ase_data_changed('leads', 'created')
     
+    def perform_destroy(self, instance):
+        record_id = instance.id
+        instance.delete()
+        notify_ase_data_changed('leads', 'deleted', record_id=record_id)
+
     @action(detail=False, methods=['get'])
     def creators(self, request):
         """

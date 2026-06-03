@@ -32,7 +32,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 def _send_to_group(group_name, event_type, data):
     """Send a message to a channel layer group."""
     try:
@@ -53,7 +52,6 @@ def _send_to_group(group_name, event_type, data):
         logger.warning(f"Failed to send WebSocket notification to {group_name}: {e}")
         return False
 
-
 def notify_user(user_id: int, event_type: str, data: dict) -> bool:
     """
     Send a real-time notification to a specific user.
@@ -69,7 +67,6 @@ def notify_user(user_id: int, event_type: str, data: dict) -> bool:
 def notify_role(role: str, event_type: str, data: dict) -> bool:
     """
     Send a real-time notification to all users with a specific role.
-    
     Args:
         role: Role name (admin, manager, employee, hr)
         event_type: Event type
@@ -77,18 +74,15 @@ def notify_role(role: str, event_type: str, data: dict) -> bool:
     """
     return _send_to_group(f"role_{role}", event_type, data)
 
-
 def notify_company(company_id: int, event_type: str, data: dict) -> bool:
     """
     Send a real-time notification to all users in a company.
-    
     Args:
         company_id: The company's ID
         event_type: Event type
         data: Notification payload dict
     """
     return _send_to_group(f"company_{company_id}", event_type, data)
-
 
 def notify_broadcast(event_type: str, data: dict) -> bool:
     """
@@ -99,3 +93,34 @@ def notify_broadcast(event_type: str, data: dict) -> bool:
         data: Notification payload dict
     """
     return _send_to_group("broadcast", event_type, data)
+
+
+def notify_ase_data_changed(entity: str, action: str, record_id=None, extra: dict = None) -> bool:
+    """
+    Notify all ASE Technologies users (company_id=2) that data has changed.
+    
+    Used for real-time updates on ASE Calls, Leads, and Tasks pages.
+    
+    Args:
+        entity: 'calls', 'leads', or 'tasks'
+        action: 'created', 'updated', 'deleted', 'bulk_deleted', 'converted'
+        record_id: Optional ID of the affected record
+        extra: Optional extra data to include
+    
+    Usage:
+        from eswari_crm.ws_utils import notify_ase_data_changed
+        notify_ase_data_changed('leads', 'created', record_id=123)
+        notify_ase_data_changed('tasks', 'updated', record_id=45, extra={'status': 'completed'})
+        notify_ase_data_changed('calls', 'bulk_deleted')
+    """
+    data = {
+        'entity': entity,
+        'action': action,
+    }
+    if record_id is not None:
+        data['record_id'] = record_id
+    if extra:
+        data.update(extra)
+    
+    # Send to ASE Technologies company group (company_id=2)
+    return _send_to_group("company_2", "ase_data_changed", data)

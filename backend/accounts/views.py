@@ -745,17 +745,9 @@ def admin_update_user_view(request, user_id):
         # Update team assignment if provided
         if team_id is not None:
             if team_id == '' or team_id == 0 or team_id == 'null' or team_id == 'none':
-                # Cannot remove team once assigned
-                if user_to_update.team is not None:
-                    return Response({
-                        'error': 'Team cannot be removed once assigned.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                # Remove team assignment
+                user_to_update.team = None
             else:
-                # If user already has a team assigned, prevent changing it (no one can change)
-                if user_to_update.team is not None and str(user_to_update.team_id) != str(team_id):
-                    return Response({
-                        'error': 'Team cannot be changed once assigned.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
                 try:
                     from teams.models import Team
                     team = Team.objects.get(id=team_id, is_active=True)

@@ -10,6 +10,7 @@ from .models import Lead
 from .serializers import LeadSerializer
 from accounts.permissions import filter_by_user_access, can_hr_access_module, CompanyAccessPermission
 from utils.mixins import CompanyFilterMixin
+from eswari_crm.ws_utils import notify_company
 
 
 class LeadFilter(FilterSet):
@@ -73,12 +74,37 @@ class LeadViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        # Send real-time notification to company members
+        if instance.company_id:
+            notify_company(
+                company_id=instance.company_id,
+                event_type='lead_created',
+                data={
+                    'entity': 'leads',
+                    'action': 'created',
+                    'record_id': instance.id,
+                    'name': instance.name,
+                }
+            )
     
     def perform_destroy(self, instance):
         user = self.request.user
+        company_id = instance.company_id
+        record_id = instance.id
         if user.role in ['admin', 'manager', 'employee']:
             instance.delete()
+            # Send real-time notification
+            if company_id:
+                notify_company(
+                    company_id=company_id,
+                    event_type='lead_deleted',
+                    data={
+                        'entity': 'leads',
+                        'action': 'deleted',
+                        'record_id': record_id,
+                    }
+                )
         else:
             raise PermissionDenied("You do not have permission to delete leads.")
     

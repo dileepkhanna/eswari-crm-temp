@@ -27,6 +27,8 @@ interface ASELeadContextType {
   industryFilter: string;
   budgetRangeFilter: string;
   createdByFilter: string;
+  dateFromFilter: string;
+  dateToFilter: string;
   
   // Actions
   fetchLeads: () => Promise<void>;
@@ -42,6 +44,8 @@ interface ASELeadContextType {
   setIndustryFilter: (industry: string) => void;
   setBudgetRangeFilter: (budgetRange: string) => void;
   setCreatedByFilter: (createdBy: string) => void;
+  setDateFromFilter: (dateFrom: string) => void;
+  setDateToFilter: (dateTo: string) => void;
   setCurrentPage: (page: number) => void;
   
   // Utility actions
@@ -83,6 +87,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const [industryFilter, setIndustryFilter] = useState('');
   const [budgetRangeFilter, setBudgetRangeFilter] = useState('');
   const [createdByFilter, setCreatedByFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
 
   // Debounced search — only fire API after 400ms of no typing
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -107,6 +113,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
         priority: priorityFilter || undefined,
         industry: industryFilter || undefined,
         created_by: createdByFilter || undefined,
+        date_from: dateFromFilter || undefined,
+        date_to: dateToFilter || undefined,
         page: currentPage,
         page_size: PAGE_SIZE,
       };
@@ -236,6 +244,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       // Optimistic: remove from local state immediately
       setLeads(prev => prev.filter(l => l.id !== id));
       setTotalCount(prev => Math.max(0, prev - 1));
+      // Re-fetch to get accurate count and pagination
+      setTimeout(() => fetchLeads(), 100);
       toast.success('Lead deleted successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
@@ -265,6 +275,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     setIndustryFilter('');
     setBudgetRangeFilter('');
     setCreatedByFilter('');
+    setDateFromFilter('');
+    setDateToFilter('');
     setCurrentPage(1);
   };
   
@@ -280,7 +292,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     } else {
       setCurrentPage(1);
     }
-  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter, aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter, priorityFilter, industryFilter, budgetRangeFilter, createdByFilter, dateFromFilter, dateToFilter, aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch when page changes (pagination clicks or reset to 1)
   useEffect(() => {
@@ -296,6 +308,33 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     fetchStats();
     fetchCreators();
   }, [aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Subscribe to WebSocket real-time updates for ASE leads
+  useEffect(() => {
+    if (!user || !aseCompanyId) return;
+    if (window.location.pathname.startsWith('/register')) return;
+    
+    const unsubscribers: (() => void)[] = [];
+    
+    import('@/services/websocket.service').then(({ websocketService }) => {
+      logger.log('🔌 Setting up ASE lead WebSocket subscriptions...');
+      
+      // ASE-specific data change event
+      unsubscribers.push(
+        websocketService.on('ase_data_changed', (message) => {
+          if (message.data?.entity === 'leads') {
+            logger.log('🔔 ASE lead data changed - refreshing leads...');
+            fetchLeads();
+            fetchStats();
+          }
+        })
+      );
+    });
+    
+    return () => {
+      unsubscribers.forEach(unsubscribe => unsubscribe?.());
+    };
+  }, [user, aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const value: ASELeadContextType = {
     // State
@@ -317,6 +356,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     industryFilter,
     budgetRangeFilter,
     createdByFilter,
+    dateFromFilter,
+    dateToFilter,
     
     // Actions
     fetchLeads,
@@ -332,6 +373,8 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     setIndustryFilter,
     setBudgetRangeFilter,
     setCreatedByFilter,
+    setDateFromFilter,
+    setDateToFilter,
     setCurrentPage,
     
     // Utility actions

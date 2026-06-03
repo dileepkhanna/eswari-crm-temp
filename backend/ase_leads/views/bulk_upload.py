@@ -9,7 +9,7 @@ GET  /api/ase-leads/bulk-upload/template/  - Download Excel template
 import io
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
@@ -975,11 +975,14 @@ from ase_leads.models.boe_lead import BOELead
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def boe_leads_list(request):
     """List leads from the separate leads table. Admin sees all, BOE sees own."""
     from django.core.paginator import Paginator
     from django.db.models import Q
+
+    if not request.user.is_authenticated:
+        return Response({'results': [], 'count': 0, 'total_pages': 0})
 
     user = request.user
     
@@ -1388,14 +1391,21 @@ def boe_leads_import(request):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def bre_dashboard_stats(request):
     """
     Return BRE dashboard statistics: total, new, assigned, today/week/month counts.
     Admin users see all records; team members see their company's records.
+    Returns empty stats for unauthenticated users.
     """
     from django.utils import timezone
     from datetime import timedelta
+
+    if not request.user.is_authenticated:
+        return Response({
+            'total': 0, 'new_count': 0, 'assigned_count': 0, 'today_added': 0,
+            'this_week_added': 0, 'this_week_assigned': 0, 'this_month_added': 0, 'this_month_assigned': 0,
+        })
 
     user = request.user
     today = timezone.now().date()
@@ -1463,7 +1473,7 @@ def bre_users_list(request):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def cre_leads_list(request):
     """
     List leads assigned to the current CRE user.
@@ -1479,6 +1489,12 @@ def cre_leads_list(request):
     from django.core.paginator import Paginator
     from django.utils import timezone
     from datetime import timedelta
+
+    if not request.user.is_authenticated:
+        return Response({'results': [], 'count': 0, 'total_pages': 0, 'stats': {
+            'total': 0, 'cold': 0, 'warm': 0, 'hot': 0, 'completed': 0, 'rejected': 0,
+            'today_assigned': 0, 'this_week': 0, 'this_month': 0,
+        }})
 
     user = request.user
     company = user.company

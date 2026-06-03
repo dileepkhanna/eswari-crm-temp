@@ -246,6 +246,31 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
           logger.error('❌ Error during background data fetch:', error);
         });
       }, 100); // Small delay to allow UI to render first
+      
+      // Subscribe to WebSocket real-time updates for customers
+      const unsubscribers: (() => void)[] = [];
+      
+      import('@/services/websocket.service').then(({ websocketService }) => {
+        logger.log('🔌 Setting up customer WebSocket subscriptions...');
+        
+        unsubscribers.push(
+          websocketService.on('customer_created', () => {
+            logger.log('🔔 Customer created - refreshing customers...');
+            fetchCustomers(true);
+          })
+        );
+
+        unsubscribers.push(
+          websocketService.on('customer_updated', () => {
+            logger.log('🔔 Customer updated - refreshing customers...');
+            fetchCustomers(true);
+          })
+        );
+      });
+      
+      return () => {
+        unsubscribers.forEach(unsubscribe => unsubscribe?.());
+      };
     } else {
       setCustomers([]);
       setEmployees([]);

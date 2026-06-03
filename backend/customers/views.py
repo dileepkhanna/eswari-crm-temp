@@ -16,6 +16,7 @@ from leads.models import Lead
 from leads.serializers import LeadSerializer
 from accounts.permissions import filter_by_user_access, can_hr_access_module, CompanyAccessPermission
 from utils.mixins import CompanyFilterMixin
+from eswari_crm.ws_utils import notify_company
 
 User = get_user_model()
 
@@ -178,8 +179,20 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You can only update customers assigned to you.")
         
-        serializer.save()
+        instance = serializer.save()
         print(f"DEBUG: Customer {customer.id} updated successfully")
+        
+        # Send real-time notification
+        if instance.company_id:
+            notify_company(
+                company_id=instance.company_id,
+                event_type='customer_updated',
+                data={
+                    'entity': 'customers',
+                    'action': 'updated',
+                    'record_id': instance.id,
+                }
+            )
     
     def perform_create(self, serializer):
         """Automatically set created_by to the current user"""
@@ -189,11 +202,23 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         try:
             # For employees, automatically assign the customer to themselves
             if user.role == 'employee':
-                serializer.save(created_by=user, assigned_to=user)
+                instance = serializer.save(created_by=user, assigned_to=user)
                 print(f"DEBUG: Employee created customer and auto-assigned to themselves")
             else:
-                serializer.save(created_by=user)
+                instance = serializer.save(created_by=user)
                 print(f"DEBUG: Admin/Manager created customer without auto-assignment")
+            
+            # Send real-time notification
+            if instance.company_id:
+                notify_company(
+                    company_id=instance.company_id,
+                    event_type='customer_created',
+                    data={
+                        'entity': 'customers',
+                        'action': 'created',
+                        'record_id': instance.id,
+                    }
+                )
         except Exception as e:
             # Handle duplicate phone number error
             if 'UNIQUE constraint failed' in str(e) or 'duplicate key value' in str(e):

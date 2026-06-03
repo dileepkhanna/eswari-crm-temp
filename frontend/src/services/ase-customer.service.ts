@@ -22,6 +22,13 @@ export class ASECustomerService {
     company?: number | string;
     assigned_to?: number | string;
     is_converted?: string; // 'true' | 'false'
+    overdue?: string;
+    date?: string;
+    month?: string;
+    date_from?: string;
+    date_to?: string;
+    scheduled_date?: string;
+    [key: string]: any;
   }): Promise<{ results: ASECustomer[]; count: number; next: string | null; previous: string | null }> {
     try {
       const query = new URLSearchParams();
@@ -32,6 +39,12 @@ export class ASECustomerService {
       if (params?.company) query.set('company', String(params.company));
       if (params?.assigned_to) query.set('assigned_to', String(params.assigned_to));
       if (params?.is_converted !== undefined) query.set('is_converted', params.is_converted);
+      if (params?.overdue) query.set('overdue', params.overdue);
+      if (params?.date) query.set('date', params.date);
+      if (params?.month) query.set('month', params.month);
+      if (params?.date_from) query.set('date_from', params.date_from);
+      if (params?.date_to) query.set('date_to', params.date_to);
+      if (params?.scheduled_date) query.set('scheduled_date', params.scheduled_date);
 
       const url = `${this.baseUrl}/${query.toString() ? '?' + query.toString() : ''}`;
       const response = await apiClient.get(url);

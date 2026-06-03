@@ -222,7 +222,10 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       setError(null);
       const customer = customers.find(c => c.id === id);
       await ASECustomerService.deleteCustomer(id);
+      // Remove immediately from local state for instant feedback
       setCustomers(prev => prev.filter(c => c.id !== id));
+      // Then re-fetch to get accurate count and pagination
+      setTimeout(() => fetchCustomers(), 100);
       toast.success('ASE Customer deleted successfully');
       if (user) logCustomerActivity(
         { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
@@ -386,7 +389,8 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     try {
       setError(null);
       const result = await ASECustomerService.bulkDelete(customerIds);
-      setCustomers(prev => prev.filter(c => !customerIds.includes(c.id)));
+      // Re-fetch to get accurate count and pagination
+      await fetchCustomers();
       toast.success(`${result.deleted} customer${result.deleted !== 1 ? 's' : ''} deleted successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete customers';
@@ -394,7 +398,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       toast.error(errorMessage);
       throw err;
     }
-  }, []);
+  }, [fetchCustomers]);
 
   // Reassign customer
   const reassignCustomer = useCallback(async (customerId: string, assignedTo: string, reason?: string): Promise<void> => {
@@ -428,6 +432,32 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       refreshOverdueCount();
     }
   }, [user, fetchCustomers, fetchStats, refreshOverdueCount]);
+
+  // Subscribe to WebSocket real-time updates for ASE customers (calls)
+  useEffect(() => {
+    if (!user) return;
+    
+    const unsubscribers: (() => void)[] = [];
+    
+    import('@/services/websocket.service').then(({ websocketService }) => {
+      logger.log('🔌 Setting up ASE customer (calls) WebSocket subscriptions...');
+      
+      // ASE-specific data change event for calls
+      unsubscribers.push(
+        websocketService.on('ase_data_changed', (message) => {
+          if (message.data?.entity === 'calls') {
+            logger.log('🔔 ASE call data changed - refreshing customers...');
+            fetchCustomers();
+            fetchStats();
+          }
+        })
+      );
+    });
+    
+    return () => {
+      unsubscribers.forEach(unsubscribe => unsubscribe?.());
+    };
+  }, [user, fetchCustomers, fetchStats]);
 
   const value: ASECustomerContextType = {
     customers,

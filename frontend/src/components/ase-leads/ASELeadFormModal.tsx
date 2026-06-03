@@ -516,6 +516,14 @@ export default function ASELeadFormModal({
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.status === 'custom' && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Enter custom status..."
+                    value={(formData as any).custom_status || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, custom_status: e.target.value } as any))}
+                  />
+                )}
               </div>
               <div>
                 <Label htmlFor="priority">Priority</Label>

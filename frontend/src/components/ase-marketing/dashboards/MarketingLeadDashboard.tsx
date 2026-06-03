@@ -9,7 +9,7 @@ import BREDashboard from './BREDashboard';
 import BOELeads from './BOELeads';
 import CREDashboard from './CREDashboard';
 import { TaskList } from '@/components/ase-marketing/tasks/TaskList';
-import { API_BASE_URL } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 
 export default function MarketingLeadDashboard({ dashboardOnly = false }: { dashboardOnly?: boolean } = {}) {
   const { data: stats, loading: statsLoading } = useDashboardStats();
@@ -21,25 +21,21 @@ export default function MarketingLeadDashboard({ dashboardOnly = false }: { dash
   const [creStats, setCreStats] = useState({ total: 0, cold: 0, warm: 0, hot: 0, completed: 0, rejected: 0 });
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const headers = { 'Authorization': `Bearer ${token}` };
-
     const fetchAll = async () => {
       try {
-        // BRE stats
-        const breRes = await fetch(`${API_BASE_URL}/ase-leads/bre-stats/`, { headers });
-        if (breRes.ok) { const data = await breRes.json(); setBreStats(data); }
+        // BRE stats - use apiClient for automatic token refresh
+        const breData = await apiClient.get('/ase-leads/bre-stats/');
+        if (breData) setBreStats(breData);
 
         // BOE leads count
-        const boeRes = await fetch(`${API_BASE_URL}/ase-leads/boe-leads/?page_size=1`, { headers });
-        if (boeRes.ok) { const data = await boeRes.json(); setBoeLeadsCount(data.count || 0); }
+        const boeData = await apiClient.get('/ase-leads/boe-leads/?page_size=1');
+        if (boeData) setBoeLeadsCount(boeData.count || 0);
 
         // CRE leads count + stats
-        const creRes = await fetch(`${API_BASE_URL}/ase-leads/cre-leads/?page_size=1`, { headers });
-        if (creRes.ok) {
-          const data = await creRes.json();
-          setCreLeadsCount(data.count || 0);
-          if (data.stats) setCreStats(data.stats);
+        const creData = await apiClient.get('/ase-leads/cre-leads/?page_size=1');
+        if (creData) {
+          setCreLeadsCount(creData.count || 0);
+          if (creData.stats) setCreStats(creData.stats);
         }
       } catch (err) {}
     };

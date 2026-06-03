@@ -28,7 +28,7 @@ import {
 import { toast } from 'sonner';
 import TopBar from '@/components/layout/TopBar';
 import { useAuth } from '@/contexts/AuthContextDjango';
-import { API_BASE_URL } from '@/lib/api';
+import { apiClient, API_BASE_URL } from '@/lib/api';
 
 interface LeadRecord {
   id: number;
@@ -127,25 +127,20 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
   const fetchLeads = async () => {
     try {
       if (!hasFetchedRef.current) setLoading(true);
-      const token = localStorage.getItem('access_token');
-      let url = `${API_BASE_URL}/ase-leads/boe-leads/?page=${currentPage}&page_size=50`;
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
-      if (statusFilter && statusFilter !== 'all') url += `&status=${statusFilter}`;
-      if (dateFrom) url += `&date_from=${dateFrom}`;
-      if (dateTo) url += `&date_to=${dateTo}`;
-      if (createdByFilter) url += `&created_by=${createdByFilter}`;
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Failed to fetch');
-      const data = await response.json();
+      let endpoint = `/ase-leads/boe-leads/?page=${currentPage}&page_size=50`;
+      if (debouncedSearch) endpoint += `&search=${encodeURIComponent(debouncedSearch)}`;
+      if (statusFilter && statusFilter !== 'all') endpoint += `&status=${statusFilter}`;
+      if (dateFrom) endpoint += `&date_from=${dateFrom}`;
+      if (dateTo) endpoint += `&date_to=${dateTo}`;
+      if (createdByFilter) endpoint += `&created_by=${createdByFilter}`;
+      const data = await apiClient.get(endpoint);
       setLeads(data.results || []);
       setTotalCount(data.count || 0);
       setTotalPages(data.total_pages || 1);
       if (data.stats) setLeadStats(data.stats);
       hasFetchedRef.current = true;
     } catch (err) {
-      toast.error('Failed to load leads');
+      if (!hasFetchedRef.current) toast.error('Failed to load leads');
     } finally {
       setLoading(false);
     }

@@ -185,14 +185,9 @@ export interface ASELead {
 
 export type ASELeadStatus = 
   | 'new'
-  | 'contacted'
-  | 'qualified'
-  | 'proposal_sent'
-  | 'negotiating'
-  | 'won'
-  | 'lost'
-  | 'on_hold'
-  | 'nurturing';
+  | 'demo_done'
+  | 'presentation'
+  | 'custom';
 
 export type ASELeadPriority = 
   | 'low'
@@ -252,6 +247,7 @@ export interface ASELeadFormData {
   lead_source?: string;
   referral_source?: string;
   status: ASELeadStatus;
+  custom_status?: string;
   priority: ASELeadPriority;
   assigned_to?: string;
   first_contact_date?: Date;
@@ -267,14 +263,9 @@ export interface ASELeadFormData {
 // Constants for ASE Leads
 export const ASE_LEAD_STATUS_OPTIONS = [
   { value: 'new', label: 'New Lead' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal_sent', label: 'Proposal Sent' },
-  { value: 'negotiating', label: 'Negotiating' },
-  { value: 'won', label: 'Won' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'nurturing', label: 'Nurturing' },
+  { value: 'demo_done', label: 'Demo Done' },
+  { value: 'presentation', label: 'Presentation' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 export const ASE_LEAD_PRIORITY_OPTIONS = [

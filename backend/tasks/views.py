@@ -9,6 +9,7 @@ from .models import Task
 from .serializers import TaskSerializer
 from accounts.permissions import filter_by_user_access, can_hr_access_module, CompanyAccessPermission
 from utils.mixins import CompanyFilterMixin
+from eswari_crm.ws_utils import notify_company
 
 
 class TaskPagination(PageNumberPagination):
@@ -54,7 +55,49 @@ class TaskViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        # Send real-time notification
+        if instance.company_id:
+            notify_company(
+                company_id=instance.company_id,
+                event_type='task_created',
+                data={
+                    'entity': 'tasks',
+                    'action': 'created',
+                    'record_id': instance.id,
+                    'title': instance.title,
+                }
+            )
+    
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Send real-time notification
+        if instance.company_id:
+            notify_company(
+                company_id=instance.company_id,
+                event_type='task_updated',
+                data={
+                    'entity': 'tasks',
+                    'action': 'updated',
+                    'record_id': instance.id,
+                }
+            )
+    
+    def perform_destroy(self, instance):
+        company_id = instance.company_id
+        record_id = instance.id
+        instance.delete()
+        # Send real-time notification
+        if company_id:
+            notify_company(
+                company_id=company_id,
+                event_type='task_deleted',
+                data={
+                    'entity': 'tasks',
+                    'action': 'deleted',
+                    'record_id': record_id,
+                }
+            )
 
     @action(detail=False, methods=['post'])
     def bulk_import(self, request):

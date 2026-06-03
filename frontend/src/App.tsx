@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContextDjango";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { DataProvider } from "@/contexts/DataContextDjango";
 import { CustomerProvider } from "@/contexts/CustomerContext";
 import { ASECustomerProvider } from "@/contexts/ASECustomerContext";
@@ -36,27 +37,29 @@ const App = () => {
             <CompanyAuthBridge>
               <AppSettingsProvider>
                 <CompanyBranding />
-                <NotificationProvider>
-                  <DataProvider>
-                    <CustomerProvider>
-                      <ASECustomerProvider>
-                        <ASELeadProvider>
-                          <CapitalProvider>
-                            <TooltipProvider>
-                              <OfflineIndicator />
-                              <Toaster />
-                              <Sonner />
-                              <BrowserRouter>
-                                <AppRouter />
-                              </BrowserRouter>
-                              <PWAInstallPrompt />
-                            </TooltipProvider>
-                          </CapitalProvider>
-                        </ASELeadProvider>
-                      </ASECustomerProvider>
-                    </CustomerProvider>
-                  </DataProvider>
-                </NotificationProvider>
+                <WebSocketProvider>
+                  <NotificationProvider>
+                    <DataProvider>
+                      <CustomerProvider>
+                        <ASECustomerProvider>
+                          <ASELeadProvider>
+                            <CapitalProvider>
+                              <TooltipProvider>
+                                <OfflineIndicator />
+                                <Toaster />
+                                <Sonner />
+                                <BrowserRouter>
+                                  <AppRouter />
+                                </BrowserRouter>
+                                <PWAInstallPrompt />
+                              </TooltipProvider>
+                            </CapitalProvider>
+                          </ASELeadProvider>
+                        </ASECustomerProvider>
+                      </CustomerProvider>
+                    </DataProvider>
+                  </NotificationProvider>
+                </WebSocketProvider>
               </AppSettingsProvider>
             </CompanyAuthBridge>
           </CompanyProvider>

@@ -31,6 +31,7 @@ import AdminTeam from '@/pages/admin/AdminTeam';
 import AdminConversionAnalytics from '@/pages/admin/AdminConversionAnalytics';
 import AdminASECustomers from '@/pages/admin/AdminASECustomers';
 import AdminASELeads from '@/pages/admin/AdminASELeads';
+import AdminASETasks from '@/pages/admin/AdminASETasks';
 import AdminASEActivity from '@/pages/admin/AdminASEActivity';
 import AdminASEEmployees from '@/pages/admin/AdminASEEmployees';
 import AdminEswariEmployees from '@/pages/admin/AdminEswariEmployees';
@@ -161,11 +162,10 @@ const AppRouter = () => {
         <Route index element={<DashboardIndex adminEl={<AdminDashboard />} managerEl={<AdminDashboard />} staffEl={<AdminDashboard />} basePath="/admin" />} />
         <Route path="ase-customers" element={<AdminASECustomers />} />
         <Route path="ase-leads" element={<AdminASELeads />} />
+        <Route path="ase-tasks" element={<AdminASETasks />} />
         <Route path="ase-reports" element={<AdminReports />} />
         <Route path="ase-activity" element={<AdminASEActivity />} />
         <Route path="ase-employees" element={<AdminASEEmployees />} />
-        <Route path="technical-team" element={<EnhancedTechnicalTeamPanel />} />
-        <Route path="marketing-team" element={<MarketingTeamPanel />} />
         <Route path="eswari-employees" element={<AdminEswariEmployees />} />
         <Route path="capital-employees" element={<AdminCapitalEmployees />} />
         <Route path="campaigns" element={<AdminCampaigns />} />
@@ -208,6 +208,7 @@ const AppRouter = () => {
         <Route index element={<DashboardIndex adminEl={<ManagerDashboard />} managerEl={<ManagerDashboard />} staffEl={<ManagerDashboard />} basePath="/manager" />} />
         <Route path="ase-customers" element={<ManagerASECustomers />} />
         <Route path="ase-leads" element={<ManagerASELeads />} />
+        <Route path="ase-tasks" element={<AdminASETasks />} />
         <Route path="ase-activity" element={<ManagerASEActivity />} />
         <Route path="ase-reports" element={<ManagerReports />} />
         <Route path="websites" element={<ManagerWebsites />} />
@@ -239,34 +240,16 @@ const AppRouter = () => {
         <Route path="announcements" element={<ManagerAnnouncements />} />
         <Route path="reports" element={<ManagerReports />} />
         <Route path="activity" element={<ManagerActivity />} />
-        <Route path="marketing-team" element={<MarketingTeamPanel />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       {/* Team Routes (for team members - technical and marketing) */}
-      <Route path="/team" element={<DashboardLayout requiredRole="employee" />}>
-        <Route path="technical" element={<EnhancedTechnicalTeamPanel />} />
-        <Route path="marketing" element={<MarketingTeamPanel />} />
-        <Route path="marketing/research" element={<MarketingTeamPanel />} />
-        <Route path="marketing/leads" element={<BOELeads />} />
-        <Route path="marketing/tasks" element={<MarketingTeamPanel />} />
-        <Route path="technical/announcements" element={<StaffAnnouncements />} />
-        <Route path="technical/leaves" element={<StaffLeaves />} />
-        <Route path="technical/holidays" element={<StaffHolidays />} />
-        <Route path="technical/birthdays" element={<AdminBirthdays />} />
-        <Route path="technical/settings" element={<EmployeeSettings />} />
-        <Route path="marketing/announcements" element={<StaffAnnouncements />} />
-        <Route path="marketing/leaves" element={<StaffLeaves />} />
-        <Route path="marketing/holidays" element={<StaffHolidays />} />
-        <Route path="marketing/birthdays" element={<AdminBirthdays />} />
-        <Route path="marketing/settings" element={<EmployeeSettings />} />
-      </Route>
-
       {/* Staff Routes (for employee role) */}
       <Route path="/staff" element={<DashboardLayout requiredRole="employee" />}>
         <Route index element={<DashboardIndex adminEl={<StaffDashboard />} managerEl={<StaffDashboard />} staffEl={<StaffDashboard />} basePath="/staff" />} />
         <Route path="ase-customers" element={<StaffASECustomers />} />
         <Route path="ase-leads" element={<StaffASELeads />} />
+        <Route path="ase-tasks" element={<AdminASETasks />} />
         <Route path="campaigns" element={<StaffCampaigns />} />
         <Route path="social-media" element={<StaffSocialMedia />} />
         <Route path="content" element={<StaffContent />} />

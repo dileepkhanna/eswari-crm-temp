@@ -4,8 +4,12 @@ import { useASELead } from '@/contexts/ASELeadContext';
 import { ASELead } from '@/types/ase-customer';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { EditIcon, TrashIcon, PhoneIcon, MailIcon, BuildingIcon, EyeIcon, XIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EditIcon, TrashIcon, PhoneIcon, MailIcon, BuildingIcon, EyeIcon, XIcon, ListTodo, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiClient } from '@/lib/api';
 
 interface ASELeadListProps {
   onEditLead?: (lead: ASELead) => void;
@@ -17,14 +21,9 @@ interface ASELeadListProps {
 
 const STATUS_OPTIONS = [
   { value: 'new', label: 'New' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal_sent', label: 'Proposal Sent' },
-  { value: 'negotiating', label: 'Negotiating' },
-  { value: 'won', label: 'Won' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'nurturing', label: 'Nurturing' },
+  { value: 'demo_done', label: 'Demo Done' },
+  { value: 'presentation', label: 'Presentation' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 const PRIORITY_OPTIONS = [
@@ -37,14 +36,9 @@ const PRIORITY_OPTIONS = [
 function getStatusColor(status: string) {
   switch (status) {
     case 'new': return 'bg-blue-50 text-blue-700 border-blue-300';
-    case 'contacted': return 'bg-yellow-50 text-yellow-700 border-yellow-300';
-    case 'qualified': return 'bg-green-50 text-green-700 border-green-300';
-    case 'proposal_sent': return 'bg-purple-50 text-purple-700 border-purple-300';
-    case 'negotiating': return 'bg-orange-50 text-orange-700 border-orange-300';
-    case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-300';
-    case 'lost': return 'bg-red-50 text-red-700 border-red-300';
-    case 'on_hold': return 'bg-gray-50 text-gray-700 border-gray-300';
-    case 'nurturing': return 'bg-indigo-50 text-indigo-700 border-indigo-300';
+    case 'demo_done': return 'bg-green-50 text-green-700 border-green-300';
+    case 'presentation': return 'bg-purple-50 text-purple-700 border-purple-300';
+    case 'custom': return 'bg-orange-50 text-orange-700 border-orange-300';
     default: return 'bg-gray-50 text-gray-700 border-gray-300';
   }
 }
@@ -52,14 +46,9 @@ function getStatusColor(status: string) {
 function getStatusDot(status: string) {
   switch (status) {
     case 'new': return 'bg-blue-500';
-    case 'contacted': return 'bg-yellow-500';
-    case 'qualified': return 'bg-green-500';
-    case 'proposal_sent': return 'bg-purple-500';
-    case 'negotiating': return 'bg-orange-500';
-    case 'won': return 'bg-emerald-500';
-    case 'lost': return 'bg-red-500';
-    case 'on_hold': return 'bg-gray-500';
-    case 'nurturing': return 'bg-indigo-500';
+    case 'demo_done': return 'bg-green-500';
+    case 'presentation': return 'bg-purple-500';
+    case 'custom': return 'bg-orange-500';
     default: return 'bg-gray-500';
   }
 }
@@ -173,15 +162,89 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
   const { leads, loading, error, updateLead } = useASELead();
   const [viewLead, setViewLead] = useState<ASELead | null>(null);
 
+  // Convert to Task state
+  const [convertLead, setConvertLead] = useState<ASELead | null>(null);
+  const [convertLoading, setConvertLoading] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskType, setTaskType] = useState('followup');
+  const [taskPriority, setTaskPriority] = useState('medium');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+
+  const openConvertToTask = (lead: ASELead) => {
+    setConvertLead(lead);
+    setTaskTitle(`Follow up with ${lead.company_name}`);
+    setTaskType('followup');
+    setTaskPriority(lead.priority || 'medium');
+    setTaskDescription(`Contact: ${lead.contact_person}\nPhone: ${lead.phone || ''}\nEmail: ${lead.email || ''}\nServices: ${Array.isArray(lead.service_interests_display) ? lead.service_interests_display.join(', ') : ''}`);
+    // Default due date: tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setTaskDueDate(tomorrow.toISOString().slice(0, 16));
+  };
+
+  const handleConvertToTask = async () => {
+    if (!convertLead) return;
+    if (!taskTitle.trim()) { toast.error('Title is required'); return; }
+    if (!taskDueDate) { toast.error('Due date is required'); return; }
+    try {
+      setConvertLoading(true);
+      await apiClient.post('/ase-leads/tasks/', {
+        lead_id: parseInt(convertLead.id),
+        title: taskTitle.trim(),
+        task_type: taskType,
+        priority: taskPriority,
+        due_date: new Date(taskDueDate).toISOString(),
+        description: taskDescription.trim(),
+      });
+      // Update lead status to indicate it's been converted
+      await updateLead(convertLead.id, { status: 'demo_done' as any });
+      toast.success('Lead converted to task successfully');
+      setConvertLead(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to convert lead to task');
+    } finally {
+      setConvertLoading(false);
+    }
+  };
+
   const allSelected = leads.length > 0 && selectedIds.size === leads.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < leads.length;
 
+  // Custom status dialog state
+  const [customStatusLead, setCustomStatusLead] = useState<string | null>(null);
+  const [customStatusText, setCustomStatusText] = useState('');
+  const [customStatusLoading, setCustomStatusLoading] = useState(false);
+
   const handleStatusChange = async (leadId: string, newStatus: string) => {
     try {
+      if (newStatus === 'custom') {
+        setCustomStatusLead(leadId);
+        setCustomStatusText('');
+        return; // don't update yet — wait for dialog submit
+      }
       await updateLead(leadId, { status: newStatus as any });
       toast.success('Status updated');
     } catch {
       toast.error('Failed to update status');
+    }
+  };
+
+  const handleCustomStatusSubmit = async () => {
+    if (!customStatusLead || !customStatusText.trim()) {
+      toast.error('Please enter a custom status');
+      return;
+    }
+    try {
+      setCustomStatusLoading(true);
+      await updateLead(customStatusLead, { status: 'custom' as any, custom_status: customStatusText.trim() } as any);
+      toast.success('Status updated');
+      setCustomStatusLead(null);
+      setCustomStatusText('');
+    } catch {
+      toast.error('Failed to update status');
+    } finally {
+      setCustomStatusLoading(false);
     }
   };
 
@@ -214,6 +277,118 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
   return (
     <>
       {viewLead && <LeadDetailModal lead={viewLead} onClose={() => setViewLead(null)} />}
+
+      {/* Convert to Task Dialog */}
+      <Dialog open={!!convertLead} onOpenChange={(open) => { if (!open) setConvertLead(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListTodo className="w-5 h-5 text-primary" />
+              Convert Lead to Task
+            </DialogTitle>
+          </DialogHeader>
+          {convertLead && (
+            <div className="space-y-4 py-2">
+              <div className="p-3 rounded-lg bg-muted text-sm">
+                <p className="font-medium">{convertLead.company_name}</p>
+                <p className="text-muted-foreground text-xs">{convertLead.contact_person} · {convertLead.phone}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Title <span className="text-red-500">*</span></Label>
+                <input
+                  type="text"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <Select value={taskType} onValueChange={setTaskType}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="call">Call</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="meeting">Meeting</SelectItem>
+                      <SelectItem value="proposal">Proposal</SelectItem>
+                      <SelectItem value="followup">Follow Up</SelectItem>
+                      <SelectItem value="research">Research</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select value={taskPriority} onValueChange={setTaskPriority}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Due Date <span className="text-red-500">*</span></Label>
+                <input
+                  type="datetime-local"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <textarea
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertLead(null)} disabled={convertLoading}>Cancel</Button>
+            <Button onClick={handleConvertToTask} disabled={convertLoading || !taskTitle.trim() || !taskDueDate}>
+              {convertLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Convert to Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Status Dialog */}
+      <Dialog open={!!customStatusLead} onOpenChange={(open) => { if (!open) setCustomStatusLead(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enter Custom Status</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Custom Status</Label>
+              <input
+                type="text"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                placeholder="e.g., Follow Up Call, Site Visit..."
+                value={customStatusText}
+                onChange={(e) => setCustomStatusText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCustomStatusSubmit(); }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomStatusLead(null)}>Cancel</Button>
+            <Button onClick={handleCustomStatusSubmit} disabled={customStatusLoading || !customStatusText.trim()}>
+              {customStatusLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile card view */}
       <div className="block md:hidden space-y-2">
@@ -252,6 +427,9 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                     <TrashIcon className="w-3.5 h-3.5" />
                   </Button>
                 )}
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" title="Convert to Task" onClick={() => openConvertToTask(lead)}>
+                  <ListTodo className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -316,6 +494,7 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
               <th className="text-left py-2 px-3 font-medium">Priority</th>
               <th className="text-left py-2 px-3 font-medium">Status</th>
               <th className="text-left py-2 px-3 font-medium">Assigned To</th>
+              <th className="text-left py-2 px-3 font-medium">Created</th>
               <th className="text-left py-2 px-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -396,6 +575,11 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                   </div>
                 </td>
                 <td className="py-3 px-3">
+                  <span className="text-xs text-muted-foreground">
+                    {lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
+                  </span>
+                </td>
+                <td className="py-3 px-3">
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" title="View Details" onClick={() => setViewLead(lead)}>
                       <EyeIcon className="w-3.5 h-3.5" />
@@ -410,6 +594,9 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                         <TrashIcon className="w-3.5 h-3.5" />
                       </Button>
                     )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600 hover:text-green-800" title="Convert to Task" onClick={() => openConvertToTask(lead)}>
+                      <ListTodo className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 </td>
               </tr>

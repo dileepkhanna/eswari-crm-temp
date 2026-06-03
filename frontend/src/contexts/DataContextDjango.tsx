@@ -9,6 +9,15 @@ import { logLeadActivity, logTaskActivity, logProjectActivity, logLeaveActivity 
 import { toast } from 'sonner';
 
 import { logger } from '@/lib/logger';
+
+// Import WebSocket hook (will be available after WebSocketProvider is added)
+let useWebSocketHook: any = null;
+try {
+  const wsModule = await import('./WebSocketContext');
+  useWebSocketHook = wsModule.useWebSocket;
+} catch (error) {
+  logger.warn('WebSocket context not available yet');
+}
 interface DataContextType {
   leads: Lead[];
   leadsPage: number;
@@ -475,6 +484,81 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setLeadsPage(1);
   }, [debouncedLeadsSearch, leadsStatus, leadsUser]);
+
+  // Subscribe to WebSocket real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    logger.log('🔌 Setting up WebSocket subscriptions for real-time updates...');
+
+    const unsubscribers: (() => void)[] = [];
+
+    // Import websocketService dynamically
+    import('@/services/websocket.service').then(({ websocketService }) => {
+      // Subscribe to lead events
+      if (user.role !== 'hr') {
+        unsubscribers.push(
+          websocketService.on('lead_created', () => {
+            logger.log('🔔 Lead created - refreshing leads...');
+            fetchLeads();
+          })
+        );
+
+        unsubscribers.push(
+          websocketService.on('lead_deleted', () => {
+            logger.log('🔔 Lead deleted - refreshing leads...');
+            fetchLeads();
+          })
+        );
+
+        // Subscribe to task events
+        unsubscribers.push(
+          websocketService.on('task_created', () => {
+            logger.log('🔔 Task created - refreshing tasks...');
+            fetchTasks();
+          })
+        );
+
+        unsubscribers.push(
+          websocketService.on('task_updated', () => {
+            logger.log('🔔 Task updated - refreshing tasks...');
+            fetchTasks();
+          })
+        );
+
+        unsubscribers.push(
+          websocketService.on('task_deleted', () => {
+            logger.log('🔔 Task deleted - refreshing tasks...');
+            fetchTasks();
+          })
+        );
+      }
+
+      // Subscribe to announcement events (all users)
+      unsubscribers.push(
+        websocketService.on('announcement', () => {
+          logger.log('🔔 Announcement update - refreshing announcements...');
+          fetchAnnouncements();
+        })
+      );
+
+      // Subscribe to leave events
+      unsubscribers.push(
+        websocketService.on('status_update', (message) => {
+          if (message.data?.entity === 'leave') {
+            logger.log('🔔 Leave status updated - refreshing leaves...');
+            fetchLeaves();
+          }
+        })
+      );
+    });
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      logger.log('🔌 Cleaning up WebSocket subscriptions...');
+      unsubscribers.forEach(unsubscribe => unsubscribe?.());
+    };
+  }, [user, fetchLeads, fetchTasks, fetchAnnouncements, fetchLeaves]);
 
   // Function to add lead directly to state (for customer-to-lead conversion)
   const addLeadToState = useCallback((lead: Lead) => {

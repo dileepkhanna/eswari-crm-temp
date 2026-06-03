@@ -2,13 +2,16 @@ import { useState, useRef, useMemo } from 'react';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useASEWebSocket } from '@/hooks/useASEWebSocket';
 import TopBar from '@/components/layout/TopBar';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import ASELeadList from '@/components/ase-leads/ASELeadList';
 import LeadKanbanBoard from '@/components/ase-leads/LeadKanbanBoard';
 import ASELeadFormModal from '@/components/ase-leads/ASELeadFormModal';
 import { Button } from '@/components/ui/button';
-import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon } from 'lucide-react';
 import { ASELead, ASELeadFormData } from '@/types/ase-customer';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -25,11 +28,16 @@ export default function AdminASELeads() {
     priorityFilter, setPriorityFilter,
     industryFilter, setIndustryFilter,
     createdByFilter, setCreatedByFilter,
+    dateFromFilter, setDateFromFilter,
+    dateToFilter, setDateToFilter,
     creators,
     clearFilters,
     createLead, updateLead, deleteLead, refreshData,
     currentPage, setCurrentPage, totalPages, totalCount,
   } = useASELead();
+
+  // Real-time updates via WebSocket
+  useASEWebSocket('leads', () => { refreshData(); });
 
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [selectedLead, setSelectedLead] = useState<ASELead | null>(null);
@@ -37,6 +45,7 @@ export default function AdminASELeads() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
 
   // Fetch all creators from API (not just current page)
   const uniqueCreators = useMemo(() => {
@@ -231,166 +240,103 @@ export default function AdminASELeads() {
 
         <div className="glass-card p-3 md:p-6">
           {/* Header */}
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Lead Management</h2>
-            <p className="text-sm text-muted-foreground mt-1">Track and convert digital marketing leads</p>
-          </div>
-
-          {/* Row 1: Search */}
-          <div className="relative w-full mb-3">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search leads by name, company, service..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          {/* Row 2: Filters */}
+          {/* Single Row: Search + Filters + Actions + Add Lead */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-32 md:w-36"
-              style={{ appearance: 'auto' }}
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px]">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search leads by name, company, service..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 rounded-full"
+              />
+            </div>
+            {/* Filters Button */}
+            <Button
+              variant={(statusFilter || priorityFilter || industryFilter || createdByFilter || dateFromFilter || dateToFilter) ? 'default' : 'outline'}
+              onClick={() => setAdvancedFilterOpen(true)}
+              className="h-9 px-3 text-xs gap-1.5"
+              size="sm"
             >
-              <option value="">All Status</option>
-              <option value="new">New</option>
-              <option value="contacted">Contacted</option>
-              <option value="qualified">Qualified</option>
-              <option value="proposal_sent">Proposal Sent</option>
-              <option value="negotiating">Negotiating</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-              <option value="on_hold">On Hold</option>
-              <option value="nurturing">Nurturing</option>
-            </select>
-
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-32 md:w-36"
-              style={{ appearance: 'auto' }}
-            >
-              <option value="">All Priority</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-
-            <select
-              value={industryFilter}
-              onChange={(e) => setIndustryFilter(e.target.value)}
-              className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36 md:w-40"
-              style={{ appearance: 'auto' }}
-            >
-              <option value="">All Industries</option>
-              <option value="technology">Technology</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="finance">Finance</option>
-              <option value="retail">Retail & E-commerce</option>
-              <option value="real_estate">Real Estate</option>
-              <option value="education">Education</option>
-              <option value="hospitality">Hospitality</option>
-              <option value="manufacturing">Manufacturing</option>
-              <option value="professional_services">Professional Services</option>
-              <option value="non_profit">Non-Profit</option>
-              <option value="automotive">Automotive</option>
-              <option value="food_beverage">Food & Beverage</option>
-              <option value="fashion">Fashion & Beauty</option>
-              <option value="sports_fitness">Sports & Fitness</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="other">Other</option>
-            </select>
-
-            {(user?.role === 'admin' || user?.role === 'manager') && (
-              <select
-                value={createdByFilter}
-                onChange={(e) => setCreatedByFilter(e.target.value)}
-                className="px-3 py-1.5 bg-background border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36 md:w-40"
-                style={{ appearance: 'auto' }}
-              >
-                <option value="">All Creators</option>
-                {uniqueCreators.map(([id, name]) => (
-                  <option key={id} value={id}>{name}</option>
-                ))}
-              </select>
-            )}
-
-            {(searchTerm || statusFilter || priorityFilter || industryFilter || createdByFilter) && (
-              <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full h-7 px-3 text-xs">
-                <FilterIcon className="w-3 h-3 mr-1" />
-                Clear
+              <FilterIcon className="w-3.5 h-3.5" />
+              Filters
+              {(() => {
+                let count = 0;
+                if (statusFilter) count++;
+                if (priorityFilter) count++;
+                if (industryFilter) count++;
+                if (createdByFilter) count++;
+                if (dateFromFilter || dateToFilter) count++;
+                return count > 0 ? <span className="ml-1 bg-white/20 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
+              })()}
+            </Button>
+            {/* View toggle */}
+            <div className="flex items-center border rounded-full overflow-hidden">
+              <Button variant={viewMode === 'table' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-none px-3" onClick={() => setViewMode('table')}>
+                <LayoutListIcon className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant={viewMode === 'kanban' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-none px-3" onClick={() => setViewMode('kanban')}>
+                <KanbanIcon className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            {/* Actions */}
+            <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <Button variant="outline" size="sm" className="h-9" onClick={handleDownloadTemplate}>
+              <DownloadIcon className="w-3.5 h-3.5 mr-1" /><span className="hidden lg:inline">Template</span>
+            </Button>
+            <Button variant="outline" size="sm" className="h-9" onClick={() => importInputRef.current?.click()}>
+              <UploadIcon className="w-3.5 h-3.5 mr-1" /><span className="hidden lg:inline">Import</span>
+            </Button>
+            <Button variant="outline" size="sm" className="h-9" onClick={handleExportExcel}>
+              <DownloadIcon className="w-3.5 h-3.5 mr-1" /><span className="hidden lg:inline">Export</span>
+            </Button>
+            {selectedIds.size > 0 && (
+              <Button variant="outline" size="sm" className="h-9 text-red-600 border-red-300" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                <Trash2Icon className="w-3.5 h-3.5 mr-1" /> Delete ({selectedIds.size})
               </Button>
             )}
+            {/* Add Lead */}
+            <Button className="h-9" onClick={() => setIsCreateModalOpen(true)}>
+              <PlusIcon className="w-4 h-4 mr-1" /> Add Lead
+            </Button>
           </div>
 
-          {/* Row 3: Action buttons */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-            {/* Left: import/export/bulk */}
-            <div className="flex flex-wrap items-center gap-2">
-              <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
-
-              <Button variant="outline" size="sm" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={handleDownloadTemplate}>
-                <DownloadIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Download Template</span>
-                <span className="sm:hidden">Template</span>
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={() => importInputRef.current?.click()}>
-                <UploadIcon className="w-3.5 h-3.5" />
-                Import
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={handleExportExcel} disabled={exporting}>
-                <DownloadIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{exporting ? 'Exporting...' : `Export (${totalCount})`}</span>
-                <span className="sm:hidden">Export</span>
-              </Button>
-
-              {/* Bulk delete — only visible when rows are selected */}
-              {selectedIds.size > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full h-8 px-3 text-xs gap-1.5 text-red-600 border-red-300 hover:bg-red-50"
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleting}
-                >
-                  <Trash2Icon className="w-3.5 h-3.5" />
-                  {bulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}
-                </Button>
+          {/* Active filter badges */}
+          {(statusFilter || priorityFilter || industryFilter || createdByFilter || dateFromFilter) && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {statusFilter && (
+                <span className="h-6 px-2 text-[10px] rounded-full bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
+                  {statusFilter.replace('_', ' ')}
+                  <button onClick={() => setStatusFilter('')}><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {priorityFilter && (
+                <span className="h-6 px-2 text-[10px] rounded-full bg-orange-100 text-orange-700 border border-orange-200 flex items-center gap-1">
+                  {priorityFilter}
+                  <button onClick={() => setPriorityFilter('')}><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {industryFilter && (
+                <span className="h-6 px-2 text-[10px] rounded-full bg-green-100 text-green-700 border border-green-200 flex items-center gap-1">
+                  {industryFilter.replace('_', ' ')}
+                  <button onClick={() => setIndustryFilter('')}><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {createdByFilter && (
+                <span className="h-6 px-2 text-[10px] rounded-full bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
+                  {uniqueCreators.find(c => c[0] === createdByFilter)?.[1] || 'Creator'}
+                  <button onClick={() => setCreatedByFilter('')}><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {dateFromFilter && (
+                <span className="h-6 px-2 text-[10px] rounded-full bg-teal-100 text-teal-700 border border-teal-200 flex items-center gap-1">
+                  {dateFromFilter}{dateToFilter && dateToFilter !== dateFromFilter ? ` → ${dateToFilter}` : ''}
+                  <button onClick={() => { setDateFromFilter(''); setDateToFilter(''); }}><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
               )}
             </div>
-
-            {/* Right: view toggle + add */}
-            <div className="flex items-center gap-2">
-              {/* View toggle */}
-              <div className="flex items-center border border-border rounded-full overflow-hidden">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${viewMode === 'table' ? 'bg-primary text-white' : 'hover:bg-muted'}`}
-                >
-                  <LayoutListIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Table</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('kanban')}
-                  className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${viewMode === 'kanban' ? 'bg-primary text-white' : 'hover:bg-muted'}`}
-                >
-                  <KanbanIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Kanban</span>
-                </button>
-              </div>
-
-              <Button className="btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                <PlusIcon className="w-4 h-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Add Lead</span>
-                <span className="sm:hidden">Add</span>
-              </Button>
-            </div>
-          </div>
+          )}
 
           {/* Lead List / Kanban */}
           {viewMode === 'kanban' ? (
@@ -476,6 +422,183 @@ export default function AdminASELeads() {
           onSave={selectedLead ? handleUpdateLead : handleCreateLead}
           lead={selectedLead}
         />
+
+        {/* Advanced Filters Sheet */}
+        <Sheet open={advancedFilterOpen} onOpenChange={setAdvancedFilterOpen}>
+          <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <FilterIcon className="w-5 h-5" />
+                Advanced Filters
+              </SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-6">
+              {/* Quick Select */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Quick Select</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['This Month', 'Last Month', 'Last 3 Months'].map((preset) => (
+                    <Button key={preset} variant="outline" size="sm" className="text-xs" onClick={() => {
+                      const now = new Date();
+                      if (preset === 'This Month') {
+                        setDateFromFilter(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
+                        setDateToFilter(now.toISOString().split('T')[0]);
+                      } else if (preset === 'Last Month') {
+                        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+                        setDateFromFilter(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-01`);
+                        setDateToFilter(`${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`);
+                      } else {
+                        const threeAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                        setDateFromFilter(`${threeAgo.getFullYear()}-${String(threeAgo.getMonth() + 1).padStart(2, '0')}-01`);
+                        setDateToFilter(now.toISOString().split('T')[0]);
+                      }
+                    }}>{preset}</Button>
+                  ))}
+                  {['This Week', 'Today', 'All Time'].map((preset) => (
+                    <Button key={preset} variant="outline" size="sm" className="text-xs" onClick={() => {
+                      const now = new Date();
+                      if (preset === 'Today') {
+                        const today = now.toISOString().split('T')[0];
+                        setDateFromFilter(today);
+                        setDateToFilter(today);
+                      } else if (preset === 'This Week') {
+                        const day = now.getDay();
+                        const monday = new Date(now);
+                        monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+                        setDateFromFilter(monday.toISOString().split('T')[0]);
+                        setDateToFilter(now.toISOString().split('T')[0]);
+                      } else {
+                        setDateFromFilter('');
+                        setDateToFilter('');
+                      }
+                    }}>{preset}</Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Lead Status</label>
+                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">All Status</option>
+                  <option value="new">New</option>
+                  <option value="demo_done">Demo Done</option>
+                  <option value="presentation">Presentation</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+
+              {/* Priority */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Priority</label>
+                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+                  <option value="">All Priority</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+
+              {/* Industry */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Industry</label>
+                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)}>
+                  <option value="">All Industries</option>
+                  <option value="technology">Technology</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="finance">Finance</option>
+                  <option value="retail">Retail & E-commerce</option>
+                  <option value="real_estate">Real Estate</option>
+                  <option value="education">Education</option>
+                  <option value="hospitality">Hospitality</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="professional_services">Professional Services</option>
+                  <option value="non_profit">Non-Profit</option>
+                  <option value="automotive">Automotive</option>
+                  <option value="food_beverage">Food & Beverage</option>
+                  <option value="fashion">Fashion & Beauty</option>
+                  <option value="sports_fitness">Sports & Fitness</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Created By */}
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Created By</label>
+                  <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={createdByFilter} onChange={(e) => setCreatedByFilter(e.target.value)}>
+                    <option value="">All Creators</option>
+                    {uniqueCreators.map(([id, name]) => (
+                      <option key={id} value={id}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Month Picker */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Filter by Month</label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={dateFromFilter && dateToFilter ? 'custom' : ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v && v !== 'custom') {
+                      const [y, m] = v.split('-');
+                      const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+                      setDateFromFilter(`${v}-01`);
+                      setDateToFilter(`${v}-${String(lastDay).padStart(2, '0')}`);
+                    } else if (!v) {
+                      setDateFromFilter('');
+                      setDateToFilter('');
+                    }
+                  }}
+                >
+                  <option value="">All Months</option>
+                  {(() => {
+                    const items = [];
+                    const now = new Date();
+                    for (let i = 0; i < 24; i++) {
+                      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                      items.push(<option key={value} value={value}>{label}</option>);
+                    }
+                    return items;
+                  })()}
+                </select>
+              </div>
+
+              {/* Custom Date Range */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Custom Date Range</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">From</label>
+                    <Input type="date" value={dateFromFilter} onChange={(e) => setDateFromFilter(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">To</label>
+                    <Input type="date" value={dateToFilter} onChange={(e) => setDateToFilter(e.target.value)} className="mt-1" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => { clearFilters(); }}>
+                  Clear All
+                </Button>
+                <Button className="flex-1" onClick={() => setAdvancedFilterOpen(false)}>
+                  Apply & Close
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

@@ -62,23 +62,39 @@ export default function ASECustomerImportExportModal({
         return;
       }
 
+      // Send ALL rows to backend — let backend handle empty fields and duplicates
       const customers = rows.map(row => ({
-        phone: String(row['phone'] || row['Phone'] || '').trim(),
-        name: String(row['name'] || row['Name'] || '').trim() || null,
-        company_name: String(row['company_name'] || row['Company Name'] || '').trim() || null,
+        phone: String(row['Phone*'] || row['phone'] || row['Phone'] || row['PHONE'] || row['Mobile'] || row['mobile'] || '').trim(),
+        name: String(row['Name*'] || row['name'] || row['Name'] || row['NAME'] || '').trim() || null,
+        company_name: String(row['Company Name'] || row['company_name'] || row['company'] || row['Company'] || '').trim() || null,
+        email: String(row['Email'] || row['email'] || row['EMAIL'] || '').trim() || null,
+        notes: String(row['Notes'] || row['notes'] || row['NOTES'] || '').trim() || null,
+        services: String(row['Services'] || row['services'] || row['Service Interests'] || '').trim() || null,
+        scheduled_date: String(row['Scheduled Date'] || row['scheduled_date'] || row['Follow Up'] || '').trim() || null,
         call_status: 'pending',
-      })).filter(c => c.phone);
+      }));
 
-      if (customers.length === 0) {
-        toast.error('No valid rows found (phone is required)');
-        return;
-      }
-
-      toast.info(`Uploading ${customers.length} customers...`);
+      toast.info(`Processing ${customers.length} rows...`);
       const results = await ASECustomerService.bulkImportCustomers(customers);
-      setImportResults({ success: true, total_processed: rows.length, total_created: results.imported, total_errors: results.errors.length, errors: results.errors });
-      toast.success(`Successfully imported ${results.imported} customers`);
-      onImportComplete();
+      
+      setImportResults({
+        success: true,
+        total_processed: results.total_rows || rows.length,
+        total_created: results.imported || 0,
+        total_duplicates: results.duplicates || 0,
+        total_skipped: results.skipped || 0,
+        total_errors: (results.errors || []).length,
+        errors: results.errors || [],
+      });
+      
+      if (results.imported > 0) {
+        toast.success(`Imported ${results.imported} customers${results.duplicates > 0 ? ` (${results.duplicates} duplicates skipped)` : ''}`);
+        onImportComplete();
+      } else if (results.duplicates > 0) {
+        toast.warning(`No new customers imported. ${results.duplicates} numbers already exist.`);
+      } else {
+        toast.error('No customers could be imported. Check the errors below.');
+      }
     } catch (error: any) {
       logger.error('Import error:', error);
       toast.error(error.message || 'Failed to import customers');
@@ -122,25 +138,31 @@ export default function ASECustomerImportExportModal({
 
   const handleDownloadTemplate = () => {
     try {
-      // Generate template client-side using xlsx (already imported)
+      // Generate template with ALL call columns
       const templateData = [
-        { phone: '1234567890', name: 'John Doe', company_name: 'ABC Corp' },
-        { phone: '0987654321', name: 'Jane Smith', company_name: 'XYZ Ltd' },
+        { 
+          'Name*': 'Rahul Kumar', 
+          'Phone*': '9876543210', 
+          'Email': 'rahul@gmail.com',
+          'Company Name': 'TechCorp',
+          'Services': 'seo, social_media, web_design',
+          'Notes': 'Interested in SEO package',
+          'Scheduled Date': '2026-06-15',
+        },
+        { 
+          'Name*': 'Priya Sharma', 
+          'Phone*': '8765432109', 
+          'Email': 'priya@outlook.com',
+          'Company Name': 'DigiMark Solutions',
+          'Services': 'content_marketing, ppc',
+          'Notes': 'Follow up next week',
+          'Scheduled Date': '2026-06-20',
+        },
       ];
       const ws = XLSX.utils.json_to_sheet(templateData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Template');
-
-      // Instructions sheet
-      const instructions = [
-        { Field: 'phone', Required: 'Yes', Description: 'Phone number (required - digits only)' },
-        { Field: 'name', Required: 'No', Description: 'Customer full name (optional)' },
-        { Field: 'company_name', Required: 'No', Description: 'Company name (optional)' },
-      ];
-      const wsInstructions = XLSX.utils.json_to_sheet(instructions);
-      XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
-
-      XLSX.writeFile(wb, 'ase_customers_import_template.xlsx');
+      XLSX.writeFile(wb, 'ase_calls_import_template.xlsx');
       toast.success('Template downloaded successfully');
     } catch (error: any) {
       logger.error('Template download error:', error);
@@ -230,37 +252,46 @@ export default function ASECustomerImportExportModal({
               {importResults && (
                 <div className="space-y-4">
                   <div className="p-4 border border-border rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <CheckCircleIcon className="w-5 h-5 text-green-500" />
                       <h4 className="font-medium">Import Results</h4>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Total Processed</p>
-                        <p className="font-medium">{importResults.total_processed}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      <div className="p-2 rounded bg-muted/50">
+                        <p className="text-muted-foreground text-xs">Total Rows</p>
+                        <p className="font-bold text-lg">{importResults.total_processed}</p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Successfully Created</p>
-                        <p className="font-medium text-green-600">{importResults.total_created}</p>
+                      <div className="p-2 rounded bg-green-50">
+                        <p className="text-green-700 text-xs">Imported</p>
+                        <p className="font-bold text-lg text-green-700">{importResults.total_created}</p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Errors</p>
-                        <p className="font-medium text-red-600">{importResults.total_errors}</p>
+                      <div className="p-2 rounded bg-orange-50">
+                        <p className="text-orange-700 text-xs">Duplicates</p>
+                        <p className="font-bold text-lg text-orange-700">{importResults.total_duplicates || 0}</p>
+                      </div>
+                      <div className="p-2 rounded bg-gray-50">
+                        <p className="text-gray-600 text-xs">Skipped (empty)</p>
+                        <p className="font-bold text-lg text-gray-600">{importResults.total_skipped || 0}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Show errors if any */}
+                  {/* Show duplicate errors with employee names */}
                   {importResults.errors && importResults.errors.length > 0 && (
-                    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+                    <div className="p-4 border border-red-200 rounded-lg bg-red-50/50">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertCircleIcon className="w-5 h-5 text-red-500" />
-                        <h4 className="font-medium text-red-700">Import Errors</h4>
+                        <h4 className="font-medium text-red-700">Issues ({importResults.errors.length})</h4>
                       </div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
                         {importResults.errors.map((error: any, index: number) => (
-                          <div key={index} className="text-sm">
-                            <p className="font-medium">Row {error.row}: {error.error}</p>
+                          <div key={index} className="text-sm flex items-start gap-2 py-1 border-b border-red-100 last:border-0">
+                            <span className="text-xs text-red-400 font-mono shrink-0">Row {error.row}</span>
+                            <span className="text-red-700">
+                              {error.phone && <span className="font-medium">{error.phone}</span>}
+                              {error.phone && ' — '}
+                              {error.error}
+                            </span>
                           </div>
                         ))}
                       </div>
