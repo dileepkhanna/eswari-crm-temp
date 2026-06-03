@@ -11,7 +11,8 @@ import ASELeadFormModal from '@/components/ase-leads/ASELeadFormModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon, PhoneCallIcon, CheckCircleIcon, ArrowRightIcon, CalendarClockIcon } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon, PhoneCallIcon, CheckCircleIcon, ArrowRightIcon, CalendarClockIcon, MoreHorizontalIcon } from 'lucide-react';
 import { ASELead, ASELeadFormData } from '@/types/ase-customer';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -241,80 +242,55 @@ export default function AdminASELeads() {
 
         {/* ── Stats Cards ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {/* Total Leads */}
-          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-              <PhoneCallIcon className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Total Leads</p>
-              <p className="text-3xl font-bold text-blue-600 leading-none">{totalCount}</p>
-            </div>
-          </div>
-
-          {/* New Leads */}
-          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
-              <PhoneCallIcon className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">New</p>
-              <p className="text-3xl font-bold text-green-600 leading-none">
-                {stats?.by_status?.['new']?.count ?? leads.filter(l => l.status === 'new').length}
-              </p>
-            </div>
-          </div>
-
-          {/* Demo Done */}
-          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-              <ArrowRightIcon className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Demo Done</p>
-              <p className="text-3xl font-bold text-indigo-600 leading-none">
-                {stats?.by_status?.['demo_done']?.count ?? leads.filter(l => l.status === 'demo_done').length}
-              </p>
-            </div>
-          </div>
-
-          {/* Presentation */}
-          <div className="bg-white dark:bg-card rounded-2xl border border-border shadow-sm px-5 py-4 flex items-center gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
-              <CalendarClockIcon className="w-5 h-5 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Presentation</p>
-              <p className="text-3xl font-bold text-orange-500 leading-none">
-                {stats?.by_status?.['presentation']?.count ?? leads.filter(l => l.status === 'presentation').length}
-              </p>
-            </div>
-          </div>
+          {[
+            { label: 'Total Leads', value: totalCount, color: 'text-blue-600', bg: 'bg-blue-50', icon: <PhoneCallIcon className="w-5 h-5 text-blue-600" />, filter: '' },
+            { label: 'New', value: stats?.by_status?.['new']?.count ?? leads.filter(l => l.status === 'new').length, color: 'text-green-600', bg: 'bg-green-50', icon: <CheckCircleIcon className="w-5 h-5 text-green-600" />, filter: 'new' },
+            { label: 'Demo Done', value: stats?.by_status?.['demo_done']?.count ?? leads.filter(l => l.status === 'demo_done').length, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: <ArrowRightIcon className="w-5 h-5 text-indigo-600" />, filter: 'demo_done' },
+            { label: 'Presentation', value: stats?.by_status?.['presentation']?.count ?? leads.filter(l => l.status === 'presentation').length, color: 'text-orange-500', bg: 'bg-orange-50', icon: <CalendarClockIcon className="w-5 h-5 text-orange-500" />, filter: 'presentation' },
+          ].map(card => (
+            <button
+              key={card.label}
+              onClick={() => { setStatusFilter(statusFilter === card.filter ? '' : card.filter); setCurrentPage(1); }}
+              className={`bg-white dark:bg-card rounded-2xl border shadow-sm px-4 py-3 flex items-center gap-3 text-left transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ${
+                statusFilter === card.filter && card.filter !== ''
+                  ? 'border-primary ring-2 ring-primary/20'
+                  : 'border-border'
+              }`}
+            >
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full ${card.bg} flex items-center justify-center`}>
+                {card.icon}
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">{card.label}</p>
+                <p className={`text-2xl md:text-3xl font-bold leading-none ${card.color}`}>{card.value}</p>
+              </div>
+            </button>
+          ))}
         </div>
 
         <div className="glass-card p-3 md:p-6">
-          {/* Header */}
-          {/* Single Row: Search + Filters + Actions + Add Lead */}
+          {/* Header: Search + Filters + View toggle + More actions + Add Lead */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {/* Search */}
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[180px]">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search leads by name, company, service..."
+                placeholder="Search by name, company, service..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 rounded-full"
+                className="pl-9 h-9 rounded-full text-sm"
               />
             </div>
+
             {/* Filters Button */}
             <Button
               variant={(statusFilter || priorityFilter || industryFilter || createdByFilter || dateFromFilter || dateToFilter) ? 'default' : 'outline'}
               onClick={() => setAdvancedFilterOpen(true)}
-              className="h-9 px-3 text-xs gap-1.5"
+              className="h-9 px-3 text-xs gap-1.5 shrink-0"
               size="sm"
             >
               <FilterIcon className="w-3.5 h-3.5" />
-              Filters
+              <span className="hidden sm:inline">Filters</span>
               {(() => {
                 let count = 0;
                 if (statusFilter) count++;
@@ -322,11 +298,12 @@ export default function AdminASELeads() {
                 if (industryFilter) count++;
                 if (createdByFilter) count++;
                 if (dateFromFilter || dateToFilter) count++;
-                return count > 0 ? <span className="ml-1 bg-white/20 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
+                return count > 0 ? <span className="bg-white/25 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
               })()}
             </Button>
+
             {/* View toggle */}
-            <div className="flex items-center border rounded-full overflow-hidden">
+            <div className="flex items-center border rounded-full overflow-hidden shrink-0">
               <Button variant={viewMode === 'table' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-none px-3" onClick={() => setViewMode('table')}>
                 <LayoutListIcon className="w-3.5 h-3.5" />
               </Button>
@@ -334,25 +311,46 @@ export default function AdminASELeads() {
                 <KanbanIcon className="w-3.5 h-3.5" />
               </Button>
             </div>
-            {/* Actions */}
-            <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
-            <Button variant="outline" size="sm" className="h-9" onClick={handleDownloadTemplate}>
-              <DownloadIcon className="w-3.5 h-3.5 mr-1" /><span className="hidden lg:inline">Template</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-9" onClick={() => importInputRef.current?.click()}>
-              <UploadIcon className="w-3.5 h-3.5 mr-1" /><span className="hidden lg:inline">Import</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-9" onClick={handleExportExcel}>
-              <DownloadIcon className="w-3.5 h-3.5 mr-1" /><span className="hidden lg:inline">Export</span>
-            </Button>
+
+            {/* Bulk delete (only when selection active) */}
             {selectedIds.size > 0 && (
-              <Button variant="outline" size="sm" className="h-9 text-red-600 border-red-300" onClick={handleBulkDelete} disabled={bulkDeleting}>
-                <Trash2Icon className="w-3.5 h-3.5 mr-1" /> Delete ({selectedIds.size})
+              <Button variant="outline" size="sm" className="h-9 text-red-600 border-red-300 shrink-0" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                <Trash2Icon className="w-3.5 h-3.5 mr-1" />
+                <span className="hidden sm:inline">Delete</span> ({selectedIds.size})
               </Button>
             )}
+
+            {/* More actions dropdown — Template / Import / Export */}
+            <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 px-3 shrink-0">
+                  <MoreHorizontalIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1 text-xs">Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={handleDownloadTemplate}>
+                  <DownloadIcon className="w-4 h-4 mr-2 text-purple-600" />
+                  Download Template
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => importInputRef.current?.click()}>
+                  <UploadIcon className="w-4 h-4 mr-2 text-blue-600" />
+                  Import from Excel
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportExcel} disabled={exporting}>
+                  <DownloadIcon className="w-4 h-4 mr-2 text-green-600" />
+                  {exporting ? 'Exporting...' : `Export All (${totalCount})`}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Add Lead */}
-            <Button className="h-9" onClick={() => setIsCreateModalOpen(true)}>
-              <PlusIcon className="w-4 h-4 mr-1" /> Add Lead
+            <Button className="h-9 shrink-0" onClick={() => setIsCreateModalOpen(true)}>
+              <PlusIcon className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Add Lead</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
 

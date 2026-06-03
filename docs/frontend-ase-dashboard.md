@@ -117,6 +117,36 @@ Two side-by-side charts (stacked on mobile, 2 columns on lg+):
      - Absolute counts
      - Percentage bars
      - Progress bar visualization
+   - **Mobile optimizations:**
+     - Reduced padding: `p-4` on mobile, `md:p-6` on desktop
+     - Smaller icons: `w-4 h-4` on mobile, `md:w-5 md:h-5` on desktop
+     - Compact text sizes: `text-xs` and `text-base` on mobile, `md:text-sm` and `md:text-lg` on desktop
+
+### Team Performance Section
+
+Displays individual team member performance metrics with responsive layouts:
+
+**Desktop View (≥md):**
+- Full data table with columns:
+  - Team member name with avatar
+  - Calls today
+  - Answered today
+  - Answer rate (color-coded badge)
+  - Conversions this week
+
+**Mobile View (<md):**
+- Card-based list showing:
+  - Avatar with initials
+  - Name and quick stats (calls/answered)
+  - Answer rate badge (green ≥70%, yellow ≥50%, red <50%)
+  - Weekly conversions count
+- Limited to top 5 performers
+- Compact layout optimized for small screens
+
+**Responsive Features:**
+- Reduced padding: `p-4` on mobile, `md:p-6` on desktop
+- Smaller icons and text on mobile
+- Block/hidden toggles using Tailwind: `block md:hidden` / `hidden md:block`
 
 ### Bottom Section
 - **RemindersWidget** — Displays upcoming reminders and tasks
@@ -170,9 +200,15 @@ All stat cards and charts use staggered animation delays for smooth entry:
 
 | Breakpoint | Layout |
 |---|---|
-| `< md` | Single column, reduced padding (p-3), smaller spacing |
-| `md - lg` | Stat cards: 2 columns, charts: stacked |
+| `< md` | Single column, reduced padding (p-3 for main, p-4 for cards), smaller spacing, mobile card list for team performance |
+| `md - lg` | Stat cards: 2 columns, charts: stacked, full data table for team performance |
 | `≥ lg` | Stat cards: 4 columns, charts: 2 columns side-by-side |
+
+**Mobile-Specific Optimizations:**
+- **Icons**: Reduced from `w-5 h-5` to `w-4 h-4` on mobile with `shrink-0` to prevent squashing
+- **Text sizes**: Scaled down using responsive classes (`text-xs md:text-sm`, `text-base md:text-lg`)
+- **Padding**: Cards use `p-4 md:p-6` pattern for compact mobile view
+- **Team Performance**: Custom card-based mobile layout replaces data table, showing top 5 members with essential metrics only
 
 ---
 
@@ -246,8 +282,44 @@ All stat cards are clickable and navigate to filtered views:
 
 ---
 
+## ASE Lead List & Detail Modal (`ASELeadList.tsx`)
+
+The `ASELeadList` component (`frontend/src/components/ase-leads/ASELeadList.tsx`) renders the paginated, filterable list of ASE leads and includes an inline `LeadDetailModal` for viewing full lead details without leaving the list.
+
+### LeadDetailModal
+
+Triggered by clicking the "View" action on any lead card. Renders as a full-screen overlay with a scrollable content area.
+
+**Layout structure:**
+- Sticky header (`px-6 pt-5 pb-4 border-b`) — company name, contact person, close button
+- Scrollable body (`px-6 py-4`) — badges, details grid, services, goals, notes
+- Sticky footer (`px-6 pb-5 border-t pt-4`) — Close button
+
+**Badge row** — displayed at the top of the body:
+- Lead status (color-coded via `getStatusColor` / `getStatusDot`)
+- Priority (urgent → red, high → orange, medium → yellow, low → gray)
+- Industry (shown when present; formatted by replacing `_` with spaces)
+
+**Details grid** — 2-column grid of label/value pairs:
+- Email, Phone, Website, Company Size, Annual Revenue, Budget
+- Est. Project Value (`₹` prefixed), Monthly Retainer (`₹/mo` suffixed)
+- Lead Source, Assigned To, Created By
+- Next Follow-up (formatted as locale date string via `toLocaleDateString()`)
+- Has Website, Has Social Media, Current SEO Agency
+
+**Additional sections** (rendered only when data is present):
+- **Services Interested** — pill badges using `bg-primary/10 text-primary`
+- **Marketing Goals** — displayed in a `bg-muted/50 rounded-lg` block
+- **Notes** — whitespace-preserved text in a `bg-muted/50 rounded-lg` block
+
+**Dark mode:** All colors use Tailwind semantic tokens (`bg-background`, `text-foreground`, `border-border`, `bg-muted`, `text-muted-foreground`) so the modal renders correctly in both light and dark themes without hardcoded color overrides.
+
+---
+
 ## Change History
 
 **2026-01** — Initial implementation. Created unified ASE Technologies dashboard combining call activity and lead pipeline metrics with clickable stat cards, status distribution charts, and responsive layout.
 
-**2026-05** — Added `BirthdayWidget` to bottom section for upcoming team birthdays. Added `apiClient` for direct API calls (users list, tasks). Expanded state to include `teamPerformance`, `tasks`, `todayFollowUps`, and `overdueCount`. Added new icons: `ListChecks`, `CalendarCheck`, `Target`.
+**2026-05 (latest)** — Improved mobile responsiveness for Call Status Distribution and Team Performance sections. Added a mobile-specific card layout for Team Performance (replacing the data table on small screens, showing top 5 members). Reduced card padding and icon/text sizes on mobile using Tailwind responsive prefixes. Team Performance subtitle now includes "Today" period indicator.
+
+**2026-05** — Refactored `LeadDetailModal` in `ASELeadList.tsx` for full dark mode compatibility. Replaced hardcoded `bg-white`/`text-gray-*` classes with semantic Tailwind tokens (`bg-background`, `text-foreground`, `border-border`, `bg-muted`). Added sticky header/footer dividers, an industry badge in the badge row, and locale-formatted date display for next follow-up. Marketing goals and notes now render in a subtle `bg-muted/50` container for better visual grouping.

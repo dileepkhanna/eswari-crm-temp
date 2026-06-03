@@ -556,9 +556,14 @@ class ApiClient {
     emergency_contact2_phone?: string;
     emergency_contact2_relation?: string;
   }) {
+    // Normalise team: send null explicitly when clearing (0 or undefined), or the actual id
+    const payload = {
+      ...userData,
+      team: (userData.team && userData.team > 0) ? userData.team : null,
+    };
     return this.request(`/auth/users/${userId}/update/`, {
       method: 'PUT',
-      body: JSON.stringify(userData),
+      body: JSON.stringify(payload),
     });
   }
 

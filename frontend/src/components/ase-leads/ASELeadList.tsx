@@ -56,89 +56,93 @@ function getStatusDot(status: string) {
 // ── View Details Modal ──────────────────────────────────────────────────────
 function LeadDetailModal({ lead, onClose }: { lead: ASELead; onClose: () => void }) {
   const modal = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
+        className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-semibold">{lead.company_name}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{lead.company_name}</h2>
             <p className="text-sm text-muted-foreground">{lead.contact_person}</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
-            <XIcon className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-muted transition-colors ml-4 shrink-0">
+            <XIcon className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
-        {/* Status + Priority */}
-        <div className="flex gap-2 mb-5">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(lead.status)}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(lead.status)}`} />
-            {STATUS_OPTIONS.find(s => s.value === lead.status)?.label || lead.status}
-          </span>
-          <span className={`inline-flex items-center px-3 py-1 rounded-full border text-xs font-medium ${
-            lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
-            lead.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-300' :
-            lead.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
-            'bg-gray-50 text-gray-600 border-gray-300'
-          }`}>
-            {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
-          </span>
-        </div>
+        <div className="px-6 py-4">
+          {/* Status + Priority badges */}
+          <div className="flex flex-wrap gap-2 mb-5">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(lead.status)}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(lead.status)}`} />
+              {STATUS_OPTIONS.find(s => s.value === lead.status)?.label || lead.status}
+            </span>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full border text-xs font-medium ${
+              lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
+              lead.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-300' :
+              lead.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+              'bg-gray-50 text-gray-600 border-gray-300'
+            }`}>
+              {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
+            </span>
+            {lead.industry && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full border text-xs font-medium bg-muted text-muted-foreground border-border">
+                {lead.industry.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
 
-        {/* Details grid */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-          <Detail label="Email" value={lead.email} />
-          <Detail label="Phone" value={lead.phone} />
-          <Detail label="Website" value={lead.website} />
-          <Detail label="Industry" value={lead.industry} />
-          <Detail label="Company Size" value={lead.company_size} />
-          <Detail label="Annual Revenue" value={lead.annual_revenue} />
-          <Detail label="Budget" value={lead.budget_amount} />
-          <Detail label="Est. Project Value" value={lead.estimated_project_value ? `₹${lead.estimated_project_value}` : undefined} />
-          <Detail label="Monthly Retainer" value={lead.monthly_retainer ? `₹${lead.monthly_retainer}/mo` : undefined} />
-          <Detail label="Lead Source" value={lead.lead_source} />
-          <Detail label="Assigned To" value={lead.assigned_to_name} />
-          <Detail label="Created By" value={lead.created_by_name} />
-          <Detail label="First Contact" value={lead.first_contact_date} />
-          <Detail label="Last Contact" value={lead.last_contact_date} />
-          <Detail label="Next Follow-up" value={lead.next_follow_up} />
-          <Detail label="Has Website" value={lead.has_website ? 'Yes' : 'No'} />
-          <Detail label="Has Social Media" value={lead.has_social_media ? 'Yes' : 'No'} />
-          <Detail label="Current SEO Agency" value={lead.current_seo_agency} />
-        </div>
+          {/* Details grid */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
+            <Detail label="Email" value={lead.email} />
+            <Detail label="Phone" value={lead.phone} />
+            <Detail label="Website" value={lead.website} />
+            <Detail label="Company Size" value={lead.company_size} />
+            <Detail label="Annual Revenue" value={lead.annual_revenue} />
+            <Detail label="Budget" value={lead.budget_amount} />
+            <Detail label="Est. Project Value" value={lead.estimated_project_value ? `₹${lead.estimated_project_value}` : undefined} />
+            <Detail label="Monthly Retainer" value={lead.monthly_retainer ? `₹${lead.monthly_retainer}/mo` : undefined} />
+            <Detail label="Lead Source" value={lead.lead_source} />
+            <Detail label="Assigned To" value={lead.assigned_to_name} />
+            <Detail label="Created By" value={lead.created_by_name} />
+            <Detail label="Next Follow-up" value={lead.next_follow_up ? new Date(lead.next_follow_up).toLocaleDateString() : undefined} />
+            <Detail label="Has Website" value={lead.has_website ? 'Yes' : 'No'} />
+            <Detail label="Has Social Media" value={lead.has_social_media ? 'Yes' : 'No'} />
+            <Detail label="Current SEO Agency" value={lead.current_seo_agency} />
+          </div>
 
-        {/* Services */}
-        {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0 && (
-          <div className="mt-4">
-            <p className="text-xs font-medium text-muted-foreground mb-1">Services Interested</p>
-            <div className="flex flex-wrap gap-1.5">
-              {lead.service_interests_display.map((s, i) => (
-                <span key={i} className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs">{s}</span>
-              ))}
+          {/* Services */}
+          {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Services Interested</p>
+              <div className="flex flex-wrap gap-1.5">
+                {lead.service_interests_display.map((s, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">{s}</span>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Marketing Goals */}
-        {lead.marketing_goals && (
-          <div className="mt-4">
-            <p className="text-xs font-medium text-muted-foreground mb-1">Marketing Goals</p>
-            <p className="text-sm">{lead.marketing_goals}</p>
-          </div>
-        )}
+          {/* Marketing Goals */}
+          {lead.marketing_goals && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Marketing Goals</p>
+              <p className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-2">{lead.marketing_goals}</p>
+            </div>
+          )}
 
-        {/* Notes */}
-        {lead.notes && (
-          <div className="mt-4">
-            <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
-            <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
-          </div>
-        )}
+          {/* Notes */}
+          {lead.notes && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 rounded-lg px-3 py-2">{lead.notes}</p>
+            </div>
+          )}
+        </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="flex justify-end px-6 pb-5 border-t border-border pt-4">
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
       </div>
@@ -151,8 +155,8 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
     <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium">{value}</p>
+      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+      <p className="font-medium text-sm text-foreground">{value}</p>
     </div>
   );
 }
@@ -251,8 +255,8 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
   if (loading) {
     return (
       <div className="space-y-2">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" style={{ animationDelay: `${i * 60}ms` }} />
         ))}
       </div>
     );
@@ -392,84 +396,104 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
 
       {/* Mobile card view */}
       <div className="block md:hidden space-y-2">
-        {leads.map((lead) => (
-          <div key={lead.id} className={`border rounded-lg p-2.5 transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5 border-primary/30' : 'bg-background'}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2 min-w-0">
-                <input
-                  type="checkbox"
-                  className="rounded cursor-pointer mt-0.5 flex-shrink-0"
-                  checked={selectedIds.has(lead.id)}
-                  onChange={() => onToggleOne(lead.id)}
-                />
-                <div className="min-w-0">
-                  <div className="font-medium text-sm leading-tight truncate">{lead.company_name}</div>
-                  <div className="text-xs text-muted-foreground">{lead.contact_person}</div>
+        {leads.map((lead) => {
+          const statusDotColor = getStatusDot(lead.status);
+          const barColor = lead.status === 'new' ? 'bg-blue-500'
+            : lead.status === 'demo_done' ? 'bg-green-500'
+            : lead.status === 'presentation' ? 'bg-purple-500'
+            : 'bg-orange-500';
+
+          return (
+            <div
+              key={lead.id}
+              className={`relative overflow-hidden border rounded-xl transition-colors ${
+                selectedIds.has(lead.id) ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'
+              }`}
+            >
+              {/* left status color bar */}
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${barColor}`} />
+
+              <div className="pl-3 pr-2.5 py-2.5">
+                {/* Top row: checkbox + name + actions */}
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="rounded cursor-pointer mt-0.5 flex-shrink-0"
+                    checked={selectedIds.has(lead.id)}
+                    onChange={() => onToggleOne(lead.id)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm leading-tight truncate">{lead.company_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{lead.contact_person}</div>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500" onClick={() => setViewLead(lead)}>
+                      <EyeIcon className="w-3.5 h-3.5" />
+                    </Button>
+                    {onEditLead && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => onEditLead(lead)}>
+                        <EditIcon className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {onDeleteLead && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => onDeleteLead(lead)}>
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" title="Convert to Task" onClick={() => openConvertToTask(lead)}>
+                      <ListTodo className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Bottom row: phone + budget + priority + status */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-5">
                   {lead.phone && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <PhoneIcon className="w-3 h-3 flex-shrink-0" />
                       <span>{lead.phone}</span>
                     </div>
                   )}
+                  {(lead.budget_amount || lead.estimated_project_value) && (
+                    <span className="text-xs font-medium text-foreground">₹{lead.budget_amount || lead.estimated_project_value}</span>
+                  )}
+                  <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] border font-medium ${
+                    lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
+                    lead.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-300' :
+                    lead.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                    'bg-gray-50 text-gray-600 border-gray-300'
+                  }`}>
+                    {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-medium ${getStatusColor(lead.status)}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDotColor}`} />
+                        {STATUS_OPTIONS.find(s => s.value === lead.status)?.label || lead.status}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-44 z-50">
+                      {STATUS_OPTIONS.map((opt) => (
+                        <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(lead.id, opt.value)} className={`cursor-pointer text-xs ${lead.status === opt.value ? 'bg-primary/10 text-primary' : ''}`}>
+                          <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${getStatusDot(opt.value)}`} />
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500" onClick={() => setViewLead(lead)}>
-                  <EyeIcon className="w-3.5 h-3.5" />
-                </Button>
-                {onEditLead && (
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEditLead(lead)}>
-                    <EditIcon className="w-3.5 h-3.5" />
-                  </Button>
+
+                {/* Services */}
+                {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0 && (
+                  <div className="text-[10px] text-muted-foreground mt-1 ml-5 truncate">
+                    {lead.service_interests_display.slice(0, 3).join(' · ')}
+                    {lead.service_interests_display.length > 3 && ` +${lead.service_interests_display.length - 3}`}
+                  </div>
                 )}
-                {onDeleteLead && (
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => onDeleteLead(lead)}>
-                    <TrashIcon className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" title="Convert to Task" onClick={() => openConvertToTask(lead)}>
-                  <ListTodo className="w-3.5 h-3.5" />
-                </Button>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              <span className={`inline-block px-2 py-0.5 rounded-full text-xs border font-medium ${
-                lead.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-300' :
-                lead.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-300' :
-                lead.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
-                'bg-gray-50 text-gray-600 border-gray-300'
-              }`}>
-                {PRIORITY_OPTIONS.find(p => p.value === lead.priority)?.label || lead.priority}
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${getStatusColor(lead.status)}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusDot(lead.status)}`} />
-                    {STATUS_OPTIONS.find(s => s.value === lead.status)?.label || lead.status}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44 z-50">
-                  {STATUS_OPTIONS.map((opt) => (
-                    <DropdownMenuItem key={opt.value} onClick={() => handleStatusChange(lead.id, opt.value)} className={`cursor-pointer text-xs ${lead.status === opt.value ? 'bg-primary/10 text-primary' : ''}`}>
-                      <div className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${getStatusDot(opt.value)}`} />
-                      {opt.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {(lead.budget_amount || lead.estimated_project_value) && (
-                <span className="text-xs text-muted-foreground">₹{lead.budget_amount || lead.estimated_project_value}</span>
-              )}
-            </div>
-            {Array.isArray(lead.service_interests_display) && lead.service_interests_display.length > 0 && (
-              <div className="text-xs text-muted-foreground mt-1 truncate">{lead.service_interests_display.join(', ')}</div>
-            )}
-            <div className="text-xs text-muted-foreground mt-1">
-              Assigned: <span className="font-medium text-foreground">{lead.assigned_to_name || 'Unassigned'}</span>
-              {lead.created_by_name && <span> · by {lead.created_by_name}</span>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Desktop table view */}

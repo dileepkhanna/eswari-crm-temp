@@ -142,6 +142,7 @@ export default function AdminASETasks() {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
+      // my-tasks handles role-based visibility: admin/manager see all, employees see their own
       let url = `/ase-leads/tasks/my-tasks/?page=${page}`;
       if (statusFilter !== 'all') url += `&status=${statusFilter}`;
       if (priorityFilter !== 'all') url += `&priority=${priorityFilter}`;
@@ -150,10 +151,10 @@ export default function AdminASETasks() {
       const res = await apiClient.get(url);
       setTasks(res.results || []);
       setCount(res.count || 0);
-      setTotalPages(res.total_pages || 1);
+      setTotalPages(res.total_pages || Math.ceil((res.count || 0) / 20) || 1);
     } catch { toast.error('Failed to load tasks'); }
     finally { setLoading(false); }
-  }, [page, statusFilter, priorityFilter, typeFilter, employeeFilter]);
+  }, [page, statusFilter, priorityFilter, typeFilter, employeeFilter, user?.role]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -332,7 +333,27 @@ export default function AdminASETasks() {
   return (
     <div className="min-h-screen">
       <TopBar title="ASE Tasks" subtitle="Manage tasks converted from leads" />
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+
+        {/* Stat Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total', value: count, color: 'text-blue-600', bg: 'bg-blue-50', icon: <ListTodo className="w-4 h-4 text-blue-600" /> },
+            { label: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: 'text-orange-600', bg: 'bg-orange-50', icon: <Calendar className="w-4 h-4 text-orange-600" /> },
+            { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, color: 'text-blue-700', bg: 'bg-blue-50', icon: <Loader2 className="w-4 h-4 text-blue-700" /> },
+            { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'text-green-600', bg: 'bg-green-50', icon: <CheckCircle className="w-4 h-4 text-green-600" /> },
+          ].map(card => (
+            <div key={card.label} className="bg-white dark:bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
+              <div className={`w-9 h-9 rounded-full ${card.bg} flex items-center justify-center shrink-0`}>
+                {card.icon}
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-0.5">{card.label}</p>
+                <p className={`text-2xl font-bold leading-none ${card.color}`}>{card.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Top bar: Search + Filter button */}
         <div className="flex gap-2 items-center">
@@ -643,12 +664,34 @@ export default function AdminASETasks() {
               </div>
               {task.is_overdue && task.status !== 'completed' && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded mb-2 inline-block">Overdue</span>}
               <div className="flex gap-2 flex-wrap items-center mt-2">
-                <Select value={task.status} onValueChange={(v) => handleStatusChange(task.id, v)}>
-                  <SelectTrigger className="flex-1 h-8 text-xs min-w-[120px]"><StatusChip status={task.status} /></SelectTrigger>
-                  <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <Button variant="outline" size="sm" className="h-8 px-3" onClick={() => setViewingTask(task)}><Eye className="w-3.5 h-3.5 mr-1" /> View</Button>
-                <Button variant="outline" size="sm" className="h-8 px-3" onClick={() => openEditForm(task)}><Edit className="w-3.5 h-3.5 mr-1" /> Edit</Button>
+                {/* Compact status badge dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium cursor-pointer hover:opacity-80 ${STATUS_OPTIONS.find(s => s.value === task.status)?.color || 'bg-gray-50 text-gray-600 border-gray-300'}`}>
+                      {STATUS_OPTIONS.find(s => s.value === task.status)?.label || task.status}
+                      <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-40 z-50">
+                    {STATUS_OPTIONS.map(s => (
+                      <DropdownMenuItem
+                        key={s.value}
+                        onClick={() => handleStatusChange(task.id, s.value)}
+                        className={`cursor-pointer text-xs ${task.status === s.value ? 'bg-primary/10 text-primary font-medium' : ''}`}
+                      >
+                        {s.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-blue-500" onClick={() => setViewingTask(task)}>
+                  <Eye className="w-3.5 h-3.5 mr-1" /> View
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={() => openEditForm(task)}>
+                  <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+                </Button>
               </div>
             </div>
           ))}
@@ -721,11 +764,39 @@ export default function AdminASETasks() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-sm text-muted-foreground">Page {page} of {totalPages} ({count} tasks)</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-4 h-4 mr-1" /> Prev</Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next <ChevronRight className="w-4 h-4 ml-1" /></Button>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
+            <p className="text-sm text-muted-foreground whitespace-nowrap">
+              Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, count)} of {count} tasks
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                  if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === '...' ? (
+                    <span key={`e-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
+                  ) : (
+                    <Button
+                      key={p}
+                      variant={page === p ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 w-8 p-0 text-xs"
+                      onClick={() => setPage(p as number)}
+                    >{p}</Button>
+                  )
+                )}
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
             </div>
           </div>
         )}

@@ -743,9 +743,11 @@ def admin_update_user_view(request, user_id):
                 }, status=status.HTTP_400_BAD_REQUEST)
         
         # Update team assignment if provided
-        if team_id is not None:
-            if team_id == '' or team_id == 0 or team_id == 'null' or team_id == 'none':
-                # Remove team assignment
+        # Note: JSON null arrives as Python None — treat it as explicit "remove team"
+        # Only skip if the key was not present in the request at all
+        if 'team' in request.data:
+            if team_id is None or team_id == '' or team_id == 0 or team_id == 'null' or team_id == 'none':
+                # Explicitly removing team assignment
                 user_to_update.team = None
             else:
                 try:

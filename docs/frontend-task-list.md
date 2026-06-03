@@ -85,6 +85,19 @@ Replaced the previous "Filters" button + advanced-filter modal pattern with alwa
 
 The ASE Technologies task admin page is a separate component from the general `TaskList`. It fetches tasks from the ASE leads task endpoint (`/ase-leads/tasks/my-tasks/`) and includes its own filter UI.
 
+### Stat Summary Cards
+
+A row of four metric cards is rendered at the top of the page, above the search/filter bar.
+
+| Card | Value source | Icon | Color |
+|---|---|---|---|
+| **Total** | `count` (from API response) | `ListTodo` | Blue |
+| **Pending** | `tasks.filter(t => t.status === 'pending').length` | `Calendar` | Orange |
+| **In Progress** | `tasks.filter(t => t.status === 'in_progress').length` | `Loader2` | Blue (darker) |
+| **Completed** | `tasks.filter(t => t.status === 'completed').length` | `CheckCircle` | Green |
+
+The cards use a 2-column grid on mobile (`grid-cols-2`) and a 4-column grid on desktop (`md:grid-cols-4`). Each card is a white/card-surface rounded pill (`rounded-2xl`) with a small circular icon badge and a large bold count value. Pending/In Progress/Completed counts reflect the **current page** of loaded tasks; Total reflects the full API count.
+
 ### Filter Layout
 
 The filter UI uses a **search bar + slide-out Sheet panel** pattern:
@@ -134,7 +147,7 @@ The `employees` state (`{ id: number; name: string }[]`) is populated by a fetch
 
 ### API Query Construction
 
-Active filters append query parameters to the base URL:
+All roles use the same base endpoint. Role-based visibility is enforced server-side by `my-tasks/`:
 
 ```
 /ase-leads/tasks/my-tasks/?page={page}
@@ -143,6 +156,8 @@ Active filters append query parameters to the base URL:
   &task_type={typeFilter}        (if not 'all')
   &assigned_to={employeeFilter}  (if not 'all')
 ```
+
+The `my-tasks/` endpoint handles visibility automatically: admins and managers see all tasks across the team, while employees see only their own tasks. There is no separate `/ase-leads/tasks/` endpoint call for privileged roles.
 
 Time-range filters (`quickDateFilter`, `monthFilter`, `dateRange`) are applied client-side or translated to `created_at` / `due_date` query parameters depending on the backend support.
 
@@ -159,6 +174,8 @@ Time-range filters (`quickDateFilter`, `monthFilter`, `dateRange`) are applied c
 | `SlidersHorizontal` | `lucide-react` | Icon on the Filters button |
 
 ### Change History
+
+**2026-06** — Added stat summary cards row at the top of the page showing Total, Pending, In Progress, and Completed task counts. Cards use a responsive 2→4 column grid and source counts from the API response (`count`) and client-side status filtering of the current page's tasks.
 
 **2026-06** — Employee fetch now runs for all roles (no longer gated to admin/manager only). Removed the `is_active` filter from the user mapping so all returned users are included. Added defensive array handling for the `UserListView` response, which returns a plain array (not paginated).
 

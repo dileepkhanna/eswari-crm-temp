@@ -20,35 +20,29 @@ export default function AdminASEDashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [todayFollowUps, setTodayFollowUps] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
-  const [teamCount, setTeamCount] = useState(0);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [stats, perf, overdueNum, followUps, users] = await Promise.allSettled([
+        const [stats, perf, overdueNum, followUps] = await Promise.allSettled([
           ASECustomerService.getStats(),
           ASECustomerService.getTeamPerformance(),
           ASECustomerService.getOverdueCount(),
           ASECustomerService.getFollowUps(),
-          apiClient.get('/accounts/users/?page_size=200'),
         ]);
         if (stats.status === 'fulfilled') setCustomerStats(stats.value);
         if (perf.status === 'fulfilled') setTeamPerformance(perf.value);
         if (overdueNum.status === 'fulfilled') setOverdueCount(overdueNum.value);
         if (followUps.status === 'fulfilled') setTodayFollowUps((followUps.value as any)?.count ?? 0);
-        if (users.status === 'fulfilled') {
-          const list = Array.isArray(users.value) ? users.value : (users.value as any)?.results ?? [];
-          setTeamCount(list.filter((u: any) => ['manager', 'employee'].includes(u.role)).length);
-        }
       } catch (error) {
         logger.error('Error fetching ASE dashboard stats:', error);
       }
     };
 
-    // Fetch tasks
+    // Fetch tasks via my-tasks (works for all roles, returns tasks visible to current user)
     const fetchTasks = async () => {
       try {
-        const res: any = await apiClient.get('/ase-leads/tasks/?page_size=200');
+        const res: any = await apiClient.get('/ase-leads/tasks/my-tasks/?page=1&page_size=200');
         const list = Array.isArray(res) ? res : res?.results ?? [];
         setTasks(list);
       } catch (err) {
@@ -98,8 +92,8 @@ export default function AdminASEDashboard() {
 
         {/* Key Metrics — Calls */}
         <div>
-          <h2 className="text-lg font-semibold mb-3 text-foreground flex items-center gap-2">
-            <PhoneCall className="w-5 h-5" />
+          <h2 className="text-sm md:text-lg font-semibold mb-2 md:mb-3 text-foreground flex items-center gap-2">
+            <PhoneCall className="w-4 h-4 md:w-5 md:h-5" />
             Call Activity
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -148,8 +142,8 @@ export default function AdminASEDashboard() {
 
         {/* Key Metrics — Leads */}
         <div>
-          <h2 className="text-lg font-semibold mb-3 text-foreground flex items-center gap-2">
-            <Briefcase className="w-5 h-5" />
+          <h2 className="text-sm md:text-lg font-semibold mb-2 md:mb-3 text-foreground flex items-center gap-2">
+            <Briefcase className="w-4 h-4 md:w-5 md:h-5" />
             Lead Pipeline
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -207,14 +201,14 @@ export default function AdminASEDashboard() {
           />
 
           {/* Call Status Breakdown */}
-          <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
+          <div className="glass-card rounded-2xl p-4 md:p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
-                <PhoneCall className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shrink-0">
+                <PhoneCall className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Call Status Distribution</h3>
-                <p className="text-sm text-muted-foreground">{totalCalls} total calls</p>
+                <h3 className="text-base md:text-lg font-semibold text-foreground">Call Status Distribution</h3>
+                <p className="text-xs md:text-sm text-muted-foreground">{totalCalls} total calls</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -230,12 +224,12 @@ export default function AdminASEDashboard() {
                   <div key={label} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${color}`} />
-                        <span className="text-foreground font-medium">{label}</span>
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${color}`} />
+                        <span className="text-foreground font-medium text-xs md:text-sm">{label}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-foreground font-semibold">{count}</span>
-                        <span className="text-muted-foreground text-xs w-10 text-right">{pct}%</span>
+                        <span className="text-foreground font-semibold text-sm">{count}</span>
+                        <span className="text-muted-foreground text-xs w-9 text-right">{pct}%</span>
                       </div>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -297,17 +291,46 @@ export default function AdminASEDashboard() {
 
         {/* Team Performance */}
         {employees.length > 0 && (
-          <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <div className="glass-card rounded-2xl p-4 md:p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <Users className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Team Performance</h3>
-                <p className="text-sm text-muted-foreground">{employees.length} team members</p>
+                <h3 className="text-base md:text-lg font-semibold text-foreground">Team Performance</h3>
+                <p className="text-xs md:text-sm text-muted-foreground">{employees.length} team members · Today</p>
               </div>
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Mobile: card list */}
+            <div className="block md:hidden space-y-3">
+              {employees.slice(0, 5).map((emp, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-muted/40 rounded-xl">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {emp.name?.charAt(0)?.toUpperCase() ?? 'U'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{emp.name}</p>
+                      <p className="text-xs text-muted-foreground">{emp.calls_today} calls · {emp.answered_today} answered</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      emp.answered_rate >= 70 ? 'bg-green-100 text-green-700' :
+                      emp.answered_rate >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {Math.round(emp.answered_rate)}%
+                    </span>
+                    <span className="text-xs font-semibold text-indigo-600">{emp.conversions_this_week}↗</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-xs text-muted-foreground">
