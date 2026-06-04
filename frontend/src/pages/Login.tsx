@@ -39,6 +39,7 @@ export default function Login() {
         'admin': '/admin',
         'manager': '/manager',
         'employee': '/staff',
+        'team_lead': '/staff',
         'hr': '/hr'
       };
       const redirectPath = roleRouteMap[user.role] || '/login';

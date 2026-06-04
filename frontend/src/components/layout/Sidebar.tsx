@@ -249,6 +249,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     'admin': '/admin',
     'manager': '/manager',
     'employee': '/staff',  // Map employee role to staff route
+    'team_lead': '/staff',  // team_lead uses same staff panel
     'hr': '/hr'
   };
   

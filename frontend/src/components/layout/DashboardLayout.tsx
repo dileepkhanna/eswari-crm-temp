@@ -40,16 +40,19 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
   }
 
   if (user?.role !== requiredRole) {
-    // Map Django roles to frontend routes
-    const roleRouteMap: Record<UserRole, string> = {
-      'admin': '/admin',
-      'manager': '/manager',
-      'employee': '/staff',  // Map employee role to staff route
-      'hr': '/hr'
-    };
-    
-    const redirectPath = roleRouteMap[user?.role] || '/login';
-    return <Navigate to={redirectPath} replace />;
+    // team_lead is allowed to access the employee (/staff) panel
+    const isTeamLeadAccessingStaff = requiredRole === 'employee' && user?.role === 'team_lead';
+    if (!isTeamLeadAccessingStaff) {
+      const roleRouteMap: Record<UserRole, string> = {
+        'admin': '/admin',
+        'manager': '/manager',
+        'employee': '/staff',
+        'team_lead': '/staff',  // team_lead uses same staff panel
+        'hr': '/hr'
+      };
+      const redirectPath = roleRouteMap[user?.role] || '/login';
+      return <Navigate to={redirectPath} replace />;
+    }
   }
 
   return (
