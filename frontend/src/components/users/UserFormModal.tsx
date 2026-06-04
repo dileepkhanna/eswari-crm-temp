@@ -391,12 +391,15 @@ export default function UserFormModal({
   const handleEditSubmit = async (data: EditUserFormData) => {
     if (!editUser || !onUpdate) return;
     
+    const teamValue = (data.team && data.team > 0) ? data.team : 0;
+    console.log('🔍 TEAM DEBUG: data.team =', data.team, 'type =', typeof data.team, '→ sending team:', teamValue);
+    
     const result = await onUpdate(editUser.id, {
       name: data.name, email: data.email || undefined, phone: data.phone, address: '',
       designation: data.designation || undefined, joining_date: data.joining_date || undefined,
       managerId: data.managerId === 'none' ? undefined : data.managerId,
       company: data.company, 
-      team: (data.team && data.team > 0) ? data.team : 0, // 0 = explicitly remove team
+      team: teamValue, // 0 = explicitly remove team
       newPassword: data.newPassword || undefined,
       permanent_address: data.permanent_address, present_address: data.present_address,
       bank_name: data.bank_name, bank_account_number: data.bank_account_number,
@@ -610,8 +613,10 @@ export default function UserFormModal({
                             {editUser.role !== 'team_lead' && ' (Optional)'}
                           </FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))} 
-                            value={field.value?.toString() || "0"}
+                            onValueChange={(value) => {
+                              field.onChange(value === "none" ? undefined : parseInt(value));
+                            }} 
+                            value={(!field.value || field.value === 0) ? "none" : field.value.toString()}
                             disabled={loadingTeams}
                           >
                             <FormControl>
@@ -621,7 +626,7 @@ export default function UserFormModal({
                             </FormControl>
                             <SelectContent>
                               {editUser.role !== 'team_lead' && (
-                                <SelectItem value="0">
+                                <SelectItem value="none">
                                   <span className="text-muted-foreground">— No Team —</span>
                                 </SelectItem>
                               )}
@@ -1036,8 +1041,10 @@ export default function UserFormModal({
                           {selectedRole !== 'team_lead' && ' (Optional)'}
                         </FormLabel>
                         <Select
-                          onValueChange={(value) => field.onChange(value === "0" ? undefined : parseInt(value))}
-                          value={field.value?.toString() || "0"}
+                          onValueChange={(value) => {
+                            field.onChange(value === "none" ? undefined : parseInt(value));
+                          }}
+                          value={(!field.value || field.value === 0) ? "none" : field.value.toString()}
                           disabled={loadingTeams}
                         >
                           <FormControl>
@@ -1047,7 +1054,7 @@ export default function UserFormModal({
                           </FormControl>
                           <SelectContent>
                             {selectedRole !== 'team_lead' && (
-                              <SelectItem value="0">
+                              <SelectItem value="none">
                                 <span className="text-muted-foreground">— No Team —</span>
                               </SelectItem>
                             )}

@@ -561,6 +561,7 @@ class ApiClient {
       ...userData,
       team: (userData.team && userData.team > 0) ? userData.team : null,
     };
+    console.log('🔍 API TEAM DEBUG: userData.team =', userData.team, '→ payload.team =', payload.team);
     return this.request(`/auth/users/${userId}/update/`, {
       method: 'PUT',
       body: JSON.stringify(payload),

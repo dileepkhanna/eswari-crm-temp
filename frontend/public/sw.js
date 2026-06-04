@@ -1,7 +1,7 @@
 // Service Worker for Push Notifications - Complete Reimplementation
-// Version: 2.0
+// Version: 2.1
 
-const CACHE_NAME = 'eswari-crm-v2';
+const CACHE_NAME = 'eswari-crm-v3';
 
 // Install event
 self.addEventListener('install', (event) => {
