@@ -34,35 +34,14 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Check if user is in a technical team (ASE Technologies + technical team)
-      const isInTechnicalTeam = 
-        user.company?.id === 2 && // ASE Technologies
-        user.team_info?.team_type === 'technical'; // Technical team
-      
-      const isInMarketingTeam = 
-        user.company?.id === 2 && // ASE Technologies
-        user.team_info?.team_type === 'marketing'; // Marketing team
-      
-      // Map Django roles to frontend routes
+      // All users redirect based on their role only — no team-based overrides
       const roleRouteMap: Record<string, string> = {
         'admin': '/admin',
         'manager': '/manager',
-        'employee': '/staff',  // Map employee role to staff route
-        'hr': '/hr'  // Map HR role to HR panel
+        'employee': '/staff',
+        'hr': '/hr'
       };
-      
-      // Override redirect for team members
-      let redirectPath = roleRouteMap[user.role] || '/login';
-      
-      // If user is in a technical team, redirect to technical panel
-      if (isInTechnicalTeam) {
-        redirectPath = '/team/technical';
-      }
-      // If user is in a marketing team, redirect to marketing panel
-      else if (isInMarketingTeam) {
-        redirectPath = '/team/marketing';
-      }
-      
+      const redirectPath = roleRouteMap[user.role] || '/login';
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate]);

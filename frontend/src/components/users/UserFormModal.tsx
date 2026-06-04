@@ -626,9 +626,7 @@ export default function UserFormModal({
                             </FormControl>
                             <SelectContent>
                               {editUser.role !== 'team_lead' && (
-                                <SelectItem value="none">
-                                  <span className="text-muted-foreground">— No Team —</span>
-                                </SelectItem>
+                                <SelectItem value="none">— No Team —</SelectItem>
                               )}
                               {teams.map((team) => (
                                 <SelectItem key={team.id} value={team.id.toString()}>
@@ -1054,9 +1052,7 @@ export default function UserFormModal({
                           </FormControl>
                           <SelectContent>
                             {selectedRole !== 'team_lead' && (
-                              <SelectItem value="none">
-                                <span className="text-muted-foreground">— No Team —</span>
-                              </SelectItem>
+                              <SelectItem value="none">— No Team —</SelectItem>
                             )}
                             {teams.map((team) => (
                               <SelectItem key={team.id} value={team.id.toString()}>

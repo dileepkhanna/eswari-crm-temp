@@ -290,6 +290,10 @@ const AppRouter = () => {
 
       {/* Legacy redirect: /employee -> /staff */}
       <Route path="/employee/*" element={<Navigate to="/staff" replace />} />
+      {/* Legacy redirect: team panels -> /staff */}
+      <Route path="/team/marketing/*" element={<Navigate to="/staff" replace />} />
+      <Route path="/team/technical/*" element={<Navigate to="/staff" replace />} />
+      <Route path="/team/*" element={<Navigate to="/staff" replace />} />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
