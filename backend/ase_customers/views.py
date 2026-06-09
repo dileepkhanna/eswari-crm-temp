@@ -118,8 +118,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
 
-        # Month filter (format: YYYY-MM) - prefers explicit date_from/date_to if provided,
-        # otherwise converts month into an inclusive date range on created_at
+        # Month filter (format: YYYY-MM) - filters on scheduled_date
         month_filter = self.request.query_params.get('month')
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
@@ -137,25 +136,25 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 else:
                     next_first = date(y, m + 1, 1)
                 last = next_first - timedelta(days=1)
-                qs = qs.filter(created_at__date__gte=first, created_at__date__lte=last)
+                qs = qs.filter(scheduled_date__date__gte=first, scheduled_date__date__lte=last)
             except (ValueError, IndexError):
                 pass
 
-        # Date range filter (date_from and date_to)
+        # Date range filter (date_from and date_to) - filter on scheduled_date
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
         if date_from:
             from datetime import datetime
             try:
                 from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
-                qs = qs.filter(created_at__date__gte=from_date)
+                qs = qs.filter(scheduled_date__date__gte=from_date)
             except ValueError:
                 pass
         if date_to:
             from datetime import datetime
             try:
                 to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
-                qs = qs.filter(created_at__date__lte=to_date)
+                qs = qs.filter(scheduled_date__date__lte=to_date)
             except ValueError:
                 pass
 
