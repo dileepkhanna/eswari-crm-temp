@@ -1717,7 +1717,7 @@ export default function AdminASECustomers() {
                 >
                   <option value="all">All Months</option>
                   {(() => {
-                    const items = [];
+                    const items: JSX.Element[] = [];
                     const now = new Date();
                     for (let i = 0; i < 24; i++) {
                       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);

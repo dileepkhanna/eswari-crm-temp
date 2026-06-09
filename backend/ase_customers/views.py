@@ -87,12 +87,16 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         if overdue == 'true':
             qs = qs.filter(scheduled_date__lt=timezone.now(), call_status='pending')
 
-        # Assigned to filter (handles both numeric ID and 'unassigned')
+        # Assigned to filter (handles both numeric ID, UUID/string and 'unassigned')
         assigned_to = self.request.query_params.get('assigned_to')
         if assigned_to == 'unassigned':
             qs = qs.filter(assigned_to__isnull=True)
-        elif assigned_to and assigned_to.isdigit():
-            qs = qs.filter(assigned_to_id=int(assigned_to))
+        elif assigned_to:
+            # Try integer id first, otherwise filter by raw value (supports UUIDs or string keys)
+            try:
+                qs = qs.filter(assigned_to_id=int(assigned_to))
+            except (ValueError, TypeError):
+                qs = qs.filter(assigned_to__id=assigned_to)
 
         # Date filter (created_at date)
         date_filter = self.request.query_params.get('date')
@@ -114,12 +118,26 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
 
-        # Month filter (format: YYYY-MM) - filters by created_at month
+        # Month filter (format: YYYY-MM) - prefers explicit date_from/date_to if provided,
+        # otherwise converts month into an inclusive date range on created_at
         month_filter = self.request.query_params.get('month')
-        if month_filter:
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if month_filter and not (date_from or date_to):
             try:
-                year, month = month_filter.split('-')
-                qs = qs.filter(created_at__year=int(year), created_at__month=int(month))
+                year_str, month_str = month_filter.split('-')
+                y = int(year_str)
+                m = int(month_str)
+                # compute first and last day of the month
+                from datetime import date, timedelta
+                first = date(y, m, 1)
+                # next month first day minus one day
+                if m == 12:
+                    next_first = date(y + 1, 1, 1)
+                else:
+                    next_first = date(y, m + 1, 1)
+                last = next_first - timedelta(days=1)
+                qs = qs.filter(created_at__date__gte=first, created_at__date__lte=last)
             except (ValueError, IndexError):
                 pass
 
