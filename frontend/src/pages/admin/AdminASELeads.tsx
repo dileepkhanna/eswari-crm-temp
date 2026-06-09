@@ -238,7 +238,7 @@ export default function AdminASELeads() {
       <TopBar title="ASE Leads" />
 
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-        <AnnouncementBanner userRole={user?.role || 'admin'} maxDisplay={2} />
+        <AnnouncementBanner userRole={(user?.role === 'team_lead' ? 'employee' : user?.role) || 'admin'} maxDisplay={2} />
 
         {/* ── Stats Cards ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -537,6 +537,7 @@ export default function AdminASELeads() {
                   <option value="new">New</option>
                   <option value="demo_done">Demo Done</option>
                   <option value="presentation">Presentation</option>
+                  <option value="quotation">Quotation</option>
                   <option value="custom">Custom</option>
                 </select>
               </div>
@@ -611,7 +612,7 @@ export default function AdminASELeads() {
                 >
                   <option value="">All Months</option>
                   {(() => {
-                    const items = [];
+                    const items: React.ReactElement[] = [];
                     const now = new Date();
                     for (let i = 0; i < 24; i++) {
                       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);

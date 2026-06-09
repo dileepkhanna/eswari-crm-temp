@@ -56,40 +56,9 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types';
 import type { Company } from '@/types';
+import type { DBUser } from '@/types/user';
 
 import { logger } from '@/lib/logger';
-interface DBUser {
-  id: string;
-  user_id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  designation?: string | null;
-  joining_date?: string | null;
-  team?: number | null; // Add team field
-  permanent_address?: string | null;
-  present_address?: string | null;
-  bank_name?: string | null;
-  bank_account_number?: string | null;
-  bank_ifsc?: string | null;
-  blood_group?: string | null;
-  aadhar_number?: string | null;
-  emergency_contact1_name?: string | null;
-  emergency_contact1_phone?: string | null;
-  emergency_contact1_relation?: string | null;
-  emergency_contact2_name?: string | null;
-  emergency_contact2_phone?: string | null;
-  emergency_contact2_relation?: string | null;
-  status: string;
-  manager_id: string | null;
-  manager_name?: string | null;
-  company?: Company;
-  company_name?: string | null;
-  created_at: string;
-  updated_at: string;
-  role: UserRole;
-}
 
 interface UserListProps {
   users?: DBUser[];
@@ -155,19 +124,7 @@ export default function UserList(props?: UserListProps) {
       
       // Fetch users from Django backend
       const response = await apiClient.getUsers();
-      
-      // Handle both paginated and non-paginated responses
-      let usersData;
-      if (Array.isArray(response)) {
-        // Non-paginated response (direct array)
-        usersData = response;
-      } else if (response && response.results) {
-        // Paginated response
-        usersData = response.results;
-      } else {
-        // Fallback
-        usersData = [];
-      }
+      const usersData = Array.isArray(response) ? response : [];
       
       logger.log(`📊 Fetched ${usersData.length} users from backend:`, usersData.map(u => ({ id: u.id, username: u.username, name: `${u.first_name} ${u.last_name}`.trim() })));
       

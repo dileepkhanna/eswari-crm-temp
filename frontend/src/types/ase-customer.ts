@@ -266,6 +266,7 @@ export const ASE_LEAD_STATUS_OPTIONS = [
   { value: 'new', label: 'New Lead' },
   { value: 'demo_done', label: 'Demo Done' },
   { value: 'presentation', label: 'Presentation' },
+  { value: 'quotation', label: 'Quotation' },
   { value: 'custom', label: 'Custom' },
 ];
 

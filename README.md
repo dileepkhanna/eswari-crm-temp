@@ -121,6 +121,38 @@ See `DATA_VISIBILITY_RULES.md` for full details.
 
 ---
 
+## Frontend Type System
+
+The frontend uses two separate user type representations:
+
+### `User` (`src/types/index.ts`)
+The primary frontend model used in contexts, state, and UI components. Uses camelCase fields and `Date` objects.
+
+### `DBUser` (`src/types/user.ts`)
+Maps directly to the backend API response shape for user records. Used when consuming the `/api/auth/users/` endpoint. Key differences from `User`:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` / `user_id` | `string` | Backend-assigned IDs |
+| `name` | `string` | Full name as single field |
+| `email`, `phone`, `address` | `string \| null` | Nullable |
+| `designation`, `joining_date` | `string \| null` | Optional HR fields |
+| `team` | `number \| null` | Team ID reference |
+| `bank_name`, `bank_account_number`, `bank_ifsc` | `string \| null` | Optional banking info |
+| `blood_group`, `aadhar_number` | `string \| null` | Optional personal info |
+| `emergency_contact1_*` / `emergency_contact2_*` | `string \| null` | Up to 2 emergency contacts |
+| `manager_id`, `manager_name` | `string \| null` | Manager reference |
+| `company` | `Company` | Nested company object |
+| `role` | `UserRole` | Same union type as `User` |
+| `created_at`, `updated_at` | `string` | ISO datetime strings |
+
+Import it from `@/types/user`:
+```typescript
+import type { DBUser } from '@/types/user';
+```
+
+---
+
 ## Tech Stack
 
 **Backend**: Django 4.2, Django REST Framework, Django Channels (WebSockets), PostgreSQL, Redis, JWT auth
