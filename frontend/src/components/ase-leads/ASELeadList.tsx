@@ -23,6 +23,7 @@ const STATUS_OPTIONS = [
   { value: 'new', label: 'New' },
   { value: 'demo_done', label: 'Demo Done' },
   { value: 'presentation', label: 'Presentation' },
+  { value: 'quotation', label: 'Quotation' },
   { value: 'custom', label: 'Custom' },
 ];
 
@@ -38,6 +39,7 @@ function getStatusColor(status: string) {
     case 'new': return 'bg-blue-50 text-blue-700 border-blue-300';
     case 'demo_done': return 'bg-green-50 text-green-700 border-green-300';
     case 'presentation': return 'bg-purple-50 text-purple-700 border-purple-300';
+    case 'quotation': return 'bg-red-50 text-yellow-700 border-yellow-300';
     case 'custom': return 'bg-orange-50 text-orange-700 border-orange-300';
     default: return 'bg-gray-50 text-gray-700 border-gray-300';
   }
@@ -47,6 +49,7 @@ function getStatusDot(status: string) {
   switch (status) {
     case 'new': return 'bg-blue-500';
     case 'demo_done': return 'bg-green-500';
+    case 'quotation': return 'bg-yellow-500';
     case 'presentation': return 'bg-purple-500';
     case 'custom': return 'bg-orange-500';
     default: return 'bg-gray-500';
@@ -400,6 +403,7 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
           const statusDotColor = getStatusDot(lead.status);
           const barColor = lead.status === 'new' ? 'bg-blue-500'
             : lead.status === 'demo_done' ? 'bg-green-500'
+            : lead.status === 'quotation' ? 'bg-yellow-500'
             : lead.status === 'presentation' ? 'bg-purple-500'
             : 'bg-orange-500';
 

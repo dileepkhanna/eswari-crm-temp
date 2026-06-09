@@ -14,6 +14,7 @@ class ASELead(models.Model):
         ('new', 'New Lead'),
         ('demo_done', 'Demo Done'),
         ('presentation', 'Presentation'),
+        ('quotation', 'Quotation'),
         ('custom', 'Custom'),
     ]
     

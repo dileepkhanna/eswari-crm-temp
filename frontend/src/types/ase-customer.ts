@@ -187,6 +187,7 @@ export type ASELeadStatus =
   | 'new'
   | 'demo_done'
   | 'presentation'
+  | 'quotation'
   | 'custom';
 
 export type ASELeadPriority = 
