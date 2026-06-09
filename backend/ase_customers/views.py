@@ -118,7 +118,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
 
-        # Month filter (format: YYYY-MM) - filters on scheduled_date
+        # Month filter (format: YYYY-MM) - filters on created_at
         month_filter = self.request.query_params.get('month')
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
@@ -127,34 +127,33 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 year_str, month_str = month_filter.split('-')
                 y = int(year_str)
                 m = int(month_str)
-                # compute first and last day of the month
                 from datetime import date, timedelta
                 first = date(y, m, 1)
-                # next month first day minus one day
                 if m == 12:
                     next_first = date(y + 1, 1, 1)
                 else:
                     next_first = date(y, m + 1, 1)
                 last = next_first - timedelta(days=1)
-                qs = qs.filter(scheduled_date__date__gte=first, scheduled_date__date__lte=last)
+                # Filter on created_at date (not scheduled_date) to match frontend expectation
+                qs = qs.filter(created_at__date__gte=first, created_at__date__lte=last)
             except (ValueError, IndexError):
                 pass
 
-        # Date range filter (date_from and date_to) - filter on scheduled_date
+        # Date range filter (date_from and date_to) - filter on created_at
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
         if date_from:
             from datetime import datetime
             try:
                 from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
-                qs = qs.filter(scheduled_date__date__gte=from_date)
+                qs = qs.filter(created_at__date__gte=from_date)
             except ValueError:
                 pass
         if date_to:
             from datetime import datetime
             try:
                 to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
-                qs = qs.filter(scheduled_date__date__lte=to_date)
+                qs = qs.filter(created_at__date__lte=to_date)
             except ValueError:
                 pass
 

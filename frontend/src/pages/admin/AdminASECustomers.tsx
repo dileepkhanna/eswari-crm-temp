@@ -59,8 +59,8 @@ export default function AdminASECustomers() {
   const [viewCustomer, setViewCustomer] = useState<ASECustomer | null>(null);
   const [detailTab, setDetailTab] = useState<'calls' | 'notes'>('calls');
   const [followUpCount, setFollowUpCount] = useState<number>(0);
-  const [allFilteredCustomers, setAllFilteredCustomers] = useState<ASECustomer[]>([]);
-  const [loadingStats, setLoadingStats] = useState(false);
+  const [filteredStats, setFilteredStats] = useState({ todayCalls: 0, answered: 0, converted: 0 });
+  const [, setLoadingStats] = useState(false);
   // Single source of truth for the paginated display — always filtered server-side
   const [displayCustomers, setDisplayCustomers] = useState<ASECustomer[]>([]);
   const [displayCount, setDisplayCount] = useState(0);
@@ -175,20 +175,71 @@ export default function AdminASECustomers() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage]);
 
-  // Fetch ALL matching records (unpaginated) for accurate stat cards
+  // Fetch count-only stat card data without downloading all matching records
   useEffect(() => {
-    const fetchAllForStats = async () => {
+    const fetchFilteredStats = async () => {
+      if (!aseCompanyId && aseCompanyId !== 0) return;
       try {
         setLoadingStats(true);
-        const res = await ASECustomerService.getCustomers(buildApiParams({ page: 1, page_size: 10000 }));
-        setAllFilteredCustomers(res.results);
+        // baseParams already includes all active filters (date_from, date_to, assignee, etc.)
+        const baseParams = buildApiParams({ page: 1, page_size: 1 });
+        const targetDate = selectedDate || new Date().toISOString().split('T')[0];
+
+        // "Today Calls" — count calls created on targetDate, within any active date range
+        // Remove date_from/date_to when using single-day date filter to avoid conflict
+        const todayBaseParams = { ...baseParams };
+        delete todayBaseParams.date_from;
+        delete todayBaseParams.date_to;
+        delete todayBaseParams.call_status; // don't restrict by status for "Today Calls"
+        delete todayBaseParams.is_converted;
+        const todayCallsPromise = ASECustomerService.getCustomers({
+          ...todayBaseParams,
+          date: targetDate,
+        });
+
+        // "Answered" — count answered calls within the active date range and assignee filter
+        // Don't conflict with existing call_status in baseParams
+        const answeredBaseParams = { ...baseParams };
+        delete answeredBaseParams.call_status; // override with answered
+        delete answeredBaseParams.is_converted;
+        const answeredPromise =
+          statusFilter !== 'all' && statusFilter !== 'answered'
+            ? Promise.resolve({ count: 0 })
+            : ASECustomerService.getCustomers({
+                ...answeredBaseParams,
+                call_status: 'answered',
+              });
+
+        // "Converted" — count converted calls within the active date range and assignee filter
+        const convertedBaseParams = { ...baseParams };
+        delete convertedBaseParams.is_converted; // override with converted=true
+        delete convertedBaseParams.call_status;
+        const convertedPromise =
+          conversionFilter === 'not_converted'
+            ? Promise.resolve({ count: 0 })
+            : ASECustomerService.getCustomers({
+                ...convertedBaseParams,
+                is_converted: 'true',
+              });
+
+        const [todayCallsRes, answeredRes, convertedRes] = await Promise.all([
+          todayCallsPromise,
+          answeredPromise,
+          convertedPromise,
+        ]);
+
+        setFilteredStats({
+          todayCalls: todayCallsRes.count || 0,
+          answered: answeredRes.count || 0,
+          converted: convertedRes.count || 0,
+        });
       } catch (error) {
-        logger.error('Error fetching all customers for stats:', error);
+        logger.error('Error fetching filtered customer stats:', error);
       } finally {
         setLoadingStats(false);
       }
     };
-    fetchAllForStats();
+    fetchFilteredStats();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId]);
 
@@ -493,47 +544,28 @@ export default function AdminASECustomers() {
     setSelectedIds(new Set());
   }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter, dateFromFilter, dateToFilter]);
 
-  // Calculate today's stats from ALL filtered customers (across all pages)
+  // Derive labels for the count-only stat cards
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
     const selectedDateStr = selectedDate ? new Date(selectedDate).toDateString() : today;
     
-    let displayDate = 'Today';
-    if (selectedDateStr !== today) {
-      displayDate = new Date(selectedDate).toLocaleDateString();
-    }
-    
-    // Use allFilteredCustomers for accurate counts across all pages
-    const displayCount = allFilteredCustomers.length;
-    
-    let todayCalls = 0;
-    let answered = 0;
-    let converted = 0;
-    
-    for (const customer of allFilteredCustomers) {
-      const createdDate = new Date(customer.created_at);
-      
-      // Count customers created on the selected date as "calls"
-      if (createdDate.toDateString() === selectedDateStr) {
-        todayCalls++;
-        if (customer.call_status === 'answered') {
-          answered++;
-        }
+    let callsLabel = 'Today Calls';
+    if (dateFromFilter && dateToFilter) {
+      if (dateFromFilter === dateToFilter) {
+        callsLabel = new Date(dateFromFilter).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' Calls';
+      } else {
+        callsLabel = 'Period Calls';
       }
-      
-      if (customer.is_converted) {
-        converted++;
-      }
+    } else if (selectedDateStr !== today) {
+      callsLabel = new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' Calls';
     }
-    
+
     return {
-      displayDate,
+      callsLabel,
       displayCount,
-      todayCalls,
-      answered,
-      converted
+      ...filteredStats
     };
-  }, [allFilteredCustomers, selectedDate]);
+  }, [displayCount, filteredStats, selectedDate, dateFromFilter, dateToFilter]);
 
   const getCallStatusColor = (status: string) => {
     switch (status) {
@@ -578,7 +610,7 @@ export default function AdminASECustomers() {
             <div className="flex items-center gap-2">
               <PhoneIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Today Calls</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{todayStats.callsLabel}</p>
                 <p className="text-xl md:text-2xl font-bold text-foreground">{todayStats.todayCalls}</p>
               </div>
             </div>

@@ -101,10 +101,17 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         date_to = self.request.query_params.get('date_to')
         month = self.request.query_params.get('month')
 
-        if month:
+        if month and not (date_from or date_to):
+            # Use date range instead of __year/__month which operates in UTC
+            # and misses records created near midnight in IST
             try:
-                year, mon = month.split('-')
-                qs = qs.filter(created_at__year=int(year), created_at__month=int(mon))
+                from datetime import date, timedelta
+                year_str, month_str = month.split('-')
+                y, m = int(year_str), int(month_str)
+                first = date(y, m, 1)
+                next_first = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+                last = next_first - timedelta(days=1)
+                qs = qs.filter(created_at__date__gte=first, created_at__date__lte=last)
             except (ValueError, IndexError):
                 pass
 

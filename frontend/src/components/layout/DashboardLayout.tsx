@@ -50,7 +50,7 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
         'team_lead': '/staff',  // team_lead uses same staff panel
         'hr': '/hr'
       };
-      const redirectPath = roleRouteMap[user?.role] || '/login';
+      const redirectPath = (user?.role ? roleRouteMap[user.role] : undefined) || '/login';
       return <Navigate to={redirectPath} replace />;
     }
   }

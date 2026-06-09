@@ -23,10 +23,49 @@ export type WebSocketEventType =
 
 export interface WebSocketMessage {
   type: WebSocketEventType;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export type WebSocketEventHandler = (message: WebSocketMessage) => void;
+
+function getWebSocketUrl(token: string): string {
+  const configuredApiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+
+  let wsHost: string;
+  let wsProtocol: string;
+
+  if (configuredApiBase) {
+    try {
+      const apiUrl = new URL(configuredApiBase, window.location.origin);
+      const apiHostname = apiUrl.hostname;
+
+      // If the configured API hostname is localhost/127.0.0.1 but the page is served
+      // from a real domain (production), ignore the env value and use the page origin.
+      // This prevents the build-time localhost value from breaking WebSocket in production.
+      const isLocalhost = apiHostname === 'localhost' || apiHostname === '127.0.0.1';
+      const pageIsRemote = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+      if (isLocalhost && pageIsRemote) {
+        // Fall back to the page's own origin
+        wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsHost = window.location.host;
+      } else {
+        wsProtocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsHost = apiUrl.host; // includes port if any
+      }
+    } catch {
+      // Malformed URL — fall back to page origin
+      wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsHost = window.location.host;
+    }
+  } else {
+    // No env var — derive from current page
+    wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsHost = window.location.host;
+  }
+
+  return `${wsProtocol}//${wsHost}/ws/notifications/?token=${token}`;
+}
 
 class WebSocketService {
   private socket: WebSocket | null = null;
@@ -53,11 +92,7 @@ class WebSocketService {
 
     this.isIntentionallyClosed = false;
     
-    // Get WebSocket URL from environment or construct from API URL
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = apiUrl.replace(/^https?:\/\//, '');
-    const wsUrl = `${wsProtocol}://${wsHost}/ws/notifications/?token=${token}`;
+    const wsUrl = getWebSocketUrl(token);
 
     logger.log('🔌 Connecting to WebSocket:', wsUrl.replace(token, '***'));
 
@@ -146,7 +181,7 @@ class WebSocketService {
   /**
    * Send a message to the server
    */
-  send(message: any): void {
+  send(message: unknown): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
     } else {
