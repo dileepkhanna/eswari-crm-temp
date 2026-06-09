@@ -15,6 +15,9 @@ interface FilterState {
   search: string;       // raw input value (shown in the input)
   debouncedSearch: string; // committed to the API after 400 ms
   status: string;
+  dateFrom: string;
+  dateTo: string;
+  month: string;
   page: number;
 }
 
@@ -22,7 +25,10 @@ type FilterAction =
   | { type: 'SET_SEARCH_COMMIT'; search: string }   // debounce fires: update both + reset page
   | { type: 'SET_STATUS'; status: string }           // filter change: reset page
   | { type: 'SET_PAGE'; page: number }
-  | { type: 'SET_SEARCH_RAW'; search: string };      // immediate: only update the input value
+  | { type: 'SET_SEARCH_RAW'; search: string }      // immediate: only update the input value
+  | { type: 'SET_DATE_FROM'; dateFrom: string }
+  | { type: 'SET_DATE_TO'; dateTo: string }
+  | { type: 'SET_MONTH'; month: string };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
   switch (action.type) {
@@ -35,6 +41,12 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
       return { ...state, status: action.status, page: 1 };
     case 'SET_PAGE':
       return { ...state, page: action.page };
+    case 'SET_DATE_FROM':
+      return { ...state, dateFrom: action.dateFrom || '', page: 1 };
+    case 'SET_DATE_TO':
+      return { ...state, dateTo: action.dateTo || '', page: 1 };
+    case 'SET_MONTH':
+      return { ...state, month: action.month || 'all', page: 1 };
     default:
       return state;
   }
@@ -54,6 +66,12 @@ interface ASECustomerContextType {
   setSearchTerm: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
+  dateFrom: string;
+  dateTo: string;
+  monthFilter: string;
+  setDateFromFilter: (v: string) => void;
+  setDateToFilter: (v: string) => void;
+  setMonthFilter: (v: string) => void;
   
   // CRUD operations
   fetchCustomers: () => Promise<void>;
@@ -117,6 +135,9 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     search: '',
     debouncedSearch: '',
     status: 'all',
+    dateFrom: '',
+    dateTo: '',
+    month: 'all',
     page: 1,
   });
 
@@ -136,6 +157,18 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     dispatch({ type: 'SET_STATUS', status: v });
   }, []);
 
+  const setDateFromFilter = useCallback((v: string) => {
+    dispatch({ type: 'SET_DATE_FROM', dateFrom: v });
+  }, []);
+
+  const setDateToFilter = useCallback((v: string) => {
+    dispatch({ type: 'SET_DATE_TO', dateTo: v });
+  }, []);
+
+  const setMonthFilter = useCallback((v: string) => {
+    dispatch({ type: 'SET_MONTH', month: v });
+  }, []);
+
   const setCurrentPage = useCallback((page: number) => {
     dispatch({ type: 'SET_PAGE', page });
   }, []);
@@ -145,6 +178,9 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
   const statusFilter = filters.status;
   const searchTerm = filters.search;
   const debouncedSearch = filters.debouncedSearch;
+  const dateFromFilter = filters.dateFrom;
+  const dateToFilter = filters.dateTo;
+  const monthFilter = filters.month;
 
   // Fetch customers with pagination + filters
   const fetchCustomers = useCallback(async () => {
@@ -160,6 +196,9 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
         search: debouncedSearch || undefined,
         call_status: statusFilter !== 'all' ? statusFilter : undefined,
         company: companyId || undefined,
+        date_from: dateFromFilter || undefined,
+        date_to: dateToFilter || undefined,
+        month: monthFilter && monthFilter !== 'all' ? monthFilter : undefined,
       });
       setCustomers(data.results);
       setTotalCount(data.count);
@@ -171,7 +210,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [user, selectedCompany, currentPage, debouncedSearch, statusFilter]);
+  }, [user, selectedCompany, currentPage, debouncedSearch, statusFilter, dateFromFilter, dateToFilter, monthFilter]);
 
   // Create customer
   const createCustomer = useCallback(async (data: Partial<ASECustomerFormData>): Promise<ASECustomer> => {
@@ -472,6 +511,12 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    dateFrom: dateFromFilter,
+    dateTo: dateToFilter,
+    monthFilter: monthFilter,
+    setDateFromFilter,
+    setDateToFilter,
+    setMonthFilter,
     fetchCustomers,
     createCustomer,
     updateCustomer,

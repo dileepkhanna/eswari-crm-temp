@@ -208,6 +208,7 @@ const AppRouter = () => {
       {/* Manager Routes */}
       <Route path="/manager" element={<DashboardLayout requiredRole="manager" />}>
         <Route index element={<DashboardIndex adminEl={<ManagerDashboard />} managerEl={<ManagerDashboard />} staffEl={<ManagerDashboard />} basePath="/manager" />} />
+        <Route path="ase-dashboard" element={<AdminASEDashboard />} />
         <Route path="ase-customers" element={<ManagerASECustomers />} />
         <Route path="ase-leads" element={<ManagerASELeads />} />
         <Route path="ase-tasks" element={<AdminASETasks />} />
@@ -249,6 +250,7 @@ const AppRouter = () => {
       {/* Staff Routes (for employee role) */}
       <Route path="/staff" element={<DashboardLayout requiredRole="employee" />}>
         <Route index element={<DashboardIndex adminEl={<StaffDashboard />} managerEl={<StaffDashboard />} staffEl={<StaffDashboard />} basePath="/staff" />} />
+        <Route path="ase-dashboard" element={<AdminASEDashboard />} />
         <Route path="ase-customers" element={<StaffASECustomers />} />
         <Route path="ase-leads" element={<StaffASELeads />} />
         <Route path="ase-tasks" element={<AdminASETasks />} />

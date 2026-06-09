@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import TopBar from '@/components/layout/TopBar';
@@ -22,13 +22,14 @@ import CallLogPanel from '@/components/ase-customers/CallLogPanel';
 import NotesPanel from '@/components/ase-customers/NotesPanel';
 import { useASECustomers } from '@/contexts/ASECustomerContext';
 import { useASELead } from '@/contexts/ASELeadContext';
-import { ASECustomer, ASE_CALL_STATUS_OPTIONS, ASE_SERVICE_OPTIONS } from '@/types/ase-customer';
+import { ASECustomer, ASE_CALL_STATUS_OPTIONS, ASE_SERVICE_OPTIONS, ASECustomerFormData } from '@/types/ase-customer';
 import { ASECustomerService } from '@/services/ase-customer.service';
 import { toast } from 'sonner';
 
 import { logger } from '@/lib/logger';
 export default function AdminASECustomers() {
   const { user } = useAuth();
+  const resolvedUserRole: 'admin' | 'manager' | 'employee' | 'hr' = (user && typeof user.role === 'string' && ['admin', 'manager', 'employee', 'hr'].includes(user.role)) ? (user.role as 'admin' | 'manager' | 'employee' | 'hr') : 'admin';
   const { selectedCompany } = useCompany();
   const [conversionFilter, setConversionFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
@@ -42,7 +43,8 @@ export default function AdminASECustomers() {
   const [selectedCustomer, setSelectedCustomer] = useState<ASECustomer | null>(null);
   const [convertCustomer, setConvertCustomer] = useState<ASECustomer | null>(null);
   const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
-  const [employees, setEmployees] = useState<any[]>([]);
+  interface ASELocalEmployee { id: string; first_name: string; last_name: string; username: string; role: string }
+  const [employees, setEmployees] = useState<ASELocalEmployee[]>([]);
   
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -59,10 +61,11 @@ export default function AdminASECustomers() {
   const [followUpCount, setFollowUpCount] = useState<number>(0);
   const [allFilteredCustomers, setAllFilteredCustomers] = useState<ASECustomer[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [backendFilteredCustomers, setBackendFilteredCustomers] = useState<ASECustomer[]>([]);
-  const [useBackendFiltered, setUseBackendFiltered] = useState(false);
-  const [backendFilteredCount, setBackendFilteredCount] = useState(0);
-  const [backendFilteredPages, setBackendFilteredPages] = useState(1);
+  // Single source of truth for the paginated display — always filtered server-side
+  const [displayCustomers, setDisplayCustomers] = useState<ASECustomer[]>([]);
+  const [displayCount, setDisplayCount] = useState(0);
+  const [displayPages, setDisplayPages] = useState(1);
+  const [displayLoading, setDisplayLoading] = useState(false);
   
   const { 
     customers, 
@@ -83,6 +86,9 @@ export default function AdminASECustomers() {
     bulkDeleteCustomers,
     overdueCount,
     refreshOverdueCount,
+    setDateFromFilter: contextSetDateFromFilter,
+    setDateToFilter: contextSetDateToFilter,
+    setMonthFilter: contextSetMonthFilter,
   } = useASECustomers();
 
   // Real-time updates via WebSocket
@@ -92,11 +98,11 @@ export default function AdminASECustomers() {
 
   // Derive the ASE company ID from loaded customers (most reliable source)
   const aseCompanyId = useMemo(() => {
-    if (customers.length > 0) return (customers[0] as any).company;
+    if (customers.length > 0) return (customers[0] as unknown as { company?: number })?.company;
     return selectedCompany?.id || user?.company?.id || null;
   }, [customers, selectedCompany, user]);
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       // Use the dedicated teammates endpoint — always filter by ASE Technologies (company=2)
       const companyId = aseCompanyId || 2; // ASE Technologies is always company 2
@@ -109,17 +115,19 @@ export default function AdminASECustomers() {
 
       if (response.ok) {
         const data = await response.json();
-        setEmployees(Array.isArray(data) ? data : data.results || []);
+        type RawEmployee = { id: string | number; first_name?: string; last_name?: string; username?: string; role?: string };
+        const raw = Array.isArray(data) ? data as RawEmployee[] : (data.results || []) as RawEmployee[];
+        setEmployees(raw.map((e) => ({ id: String(e.id), first_name: e.first_name || '', last_name: e.last_name || '', username: e.username || `${e.first_name || ''}`.trim(), role: e.role || '' })));
       }
     } catch (error) {
       logger.error('Failed to load employees:', error);
     }
-  };
+  }, [aseCompanyId]);
 
   // Load employees when the ASE company ID is resolved
   useEffect(() => {
     loadEmployees();
-  }, [aseCompanyId]);
+  }, [loadEmployees]);
 
   // Load today's follow-up count on mount
   useEffect(() => {
@@ -128,119 +136,95 @@ export default function AdminASECustomers() {
       .catch(() => {});
   }, []);
 
-  // Fetch ALL filtered customers for accurate stats (not paginated)
+  // Build the shared API params from all active filters
+  const buildApiParams = (extra: { page?: number; page_size?: number } = {}) => {
+    const apiParams: Record<string, unknown> = {
+      company: aseCompanyId || undefined,
+      ...extra,
+    };
+    if (searchTerm) apiParams.search = searchTerm;
+    if (statusFilter !== 'all') apiParams.call_status = statusFilter;
+    if (assigneeFilter !== 'all') apiParams.assigned_to = assigneeFilter;
+    if (conversionFilter === 'converted') apiParams.is_converted = 'true';
+    else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+    if (overdueFilter) apiParams.overdue = 'true';
+    if (selectedDate) apiParams.date = selectedDate;
+    // Only send date_from/date_to — skip the redundant month param to avoid double-filtering
+    if (dateFromFilter) apiParams.date_from = dateFromFilter;
+    if (dateToFilter) apiParams.date_to = dateToFilter;
+    return apiParams;
+  };
+
+  // Fetch paginated display list — always server-side with ALL active filters
+  useEffect(() => {
+    const fetchDisplay = async () => {
+      if (!aseCompanyId && aseCompanyId !== 0) return; // wait until companyId resolves
+      try {
+        setDisplayLoading(true);
+        const res = await ASECustomerService.getCustomers(buildApiParams({ page: currentPage, page_size: 50 }));
+        setDisplayCustomers(res.results);
+        setDisplayCount(res.count || res.results.length);
+        setDisplayPages(Math.ceil((res.count || res.results.length) / 50) || 1);
+      } catch (error) {
+        logger.error('Error fetching display customers:', error);
+      } finally {
+        setDisplayLoading(false);
+      }
+    };
+    fetchDisplay();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage]);
+
+  // Fetch ALL matching records (unpaginated) for accurate stat cards
   useEffect(() => {
     const fetchAllForStats = async () => {
       try {
         setLoadingStats(true);
-        const apiParams: any = {
-          page: 1,
-          page_size: 10000, // Fetch all matching customers
-          company: aseCompanyId || undefined,
-        };
-        
-        // Apply server-side filters
-        if (searchTerm) apiParams.search = searchTerm;
-        if (statusFilter !== 'all') apiParams.call_status = statusFilter;
-        if (assigneeFilter !== 'all') {
-          apiParams.assigned_to = assigneeFilter; // handles both numeric ID and 'unassigned'
-        }
-        if (conversionFilter === 'converted') apiParams.is_converted = 'true';
-        else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
-        if (overdueFilter) apiParams.overdue = 'true';
-        if (selectedDate) apiParams.date = selectedDate;
-        if (monthFilter !== 'all') apiParams.month = monthFilter;
-        if (dateFromFilter) apiParams.date_from = dateFromFilter;
-        if (dateToFilter) apiParams.date_to = dateToFilter;
-        
-        const res = await ASECustomerService.getCustomers(apiParams);
-        let allCustomers = res.results;
-        
-        setAllFilteredCustomers(allCustomers);
+        const res = await ASECustomerService.getCustomers(buildApiParams({ page: 1, page_size: 10000 }));
+        setAllFilteredCustomers(res.results);
       } catch (error) {
         logger.error('Error fetching all customers for stats:', error);
       } finally {
         setLoadingStats(false);
       }
     };
-    
     fetchAllForStats();
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, monthFilter, dateFromFilter, dateToFilter, aseCompanyId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId]);
 
-  // Fetch paginated customers with backend filters when advanced filters are active
-  useEffect(() => {
-    const fetchBackendFiltered = async () => {
-      // Use backend filtering when assignee, date, or month filters are active
-      const hasAdvancedFilters = assigneeFilter !== 'all' || monthFilter !== 'all' || dateFromFilter || dateToFilter || overdueFilter;
-      if (!hasAdvancedFilters) {
-        setUseBackendFiltered(false);
-        return;
-      }
-
-      try {
-        const apiParams: any = {
-          page: currentPage,
-          page_size: 50,
-          company: aseCompanyId || undefined,
-        };
-        
-        // Apply server-side filters
-        if (searchTerm) apiParams.search = searchTerm;
-        if (statusFilter !== 'all') apiParams.call_status = statusFilter;
-        if (assigneeFilter !== 'all') {
-          apiParams.assigned_to = assigneeFilter; // handles 'unassigned' on backend
-        }
-        if (conversionFilter === 'converted') apiParams.is_converted = 'true';
-        else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
-        if (overdueFilter) apiParams.overdue = 'true';
-        if (selectedDate) apiParams.date = selectedDate;
-        if (monthFilter !== 'all') apiParams.month = monthFilter;
-        if (dateFromFilter) apiParams.date_from = dateFromFilter;
-        if (dateToFilter) apiParams.date_to = dateToFilter;
-        
-        const res = await ASECustomerService.getCustomers(apiParams);
-        let results = res.results;
-        
-        setBackendFilteredCustomers(results);
-        setBackendFilteredCount(res.count || results.length);
-        setBackendFilteredPages(Math.ceil((res.count || results.length) / 50) || 1);
-        setUseBackendFiltered(true);
-      } catch (error) {
-        logger.error('Error fetching backend filtered customers:', error);
-        setUseBackendFiltered(false);
-      }
+    const getErrorMessage = (err: unknown) => {
+      if (typeof err === 'string') return err;
+      if (err instanceof Error) return err.message;
+      try { return JSON.stringify(err); } catch { return String(err); }
     };
-    
-    fetchBackendFiltered();
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, monthFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage]);
 
-  const handleCreateCustomer = async (customerData: any) => {
+  const handleCreateCustomer = async (customerData: Partial<ASECustomerFormData>) => {
     try {
       logger.log('📄 ASE Customers: Creating customer with data:', customerData);
       // Always pass the ASE company ID explicitly so admin doesn't accidentally
       // create customers under the wrong company (e.g. Eswari Group)
-      await createCustomer({ ...customerData, company: aseCompanyId });
+      await createCustomer({ ...(customerData as Partial<ASECustomerFormData>), company: aseCompanyId } as Partial<ASECustomerFormData>);
       logger.log('✅ ASE Customers: Customer created successfully');
       setIsCreateModalOpen(false);
-    } catch (error: any) {
-      logger.error('❌ ASE Customers: Failed to create customer:', error);
+    } catch (error: unknown) {
+      logger.error('❌ ASE Customers: Failed to create customer:', getErrorMessage(error));
       // Error toast is handled in the context
     }
   };
 
-  const handleUpdateCustomer = async (customerData: any) => {
+  const handleUpdateCustomer = async (customerData: Partial<ASECustomerFormData>) => {
     if (!selectedCustomer) return;
     
     try {
       await updateCustomer(selectedCustomer.id, customerData);
       setSelectedCustomer(null);
-    } catch (error: any) {
-      logger.error('❌ ASE Customers: Failed to update customer:', error);
+    } catch (error: unknown) {
+      logger.error('❌ ASE Customers: Failed to update customer:', getErrorMessage(error));
       // Error toast is handled in the context
     }
   };
 
-  const handleConvertToLead = async (leadData: any) => {
+  const handleConvertToLead = async (leadData: Record<string, unknown>) => {
     if (!convertCustomer) return;
     
     try {
@@ -250,8 +234,8 @@ export default function AdminASECustomers() {
       setConvertCustomer(null);
       // Refresh the leads list so the new lead appears immediately
       fetchASELeads();
-    } catch (error: any) {
-      logger.error('❌ ASE Customers: Failed to convert customer to lead:', error);
+    } catch (error: unknown) {
+      logger.error('❌ ASE Customers: Failed to convert customer to lead:', getErrorMessage(error));
       // Error toast is handled in the context
     }
   };
@@ -267,51 +251,8 @@ export default function AdminASECustomers() {
     setReassignTarget(null);
     fetchCustomers();
   };
-  // Client-side filter for conversion/assignee/date/overdue (search & status are server-side)
-  const filteredCustomers = useMemo(() => {
-    const today = new Date().toDateString();
-    const filterDateStr = selectedDate ? new Date(selectedDate).toDateString() : null;
-    const now = new Date();
-
-    // Use backend-filtered results when assignee filter is active
-    const sourceCustomers = useBackendFiltered ? backendFilteredCustomers : customers;
-    
-    return sourceCustomers.filter(customer => {
-      // Overdue filter: scheduled_date in the past + still pending
-      if (overdueFilter) {
-        const isOverdue = customer.scheduled_date &&
-          new Date(customer.scheduled_date) < now &&
-          customer.call_status === 'pending';
-        if (!isOverdue) return false;
-      }
-
-      // Conversion filter
-      let matchesConversion = true;
-      if (conversionFilter === 'converted') matchesConversion = customer.is_converted;
-      else if (conversionFilter === 'not_converted') matchesConversion = !customer.is_converted;
-
-      // Assignee filter (only apply if not using backend filtered results)
-      let matchesAssignee = true;
-      if (!useBackendFiltered) {
-        if (assigneeFilter === 'unassigned') {
-          matchesAssignee = !customer.assigned_to;
-        } else if (assigneeFilter !== 'all') {
-          // Compare as numbers to handle both string and number IDs
-          const customerAssignedId = customer.assigned_to ? parseInt(customer.assigned_to.toString()) : null;
-          const filterAssignedId = parseInt(assigneeFilter);
-          matchesAssignee = customerAssignedId === filterAssignedId;
-        }
-      }
-
-      // Date filter
-      let matchesDate = true;
-      if (filterDateStr) {
-        matchesDate = new Date(customer.created_at).toDateString() === filterDateStr;
-      }
-
-      return matchesConversion && matchesAssignee && matchesDate;
-    });
-  }, [customers, backendFilteredCustomers, useBackendFiltered, conversionFilter, assigneeFilter, selectedDate, overdueFilter]);
+  // filteredCustomers is now always the server-side paginated result
+  const filteredCustomers = displayCustomers;
 
   // Bulk selection handlers
   const toggleSelectAll = () => {
@@ -411,7 +352,7 @@ export default function AdminASECustomers() {
   const handleExportAll = async () => {
     try {
       // Build API params matching all active server-side filters
-      const apiParams: any = {
+      const apiParams: Record<string, unknown> = {
         page: 1,
         page_size: 1000,
         company: aseCompanyId || undefined,
@@ -444,7 +385,7 @@ export default function AdminASECustomers() {
         Name: c.name || '',
         Phone: c.phone,
         Email: c.email || '',
-        'Company Name': (c as any).company_name_display || c.company_name || '',
+        'Company Name': (c as ASECustomer).company_name_display || c.company_name || '',
         'Call Status': c.call_status,
         'Assigned To': c.assigned_to_name || '',
         'Created At': new Date(c.created_at).toLocaleDateString(),
@@ -484,7 +425,7 @@ export default function AdminASECustomers() {
       if (bulkAssignEmployeeId === 'remove') {
         // Remove assignment — patch each customer with assigned_to = null
         await Promise.all(
-          Array.from(selectedIds).map(id => updateCustomer(id, { assigned_to: null } as any))
+          Array.from(selectedIds).map(id => updateCustomer(id, { assigned_to: null } as Partial<ASECustomerFormData>))
         );
         toast.success(`Assignment removed from ${selectedIds.size} call${selectedIds.size !== 1 ? 's' : ''}`);
         setSelectedIds(new Set());
@@ -516,7 +457,7 @@ export default function AdminASECustomers() {
 
   const handleStatusChange = async (customerId: string, newStatus: string, customStatusText?: string) => {
     try {
-      const updateData: any = { call_status: newStatus };
+      const updateData: Record<string, unknown> = { call_status: newStatus };
       if (newStatus === 'custom' && customStatusText) {
         updateData.custom_call_status = customStatusText;
       }
@@ -541,10 +482,16 @@ export default function AdminASECustomers() {
   const clearDateFilter = () => {
     setSelectedDate('');
   };
+  // Reset page to 1 whenever any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter]);
+
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter, monthFilter]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter, dateFromFilter, dateToFilter]);
 
   // Calculate today's stats from ALL filtered customers (across all pages)
   const todayStats = useMemo(() => {
@@ -623,7 +570,7 @@ export default function AdminASECustomers() {
       
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         {/* Announcements */}
-        <AnnouncementBanner userRole={user?.role || 'admin'} maxDisplay={2} />
+        <AnnouncementBanner userRole={resolvedUserRole} maxDisplay={2} />
         
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -743,25 +690,25 @@ export default function AdminASECustomers() {
                 {statusFilter !== 'all' && (
                   <span className="h-6 px-2 text-[10px] rounded-full bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
                     {ASE_CALL_STATUS_OPTIONS.find(o => o.value === statusFilter)?.label || statusFilter}
-                    <button onClick={() => setStatusFilter('all')}><XIcon className="w-2.5 h-2.5" /></button>
+                    <button onClick={() => setStatusFilter('all')} aria-label="Clear status filter"><XIcon className="w-2.5 h-2.5" /></button>
                   </span>
                 )}
                 {overdueFilter && (
                   <span className="h-6 px-2 text-[10px] rounded-full bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
                     Overdue {overdueCount > 0 && `(${overdueCount})`}
-                    <button onClick={() => setOverdueFilter(false)}><XIcon className="w-2.5 h-2.5" /></button>
+                    <button onClick={() => setOverdueFilter(false)} aria-label="Clear overdue filter"><XIcon className="w-2.5 h-2.5" /></button>
                   </span>
                 )}
                 {assigneeFilter !== 'all' && (
                   <span className="h-6 px-2 text-[10px] rounded-full bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
                     {assigneeFilter === 'unassigned' ? 'Unassigned' : employees.find(e => e.id.toString() === assigneeFilter)?.first_name || 'Assignee'}
-                    <button onClick={() => setAssigneeFilter('all')}><XIcon className="w-2.5 h-2.5" /></button>
+                    <button onClick={() => setAssigneeFilter('all')} aria-label="Clear assignee filter"><XIcon className="w-2.5 h-2.5" /></button>
                   </span>
                 )}
                 {(monthFilter !== 'all' || dateFromFilter) && (
                   <span className="h-6 px-2 text-[10px] rounded-full bg-green-100 text-green-700 border border-green-200 flex items-center gap-1">
                     {monthFilter !== 'all' ? new Date(monthFilter + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : `${dateFromFilter} → ${dateToFilter}`}
-                    <button onClick={() => { setMonthFilter('all'); setDateFromFilter(''); setDateToFilter(''); }}><XIcon className="w-2.5 h-2.5" /></button>
+                    <button onClick={() => { setMonthFilter('all'); setDateFromFilter(''); setDateToFilter(''); }} aria-label="Clear date filter"><XIcon className="w-2.5 h-2.5" /></button>
                   </span>
                 )}
               </div>
@@ -769,7 +716,7 @@ export default function AdminASECustomers() {
           </div>
           {/* Customer List */}
           <div className="mt-4" />
-          {loading ? (
+          {displayLoading ? (
             <div className="text-center py-12">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <UserIcon className="w-8 h-8 text-primary animate-pulse" />
@@ -783,7 +730,7 @@ export default function AdminASECustomers() {
               <div className="p-4 border-b flex items-center justify-between">
                 <span className="text-sm font-medium">Call List</span>
                 <span className="text-sm text-muted-foreground">
-                  {useBackendFiltered ? backendFilteredCount : totalCount} call{(useBackendFiltered ? backendFilteredCount : totalCount) !== 1 ? 's' : ''}
+                  {displayCount} call{displayCount !== 1 ? 's' : ''}
                 </span>
               </div>
               
@@ -791,14 +738,14 @@ export default function AdminASECustomers() {
               <div className="hidden xl:block overflow-hidden">
                 <table className="w-full text-sm">
                   <colgroup>
-                    <col style={{ width: '50px' }} />
-                    <col style={{ width: '140px' }} />
-                    <col style={{ width: '140px' }} />
-                    <col />
-                    <col style={{ width: '140px' }} />
-                    <col style={{ width: '110px' }} />
-                    <col style={{ width: '100px' }} />
-                    <col style={{ width: '180px' }} />
+                        <col width="50" />
+                        <col width="140" />
+                        <col width="140" />
+                        <col />
+                        <col width="140" />
+                        <col width="110" />
+                        <col width="100" />
+                        <col width="180" />
                   </colgroup>
                   <thead>
                     <tr className="border-b bg-muted/30">
@@ -1335,10 +1282,10 @@ export default function AdminASECustomers() {
             </div>
 
             {/* Pagination */}
-            {(useBackendFiltered ? backendFilteredPages : totalPages) > 1 && (
+            {displayPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * 50 + 1} - {Math.min(currentPage * 50, useBackendFiltered ? backendFilteredCount : totalCount)} of {useBackendFiltered ? backendFilteredCount : totalCount} calls
+                  Showing {(currentPage - 1) * 50 + 1} - {Math.min(currentPage * 50, displayCount)} of {displayCount} calls
                 </p>
                 <div className="flex items-center gap-1">
                   <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>{'«'}</Button>
@@ -1346,9 +1293,8 @@ export default function AdminASECustomers() {
                     <ChevronLeftIcon className="w-4 h-4" />
                   </Button>
                   {(() => {
-                    const effectivePages = useBackendFiltered ? backendFilteredPages : totalPages;
-                    const pages = Array.from({ length: effectivePages }, (_, i) => i + 1)
-                      .filter(p => p === 1 || p === effectivePages || Math.abs(p - currentPage) <= 2);
+                    const pages = Array.from({ length: displayPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === displayPages || Math.abs(p - currentPage) <= 2);
                     const items: (number | string)[] = [];
                     pages.forEach((p, i) => {
                       if (i > 0 && p - pages[i - 1] > 1) items.push('...');
@@ -1362,10 +1308,10 @@ export default function AdminASECustomers() {
                       )
                     );
                   })()}
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === (useBackendFiltered ? backendFilteredPages : totalPages)}>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === displayPages}>
                     <ChevronRightIcon className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(useBackendFiltered ? backendFilteredPages : totalPages)} disabled={currentPage === (useBackendFiltered ? backendFilteredPages : totalPages)}>{'»'}</Button>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(displayPages)} disabled={currentPage === displayPages}>{'»'}</Button>
                 </div>
               </div>
             )}
@@ -1688,6 +1634,7 @@ export default function AdminASECustomers() {
                 <label className="text-sm font-medium">Call Status</label>
                 <select
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  aria-label="Call Status"
                   value={statusFilter}
                   onChange={(e) => { setStatusFilter(e.target.value); if (e.target.value !== 'all') setOverdueFilter(false); }}
                 >
@@ -1704,6 +1651,7 @@ export default function AdminASECustomers() {
                   <label className="text-sm font-medium">Assigned To</label>
                   <select
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    aria-label="Assigned To"
                     value={assigneeFilter}
                     onChange={(e) => setAssigneeFilter(e.target.value)}
                   >
@@ -1723,6 +1671,7 @@ export default function AdminASECustomers() {
                   <label className="text-sm font-medium">Conversion</label>
                   <select
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    aria-label="Conversion"
                     value={conversionFilter}
                     onChange={(e) => setConversionFilter(e.target.value)}
                   >
@@ -1749,6 +1698,7 @@ export default function AdminASECustomers() {
                 <label className="text-sm font-medium">Filter by Month</label>
                 <select
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  aria-label="Month"
                   value={monthFilter}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -1825,7 +1775,13 @@ export default function AdminASECustomers() {
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={() => setAdvancedFilterOpen(false)}
+                  onClick={() => {
+                    // Push local filter selections into the shared context
+                    contextSetDateFromFilter(dateFromFilter);
+                    contextSetDateToFilter(dateToFilter);
+                    contextSetMonthFilter(monthFilter);
+                    setAdvancedFilterOpen(false);
+                  }}
                 >
                   Apply & Close
                 </Button>
