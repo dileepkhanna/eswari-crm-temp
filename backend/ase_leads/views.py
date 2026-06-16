@@ -8,7 +8,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Sum
 from django.utils import timezone
 from django.db import transaction
-
 from accounts.permissions import CompanyAccessPermission
 from .models import ASELead
 from .serializers import ASELeadSerializer, ASELeadListSerializer
@@ -51,7 +50,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         'has_website',
         'has_social_media',
     ]
-    
+
     # Ordering fields
     ordering_fields = [
         'created_at',
@@ -63,11 +62,9 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         'estimated_project_value',
     ]
     ordering = ['-created_at']
-
     def get_queryset(self):
         user = self.request.user
         qs = ASELead.objects.select_related('company', 'assigned_to', 'created_by').all()
-
         # Role-based scoping
         if user.is_superuser:
             company_id = self.request.query_params.get('company')
@@ -95,26 +92,16 @@ class ASELeadViewSet(viewsets.ModelViewSet):
             ).distinct()
         else:
             return qs.none()
-
         # Date filters
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
         month = self.request.query_params.get('month')
-
-        if month and not (date_from or date_to):
-            # Use date range instead of __year/__month which operates in UTC
-            # and misses records created near midnight in IST
+        if month:
             try:
-                from datetime import date, timedelta
-                year_str, month_str = month.split('-')
-                y, m = int(year_str), int(month_str)
-                first = date(y, m, 1)
-                next_first = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
-                last = next_first - timedelta(days=1)
-                qs = qs.filter(created_at__date__gte=first, created_at__date__lte=last)
+                year, mon = month.split('-')
+                qs = qs.filter(created_at__year=int(year), created_at__month=int(mon))
             except (ValueError, IndexError):
                 pass
-
         if date_from:
             from datetime import datetime
             try:
@@ -127,9 +114,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(created_at__date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
             except ValueError:
                 pass
-
         return qs
-
     def get_serializer_class(self):
         if self.action == 'list':
             return ASELeadListSerializer
@@ -172,6 +157,10 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         # Notify all ASE clients of new lead
         notify_ase_data_changed('leads', 'created')
     
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        notify_ase_data_changed('leads', 'updated', record_id=instance.id)
+
     def perform_destroy(self, instance):
         record_id = instance.id
         instance.delete()
@@ -387,6 +376,9 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 )
                 imported = len(created)
 
+        if imported > 0:
+            notify_ase_data_changed('leads', 'bulk_imported', extra={'count': imported})
+
         return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
@@ -509,6 +501,9 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             qs.delete()
 
+        if count > 0:
+            notify_ase_data_changed('leads', 'bulk_deleted', extra={'count': count})
+
         return Response({'deleted_count': count}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'])
@@ -546,5 +541,8 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         count = queryset.count()
         with transaction.atomic():
             queryset.delete()
+
+        if count > 0:
+            notify_ase_data_changed('leads', 'bulk_deleted', extra={'count': count})
 
         return Response({'deleted_count': count}, status=status.HTTP_200_OK)

@@ -14,36 +14,46 @@ export const clearInvalidTokens = () => {
   sessionStorage.clear();
   
   logger.log('✅ Tokens cleared successfully');
-  
-  // Don't automatically reload - let the app handle the state change
-  // The authentication context will handle redirecting to login
 };
 
-// Auto-detect and clear invalid tokens on 401 errors
+// Only clear tokens when a 401 happens AND we actually had tokens stored.
+// This prevents wiping a valid session just because an unauthenticated page
+// load fires API calls before the auth context has initialised.
 export const handleAuthError = (error: any) => {
-  if (error?.message?.includes('401') || error?.status === 401) {
+  const is401 = error?.message?.includes('401') || error?.status === 401;
+  if (!is401) return false;
+
+  const hadTokens =
+    !!localStorage.getItem('access_token') ||
+    !!localStorage.getItem('refresh_token');
+
+  if (hadTokens) {
     logger.warn('🚨 401 Unauthorized detected - clearing invalid tokens');
     clearInvalidTokens();
     return true;
   }
+
+  // No tokens were present — this is a normal unauthenticated request,
+  // not a case of stale/invalid tokens. Do nothing.
+  logger.warn('🚨 401 Unauthorized detected - no tokens present, ignoring');
   return false;
 };
 
 // Initialize token cleaner - run this once on app startup
 export const initTokenCleaner = () => {
-  // Check if we have tokens but no valid user data
-  const hasTokens = localStorage.getItem('access_token') || localStorage.getItem('refresh_token');
-  
+  const hasTokens =
+    localStorage.getItem('access_token') || localStorage.getItem('refresh_token');
+
   if (hasTokens) {
     logger.log('🔍 Tokens found, will validate on first API call...');
   }
-  
-  // Listen for unhandled promise rejections that might be auth errors
+
+  // Only intercept unhandled rejections that involve stale tokens.
   window.addEventListener('unhandledrejection', (event) => {
     if (handleAuthError(event.reason)) {
-      event.preventDefault(); // Prevent the error from being logged
+      event.preventDefault();
     }
   });
-  
+
   logger.log('🛡️ Token cleaner initialized');
 };

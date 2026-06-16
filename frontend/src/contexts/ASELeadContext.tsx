@@ -245,7 +245,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       setLeads(prev => prev.filter(l => l.id !== id));
       setTotalCount(prev => Math.max(0, prev - 1));
       // Re-fetch to get accurate count and pagination
-      setTimeout(() => fetchLeads(), 100);
+      fetchLeads();
       toast.success('Lead deleted successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,

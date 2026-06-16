@@ -526,6 +526,9 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
 
             updated = qs.update(assigned_to=assignee)
 
+            if updated > 0:
+                notify_ase_data_changed('calls', 'bulk_updated', extra={'count': updated, 'field': 'assigned_to'})
+
             return Response({
                 'success': True,
                 'updated': updated,
@@ -554,6 +557,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
 
         qs = self.get_queryset().filter(id__in=customer_ids)
         updated = qs.update(call_status=new_status)
+
+        if updated > 0:
+            notify_ase_data_changed('calls', 'bulk_updated', extra={'count': updated, 'field': 'call_status', 'new_status': new_status})
+
         return Response({'success': True, 'updated': updated})
 
     @action(detail=False, methods=['post'])
@@ -602,7 +609,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             for customer in customers_to_delete:
                 customer.delete()
                 deleted_count += 1
-            
+
+            if deleted_count > 0:
+                notify_ase_data_changed('calls', 'bulk_deleted', extra={'count': deleted_count})
+
             return Response({'success': True, 'deleted': deleted_count})
         except Exception as e:
             logger.error(f"Error in bulk_delete: {str(e)}", exc_info=True)
@@ -769,6 +779,9 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             with db_transaction.atomic():
                 created = ASECustomer.objects.bulk_create(to_create, batch_size=500)
                 imported = len(created)
+
+        if imported > 0:
+            notify_ase_data_changed('calls', 'bulk_imported', extra={'count': imported})
 
         return Response({
             'imported': imported,
@@ -1156,45 +1169,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             'activity': activity
         })
     
-    def auto_reassign_remaining_customers(self, converted_employee, manager):
-        """
-        Auto-reassign remaining customers when an employee converts a customer to lead
-        """
-        try:
-            from accounts.models import User
-            
-            # Get remaining non-converted customers assigned to this employee
-            remaining_customers = ASECustomer.objects.filter(
-                assigned_to=converted_employee,
-                is_converted=False,
-                company=converted_employee.company
-            ).exclude(converted_lead_id__isnull=False)
-            
-            if not remaining_customers.exists():
-                return
-            
-            # Get other available employees/telecallers
-            available_employees = User.objects.filter(
-                company=converted_employee.company,
-                role__in=['employee', 'telecaller'],
-                is_active=True
-            ).exclude(id=converted_employee.id)
-            
-            if not available_employees.exists():
-                return
-            
-            # Redistribute customers among available employees
-            for i, customer in enumerate(remaining_customers):
-                new_assignee = available_employees[i % available_employees.count()]
-                customer.assigned_to = new_assignee
-                customer.save()
-                
-                # Log the auto-reassignment
-                logger.info(f"Auto-reassigned customer {customer.id} from {converted_employee.username} to {new_assignee.username}")
-                
-        except Exception as e:
-            # Log error but don't fail the conversion
-            logger.error(f"Failed to auto-reassign customers: {str(e)}")
+    # auto_reassign_remaining_customers has been intentionally removed.
+    # Converting a single call to a lead must NOT reassign the employee's
+    # remaining calls. Each call stays with its current assignee until a
+    # manager explicitly reassigns it.
     
     @action(detail=True, methods=['post'])
     def convert_to_lead(self, request, pk=None):
@@ -1242,9 +1220,14 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             'lead_source': 'customer_conversion',
         }
         
-        # Only add email if customer has one and it's valid
+        # Only add email if customer has one and it looks like a valid email address
         if customer.email and customer.email.strip():
-            lead_data['email'] = customer.email.strip()
+            import re
+            raw_email = customer.email.strip()
+            # Basic email format check — avoids sending placeholder values like "N/A", "-", "none"
+            if re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', raw_email):
+                lead_data['email'] = raw_email
+            # else: silently drop invalid/placeholder emails
         
         # Only add website if it's a valid URL
         website = request.data.get('website', '').strip()
@@ -1270,11 +1253,6 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 # Update customer as converted
                 customer.is_converted = True
                 customer.converted_lead_id = str(lead.id)
-                
-                # Auto-reassign remaining customers if this was assigned to an employee
-                if customer.assigned_to and customer.assigned_to.role in ['employee', 'telecaller']:
-                    self.auto_reassign_remaining_customers(customer.assigned_to, request.user)
-                
                 customer.save()
                 
                 return Response({

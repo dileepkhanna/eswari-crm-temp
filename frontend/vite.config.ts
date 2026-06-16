@@ -11,6 +11,10 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     strictPort: true,
+    headers: {
+      // Force browser to always revalidate index.html so stale builds never get cached
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
     proxy: {
       // Proxy API requests to Django backend
       '/api': {

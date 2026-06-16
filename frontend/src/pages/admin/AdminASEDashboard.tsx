@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import ASELeadStatusChart from '@/components/dashboard/ASELeadStatusChart';
@@ -10,16 +10,49 @@ import { useASECustomers } from '@/contexts/ASECustomerContext';
 import { ASECustomerService } from '@/services/ase-customer.service';
 import { apiClient } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { useASEWebSocket } from '@/hooks/useASEWebSocket';
 import { PhoneCall, CheckCircle, XCircle, Clock, Briefcase, Users, TrendingUp, AlertCircle, ListChecks, CalendarCheck, Target } from 'lucide-react';
 
 export default function AdminASEDashboard() {
-  const { leads, totalCount: leadsTotalCount, stats: leadsStats } = useASELead();
-  const { customers } = useASECustomers();
+  const { leads, totalCount: leadsTotalCount, stats: leadsStats, refreshData: refreshLeads } = useASELead();
+  const { customers, fetchCustomers } = useASECustomers();
   const [customerStats, setCustomerStats] = useState<any>(null);
   const [teamPerformance, setTeamPerformance] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [todayFollowUps, setTodayFollowUps] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
+
+  const fetchCallStats = useCallback(async () => {
+    try {
+      const [stats, perf, overdueNum, followUps] = await Promise.allSettled([
+        ASECustomerService.getStats(),
+        ASECustomerService.getTeamPerformance(),
+        ASECustomerService.getOverdueCount(),
+        ASECustomerService.getFollowUps(),
+      ]);
+      if (stats.status === 'fulfilled') setCustomerStats(stats.value);
+      if (perf.status === 'fulfilled') setTeamPerformance(perf.value);
+      if (overdueNum.status === 'fulfilled') setOverdueCount(overdueNum.value);
+      if (followUps.status === 'fulfilled') setTodayFollowUps((followUps.value as any)?.count ?? 0);
+    } catch (error) {
+      logger.error('Error fetching ASE dashboard stats:', error);
+    }
+  }, []);
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res: any = await apiClient.get('/ase-leads/tasks/my-tasks/?page=1&page_size=200');
+      const list = Array.isArray(res) ? res : res?.results ?? [];
+      setTasks(list);
+    } catch (err) {
+      logger.error('Error fetching ASE tasks:', err);
+    }
+  }, []);
+
+  // Real-time WebSocket updates for the dashboard
+  useASEWebSocket('calls', () => { fetchCallStats(); fetchCustomers(); });
+  useASEWebSocket('leads', () => { refreshLeads(); });
+  useASEWebSocket('tasks', () => { fetchTasks(); });
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -40,7 +73,7 @@ export default function AdminASEDashboard() {
     };
 
     // Fetch tasks via my-tasks (works for all roles, returns tasks visible to current user)
-    const fetchTasks = async () => {
+    const fetchTasksInit = async () => {
       try {
         const res: any = await apiClient.get('/ase-leads/tasks/my-tasks/?page=1&page_size=200');
         const list = Array.isArray(res) ? res : res?.results ?? [];
@@ -51,7 +84,7 @@ export default function AdminASEDashboard() {
     };
 
     fetchAll();
-    fetchTasks();
+    fetchTasksInit();
   }, []);
 
   // Calculate call stats — use flat stats (not by_status) since ASECustomerStats is flat

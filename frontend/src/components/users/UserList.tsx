@@ -231,8 +231,7 @@ export default function UserList(props?: UserListProps) {
     
     try {
       logger.log('🔄 Fetching companies for filter...');
-      const response = await apiClient.getCompanies();
-      
+      const response = await apiClient.getCompanies();      
       // Handle paginated response
       const companiesData = response.results || response;
       const companiesList = Array.isArray(companiesData) ? companiesData : [];

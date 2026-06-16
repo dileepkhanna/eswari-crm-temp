@@ -230,11 +230,12 @@ REST_FRAMEWORK = {
     ],
     # API Documentation schema
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    # API Versioning
-    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
-    'DEFAULT_VERSION': 'v1',
-    'ALLOWED_VERSIONS': ['v1'],
-    'VERSION_PARAM': 'version',
+    # API Versioning — disabled globally so unversioned /api/ routes work correctly.
+    # The v1 prefix is preserved in urls.py for mobile-app stability.
+    # 'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    # 'DEFAULT_VERSION': 'v1',
+    # 'ALLOWED_VERSIONS': ['v1'],
+    # 'VERSION_PARAM': 'version',
 }
 
 # drf-spectacular (OpenAPI/Swagger) settings

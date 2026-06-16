@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import TopBar from '@/components/layout/TopBar';
@@ -66,6 +66,8 @@ export default function AdminASECustomers() {
   const [displayCount, setDisplayCount] = useState(0);
   const [displayPages, setDisplayPages] = useState(1);
   const [displayLoading, setDisplayLoading] = useState(false);
+  // Incrementing this forces fetchDisplay to re-run (used after delete/convert)
+  const [refreshKey, setRefreshKey] = useState(0);
   
   const { 
     customers, 
@@ -91,8 +93,8 @@ export default function AdminASECustomers() {
     setMonthFilter: contextSetMonthFilter,
   } = useASECustomers();
 
-  // Real-time updates via WebSocket
-  useASEWebSocket('calls', () => { fetchCustomers(); });
+  // Stable ref so WS callback always calls the latest fetchDisplay
+  useASEWebSocket('calls', useCallback(() => { setRefreshKey(k => k + 1); }, []));
 
   const { fetchLeads: fetchASELeads } = useASELead();
 
@@ -173,7 +175,7 @@ export default function AdminASECustomers() {
     };
     fetchDisplay();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage, refreshKey]); // refreshKey forces re-fetch after mutations
 
   // Fetch count-only stat card data without downloading all matching records
   useEffect(() => {
@@ -282,6 +284,15 @@ export default function AdminASECustomers() {
       logger.log('📄 ASE Customers: Converting customer to lead:', convertCustomer.name);
       await convertToLead(convertCustomer.id, leadData);
       logger.log('✅ ASE Customers: Customer converted to lead successfully');
+
+      // Immediately update displayCustomers so "Converted" badge shows without a page refresh
+      setDisplayCustomers(prev =>
+        prev.map(c =>
+          c.id === convertCustomer.id
+            ? { ...c, is_converted: true }
+            : c
+        )
+      );
       setConvertCustomer(null);
       // Refresh the leads list so the new lead appears immediately
       fetchASELeads();
@@ -336,7 +347,7 @@ export default function AdminASECustomers() {
   const handleBulkExport = async () => {
     try {
       // Filter customers by selected IDs
-      const selectedCustomers = customers.filter(c => selectedIds.has(c.id));
+      const selectedCustomers = displayCustomers.filter(c => selectedIds.has(c.id));
       
       // Create CSV content
       const headers = ['Name', 'Phone', 'Email', 'Company', 'Status', 'Assigned To', 'Created At'];
@@ -402,43 +413,42 @@ export default function AdminASECustomers() {
 
   const handleExportAll = async () => {
     try {
-      // Build API params matching all active server-side filters
-      const apiParams: Record<string, unknown> = {
-        page: 1,
-        page_size: 1000,
-        company: aseCompanyId || undefined,
-      };
-      if (searchTerm) apiParams.search = searchTerm;
-      if (statusFilter !== 'all') apiParams.call_status = statusFilter;
-      if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned') apiParams.assigned_to = assigneeFilter;
-      if (conversionFilter === 'converted') apiParams.is_converted = 'true';
-      else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+      // Paginated fetch with ALL active server-side filters
+      let allData: ASECustomer[] = [];
+      let page = 1;
+      while (true) {
+        const apiParams: Record<string, unknown> = {
+          page,
+          page_size: 200,
+          company: aseCompanyId || undefined,
+        };
+        if (searchTerm) apiParams.search = searchTerm;
+        if (statusFilter !== 'all') apiParams.call_status = statusFilter;
+        if (assigneeFilter === 'unassigned') apiParams.assigned_to = 'unassigned';
+        else if (assigneeFilter !== 'all') apiParams.assigned_to = assigneeFilter;
+        if (conversionFilter === 'converted') apiParams.is_converted = 'true';
+        else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
+        if (dateFromFilter) apiParams.date_from = dateFromFilter;
+        if (dateToFilter) apiParams.date_to = dateToFilter;
+        if (selectedDate) apiParams.date = selectedDate;
+        if (overdueFilter) apiParams.overdue = 'true';
+        const res = await ASECustomerService.getCustomers(apiParams);
+        allData = allData.concat(res.results);
+        if (!res.next) break;
+        page++;
+      }
 
-      const res = await ASECustomerService.getCustomers(apiParams);
-      let exportList = res.results;
-
-      // Apply client-side-only filters (unassigned, date, overdue)
-      const now = new Date();
-      exportList = exportList.filter(c => {
-        if (assigneeFilter === 'unassigned' && c.assigned_to) return false;
-        if (selectedDate) {
-          const filterDateStr = new Date(selectedDate).toDateString();
-          if (new Date(c.created_at).toDateString() !== filterDateStr) return false;
-        }
-        if (overdueFilter) {
-          const isOverdue = c.scheduled_date && new Date(c.scheduled_date) < now && c.call_status === 'pending';
-          if (!isOverdue) return false;
-        }
-        return true;
-      });
-
-      const data = exportList.map(c => ({
+      const data = allData.map(c => ({
         Name: c.name || '',
         Phone: c.phone,
         Email: c.email || '',
         'Company Name': (c as ASECustomer).company_name_display || c.company_name || '',
         'Call Status': c.call_status,
+        'Custom Status': (c as any).custom_call_status || '',
         'Assigned To': c.assigned_to_name || '',
+        Notes: (c as any).notes || '',
+        'Converted': c.is_converted ? 'Yes' : 'No',
+        'Scheduled Date': c.scheduled_date ? new Date(c.scheduled_date).toLocaleDateString() : '',
         'Created At': new Date(c.created_at).toLocaleDateString(),
       }));
 
@@ -446,12 +456,11 @@ export default function AdminASECustomers() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'ASE Customers');
 
-      // Build descriptive filename from active filters
       const dateStr = new Date().toISOString().split('T')[0];
       const filenameParts = ['ase_customers'];
       if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned') {
         const emp = employees.find(e => e.id.toString() === assigneeFilter);
-        const empName = emp ? (`${emp.first_name} ${emp.last_name}`.trim() || emp.username) : assigneeFilter;
+        const empName = emp ? (emp.first_name + ' ' + emp.last_name).trim() || emp.username : assigneeFilter;
         filenameParts.push(empName.replace(/\s+/g, '_'));
       } else if (assigneeFilter === 'unassigned') {
         filenameParts.push('unassigned');
@@ -462,8 +471,8 @@ export default function AdminASECustomers() {
       if (selectedDate) filenameParts.push(selectedDate);
       filenameParts.push(dateStr);
 
-      XLSX.writeFile(wb, `${filenameParts.join('_')}.xlsx`);
-      toast.success(`${exportList.length} calls exported`);
+      XLSX.writeFile(wb, filenameParts.join('_') + '.xlsx');
+      toast.success(`${data.length} calls exported`);
     } catch (error) {
       logger.error('Export error:', error);
       toast.error('Failed to export calls');
@@ -992,6 +1001,10 @@ export default function AdminASECustomers() {
                                   onClick={async () => {
                                     if (confirm(`Are you sure you want to delete ${customer.name || customer.phone}?`)) {
                                       await deleteCustomer(customer.id);
+                                      // Immediately remove from displayCustomers for instant UI feedback
+                                      setDisplayCustomers(prev => prev.filter(c => c.id !== customer.id));
+                                      setDisplayCount(prev => Math.max(0, prev - 1));
+                                      setRefreshKey(k => k + 1); // re-fetch server count after delete
                                     }
                                   }}
                                   className="cursor-pointer text-red-600 focus:text-red-600"
@@ -1149,6 +1162,10 @@ export default function AdminASECustomers() {
                             onClick={async () => {
                               if (confirm(`Are you sure you want to delete ${customer.name || customer.phone}?`)) {
                                 await deleteCustomer(customer.id);
+                                // Immediately remove from displayCustomers for instant UI feedback
+                                setDisplayCustomers(prev => prev.filter(c => c.id !== customer.id));
+                                setDisplayCount(prev => Math.max(0, prev - 1));
+                                setRefreshKey(k => k + 1); // re-fetch server count after delete
                               }
                             }}
                             className="cursor-pointer text-red-600 focus:text-red-600"

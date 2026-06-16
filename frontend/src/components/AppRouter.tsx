@@ -202,6 +202,7 @@ const AppRouter = () => {
         <Route path="documentation" element={<AdminDocumentation />} />
         <Route path="birthdays" element={<AdminBirthdays />} />
         <Route path="unified-analytics" element={<AdminUnifiedAnalytics />} />
+        <Route path="tech-panel" element={<EnhancedTechnicalTeamPanel />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 
@@ -292,10 +293,10 @@ const AppRouter = () => {
 
       {/* Legacy redirect: /employee -> /staff */}
       <Route path="/employee/*" element={<Navigate to="/staff" replace />} />
-      {/* Legacy redirect: team panels -> /staff */}
-      <Route path="/team/marketing/*" element={<Navigate to="/staff" replace />} />
-      <Route path="/team/technical/*" element={<Navigate to="/staff" replace />} />
-      <Route path="/team/*" element={<Navigate to="/staff" replace />} />
+      {/* All team routes redirect to ASE tech panel */}
+      <Route path="/team/marketing/*" element={<Navigate to="/admin/tech-panel" replace />} />
+      <Route path="/team/technical/*" element={<Navigate to="/admin/tech-panel" replace />} />
+      <Route path="/team/*" element={<Navigate to="/admin/tech-panel" replace />} />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />

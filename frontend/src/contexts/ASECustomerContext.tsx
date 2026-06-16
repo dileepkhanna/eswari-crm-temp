@@ -182,6 +182,10 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
   const dateToFilter = filters.dateTo;
   const monthFilter = filters.month;
 
+  // Stable ref to fetchCustomers — always points to the latest version,
+  // preventing stale-closure bugs in callbacks that call it after async ops.
+  const fetchCustomersRef = useRef<() => void>(() => {});
+
   // Fetch customers with pagination + filters
   const fetchCustomers = useCallback(async () => {
     if (!user) return;
@@ -211,6 +215,11 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       setLoading(false);
     }
   }, [user, selectedCompany, currentPage, debouncedSearch, statusFilter, dateFromFilter, dateToFilter, monthFilter]);
+
+  // Keep the ref in sync so callbacks always call the latest fetch
+  useEffect(() => {
+    fetchCustomersRef.current = fetchCustomers;
+  }, [fetchCustomers]);
 
   // Create customer
   const createCustomer = useCallback(async (data: Partial<ASECustomerFormData>): Promise<ASECustomer> => {
@@ -263,13 +272,14 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       await ASECustomerService.deleteCustomer(id);
       // Remove immediately from local state for instant feedback
       setCustomers(prev => prev.filter(c => c.id !== id));
-      // Then re-fetch to get accurate count and pagination
-      setTimeout(() => fetchCustomers(), 100);
+      setTotalCount(prev => Math.max(0, prev - 1));
       toast.success('ASE Customer deleted successfully');
       if (user) logCustomerActivity(
         { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
         'deleted', customer?.name || customer?.phone || id
       );
+      // Re-fetch for accurate count/pagination (use ref to avoid stale closure)
+      fetchCustomersRef.current();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete customer';
       setError(errorMessage);
@@ -344,6 +354,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       const customer = customers.find(c => c.id === customerId);
       const result = await ASECustomerService.convertToLead(customerId, leadData);
       
+      // Optimistically mark as converted in local state immediately
       setCustomers(prev => 
         prev.map(c => 
           c.id === customerId 
@@ -352,6 +363,8 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
         )
       );
       
+      // Re-fetch to get the full server state (avoids stale data)
+      fetchCustomersRef.current();
       fetchStats();
       if (user) logCustomerActivity(
         { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },

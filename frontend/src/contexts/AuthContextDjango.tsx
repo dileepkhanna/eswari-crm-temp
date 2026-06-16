@@ -156,6 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const data = await apiClient.login(email, password) as any;
+
+      // Guard: login endpoint should always return access/refresh tokens
+      if (!data || !data.access || !data.user) {
+        logger.error('Login: unexpected response shape', data);
+        return { success: false, error: 'Login failed: unexpected server response' };
+      }
       
       // companies list comes from data.companies (top-level), not data.user.available_companies
       const availableCompanies = data.companies || data.user.available_companies || [];
@@ -203,6 +209,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Send userId as the email field - backend will detect it's not an email and use it as username
       const data = await apiClient.login(userId, password) as any;
+
+      // Guard: login endpoint should always return access/refresh tokens
+      if (!data || !data.access || !data.user) {
+        logger.error('Login with User ID: unexpected response shape', data);
+        return { success: false, error: 'Login failed: unexpected server response' };
+      }
       
       // companies list comes from data.companies (top-level), not data.user.available_companies
       const availableCompanies = data.companies || data.user.available_companies || [];

@@ -17,6 +17,7 @@ from ase_leads.models import ASELead
 from capital.models import CapitalCustomer, CapitalLead, CapitalLoan, CapitalService
 from tasks.models import Task
 from accounts.models import User
+from eswari_crm.ws_utils import notify_ase_data_changed
 
 import logging
 
@@ -38,8 +39,7 @@ def _check_permission(user):
 @permission_classes([IsAuthenticated])
 def bulk_assign_leads(request):
     """
-    Bulk assign Eswari Group leads to an employee.
-    
+    Bulk assign Eswari Group leads to an employee.    
     Request body:
     {
         "lead_ids": [1, 2, 3, ...],
@@ -73,13 +73,11 @@ def bulk_assign_leads(request):
         'assigned_to': f"{assignee.first_name} {assignee.last_name}".strip() or assignee.username,
     })
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def bulk_assign_ase_leads(request):
     """
     Bulk assign ASE Technology leads to a team member.
-    
     Request body:
     {
         "lead_ids": [1, 2, 3, ...],
@@ -108,11 +106,13 @@ def bulk_assign_ase_leads(request):
             updated_at=timezone.now()
         )
 
+    if updated > 0:
+        notify_ase_data_changed('leads', 'bulk_updated', extra={'count': updated, 'field': 'assigned_to'})
+
     return Response({
         'updated': updated,
         'assigned_to': f"{assignee.first_name} {assignee.last_name}".strip() or assignee.username,
     })
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Bulk Update Status
@@ -123,7 +123,6 @@ def bulk_assign_ase_leads(request):
 def bulk_update_lead_status(request):
     """
     Bulk update status for Eswari Group leads.
-    
     Request body:
     {
         "lead_ids": [1, 2, 3, ...],
@@ -132,7 +131,6 @@ def bulk_update_lead_status(request):
     """
     if not _check_permission(request.user):
         return Response({'detail': 'Admin or manager access required.'}, status=status.HTTP_403_FORBIDDEN)
-
     lead_ids = request.data.get('lead_ids', [])
     new_status = request.data.get('status')
 
@@ -153,13 +151,12 @@ def bulk_update_lead_status(request):
 
     return Response({'updated': updated, 'new_status': new_status})
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def bulk_update_ase_lead_status(request):
     """
     Bulk update status for ASE Technology leads.
-    
+
     Request body:
     {
         "lead_ids": [1, 2, 3, ...],
@@ -186,6 +183,9 @@ def bulk_update_ase_lead_status(request):
             status=new_status,
             updated_at=timezone.now()
         )
+
+    if updated > 0:
+        notify_ase_data_changed('leads', 'bulk_updated', extra={'count': updated, 'field': 'status', 'new_status': new_status})
 
     return Response({'updated': updated, 'new_status': new_status})
 

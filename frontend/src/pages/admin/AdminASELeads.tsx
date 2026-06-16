@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+﻿import { useState, useRef, useMemo } from 'react';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -120,14 +120,20 @@ export default function AdminASELeads() {
   const handleExportExcel = async () => {
     setExporting(true);
     try {
-      // Fetch all pages
+      // Fetch ALL pages respecting every active filter
+      const companyId = selectedCompany?.id || (user?.company as any)?.id;
       let allLeads: any[] = [];
       let page = 1;
       while (true) {
         const res = await aseLeadService.getLeads({
-          search: searchTerm,
-          status: statusFilter,
-          priority: priorityFilter,
+          search: searchTerm || undefined,
+          status: statusFilter || undefined,
+          priority: priorityFilter || undefined,
+          industry: industryFilter || undefined,
+          created_by: createdByFilter || undefined,
+          date_from: dateFromFilter || undefined,
+          date_to: dateToFilter || undefined,
+          company: companyId || undefined,
           page,
           page_size: 200,
         });
@@ -139,7 +145,7 @@ export default function AdminASELeads() {
       const exportData = allLeads.map((lead) => ({
         'Company Name': lead.company_name,
         'Contact Person': lead.contact_person,
-        'Email': lead.email,
+        'Email': lead.email || '',
         'Phone': lead.phone,
         'Website': lead.website || '',
         'Industry': lead.industry,
@@ -156,7 +162,10 @@ export default function AdminASELeads() {
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'ASE Leads');
-      XLSX.writeFile(wb, `ase-leads-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filterTag = [statusFilter, priorityFilter, industryFilter].filter(Boolean).join('_');
+      const filename = 'ase-leads' + (filterTag ? '_' + filterTag : '') + '_' + dateStr + '.xlsx';
+      XLSX.writeFile(wb, filename);
       toast.success(`Exported ${exportData.length} leads`);
     } catch {
       toast.error('Failed to export leads');

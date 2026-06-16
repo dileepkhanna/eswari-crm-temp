@@ -57,7 +57,6 @@ interface AuthResponse {
   refresh: string;
 }
 
-import { handleAuthError } from './tokenCleaner';
 import type { Customer, CallAllocation } from '@/types';
 
 class ApiClient {
@@ -81,6 +80,16 @@ class ApiClient {
       endpoint.startsWith('/capital/') ||
       endpoint.includes('company=');
     
+    // Public endpoints that must never send an Authorization header.
+    // Sending a stale/expired token to these causes a 401 → refresh loop
+    // that aborts the request before the caller can process the response.
+    const isPublicEndpoint = [
+      '/auth/login/',
+      '/auth/register/',
+      '/auth/setup/',
+      '/auth/invite/register/',
+    ].some(p => endpoint.startsWith(p));
+
     const selectedCompanyStr = localStorage.getItem('selectedCompany');
     if (!skipCompanyFilter && selectedCompanyStr) {
       try {
@@ -106,11 +115,13 @@ class ApiClient {
     // Always get the latest token from localStorage
     this.token = localStorage.getItem('access_token');
     
-    if (this.token) {
+    if (this.token && !isPublicEndpoint) {
       headers['Authorization'] = `Bearer ${this.token}`;
       logger.log(`API Request: ${options.method || 'GET'} ${endpoint} - Token exists: ${!!this.token}`);
-    } else {
+    } else if (!isPublicEndpoint) {
       logger.warn(`API Request: ${options.method || 'GET'} ${endpoint} - No token available`);
+    } else {
+      logger.log(`API Request: ${options.method || 'GET'} ${endpoint} - Public endpoint, skipping auth header`);
     }
 
     const response = await fetch(url, {
@@ -155,14 +166,8 @@ class ApiClient {
         }
       } else {
         logger.error('API: Token refresh failed, clearing tokens');
-        // Refresh failed, clear tokens and throw error
+        // Refresh failed — tokens already cleared by this.logout()
         this.logout();
-        
-        // Use token cleaner to handle auth error
-        const error = new Error(`HTTP error! status: ${response.status}`);
-        if (handleAuthError(error)) {
-          return; // Token cleaner will handle the reload
-        }
         
         let errorData = {};
         try {

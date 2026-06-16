@@ -101,10 +101,11 @@ export default function TechnicalTeamPanel() {
   const fetchTeamMembers = async (teamId: number) => {
     try {
       setLoadingMembers(true);
-      // Fetch users with this team
-      const response = await apiClient.get('/auth/users/', { team: teamId });
-      const users = response?.results || response?.users || [];
-      setTeamMembers(users);
+      // Fetch users filtered by team
+      const response = await apiClient.getUsers({ company: 2 });
+      const allUsers = Array.isArray(response) ? response : (response?.results || []);
+      const filtered = allUsers.filter((u: any) => u.team === teamId);
+      setTeamMembers(filtered);
     } catch (error) {
       console.error('Error fetching team members:', error);
       toast.error('Failed to load team members');

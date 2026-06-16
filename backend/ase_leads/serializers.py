@@ -89,8 +89,9 @@ class ASELeadSerializer(serializers.ModelSerializer):
     company_name_display = serializers.CharField(source='company.name', read_only=True)
     company_code = serializers.CharField(source='company.code', read_only=True)
     
-    # Make email optional
-    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    # Make email optional — use CharField so we can sanitize/validate ourselves
+    # (EmailField's built-in validator rejects placeholder values before validate_email runs)
+    email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     
     # Nested serializers for role assignments (read-only for display)
     researched_by_details = UserBasicSerializer(source='researched_by', read_only=True)
@@ -474,13 +475,18 @@ class ASELeadSerializer(serializers.ModelSerializer):
     
     def validate_email(self, value):
         """
-        Custom email validation to handle empty strings and None values.
+        Custom email validation to handle empty strings, None values,
+        and placeholder strings like "N/A", "-", "none", etc.
         """
         # If email is None, empty string, or just whitespace, return None
         if not value or not value.strip():
             return None
-        # Otherwise, let the EmailField validator handle it
-        return value.strip()
+        stripped = value.strip()
+        # Reject obvious placeholder values that aren't real emails
+        import re
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', stripped):
+            return None
+        return stripped
     
     def validate_lead_score(self, value):
         """
@@ -556,8 +562,9 @@ class ASELeadListSerializer(serializers.ModelSerializer):
     service_interests_display = serializers.ReadOnlyField()
     company_name_display = serializers.CharField(source='company.name', read_only=True)
     
-    # Make email optional
-    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    # Make email optional — use CharField so we can sanitize/validate ourselves
+    # (EmailField's built-in validator rejects placeholder values before validate_email runs)
+    email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     
     # Role assignment names
     researched_by_name = serializers.SerializerMethodField()
