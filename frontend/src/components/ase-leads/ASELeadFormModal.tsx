@@ -68,7 +68,8 @@ export default function ASELeadFormModal({
       if (companyId) params.append('company', String(companyId));
       const data = await apiClient.get(`/ase-leads/check_phone/?${params}`);
       if (data?.exists) {
-        setPhoneError(`Phone number '${phone.trim()}' already exists in your company.`);
+        const assignedTo = data.assigned_to || 'Unknown';
+        setPhoneError(`Phone number '${phone.trim()}' already exists. Assigned to: ${assignedTo}`);
       }
     } catch {
       // silently ignore on blur

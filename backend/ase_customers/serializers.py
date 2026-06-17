@@ -55,9 +55,20 @@ class ASECustomerSerializer(serializers.ModelSerializer):
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():
-                raise serializers.ValidationError(
-                    f"A customer with phone number '{value}' already exists in your company."
-                )
+                # Get the existing customer to show who it's assigned to
+                existing_customer = qs.first()
+                if existing_customer.assigned_to:
+                    assigned_name = f"{existing_customer.assigned_to.first_name} {existing_customer.assigned_to.last_name}".strip()
+                    if not assigned_name:
+                        assigned_name = existing_customer.assigned_to.username
+                    raise serializers.ValidationError(
+                        f"Phone number '{value}' already exists in your company. "
+                        f"Assigned to: {assigned_name}"
+                    )
+                else:
+                    raise serializers.ValidationError(
+                        f"Phone number '{value}' already exists in your company (Unassigned)"
+                    )
         return value
 
     def create(self, validated_data):

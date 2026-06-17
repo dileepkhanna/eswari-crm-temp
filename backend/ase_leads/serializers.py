@@ -464,13 +464,26 @@ class ASELeadSerializer(serializers.ModelSerializer):
         if request and hasattr(request.user, 'company'):
             company = request.user.company
         if company and value:
-            qs = ASELead.objects.filter(phone=value, company=company)
+            qs = ASELead.objects.filter(phone=value, company=company).select_related('assigned_to')
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():
-                raise serializers.ValidationError(
-                    f"A lead with phone number '{value}' already exists in your company."
-                )
+                # Get the existing lead to show who it's assigned to
+                existing_lead = qs.first()
+                if existing_lead and existing_lead.assigned_to:
+                    user = existing_lead.assigned_to
+                    # Build name with multiple fallbacks
+                    assigned_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                    if not assigned_name:
+                        assigned_name = getattr(user, 'username', None) or getattr(user, 'email', None) or f"User #{user.id}"
+                    raise serializers.ValidationError(
+                        f"Phone number '{value}' already exists in your company. "
+                        f"Assigned to: {assigned_name}"
+                    )
+                else:
+                    raise serializers.ValidationError(
+                        f"Phone number '{value}' already exists in your company (Unassigned)"
+                    )
         return value
     
     def validate_email(self, value):

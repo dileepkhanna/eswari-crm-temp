@@ -284,7 +284,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         """
         Check if a phone number already exists in the company.
         Query params: ?phone=<number>&exclude_id=<id> (exclude_id for edit mode)
-        Returns: {"exists": true/false}
+        Returns: {"exists": true/false, "assigned_to": "Employee Name" (if exists)}
         """
         phone = request.query_params.get('phone', '').strip()
         exclude_id = request.query_params.get('exclude_id')
@@ -302,10 +302,23 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                     pass
         if not company:
             return Response({'exists': False})
-        qs = ASECustomer.objects.filter(phone=phone, company=company)
+        qs = ASECustomer.objects.filter(phone=phone, company=company).select_related('assigned_to')
         if exclude_id:
             qs = qs.exclude(pk=exclude_id)
-        return Response({'exists': qs.exists()})
+        
+        if qs.exists():
+            existing_customer = qs.first()
+            response_data = {'exists': True}
+            if existing_customer.assigned_to:
+                assigned_name = f"{existing_customer.assigned_to.first_name} {existing_customer.assigned_to.last_name}".strip()
+                if not assigned_name:
+                    assigned_name = existing_customer.assigned_to.username
+                response_data['assigned_to'] = assigned_name
+            else:
+                response_data['assigned_to'] = 'Unassigned'
+            return Response(response_data)
+        
+        return Response({'exists': False})
 
     @action(detail=True, methods=['get', 'post'])
     def notes_history(self, request, pk=None):

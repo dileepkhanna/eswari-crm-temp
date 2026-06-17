@@ -207,7 +207,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         """
         Check if a phone number already exists in the company.
         Query params: ?phone=<number>&exclude_id=<id>&company=<id>
-        Returns: {"exists": true/false}
+        Returns: {"exists": true/false, "assigned_to": "Employee Name" (if exists)}
         """
         phone = request.query_params.get('phone', '').strip()
         exclude_id = request.query_params.get('exclude_id')
@@ -217,15 +217,30 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         user = request.user
         # Use explicit company param if provided (admin switching companies), else user's company
         if company_id:
-            qs = ASELead.objects.filter(phone=phone, company_id=company_id)
+            qs = ASELead.objects.filter(phone=phone, company_id=company_id).select_related('assigned_to')
         else:
             company = getattr(user, 'company', None)
             if not company:
                 return Response({'exists': False})
-            qs = ASELead.objects.filter(phone=phone, company=company)
+            qs = ASELead.objects.filter(phone=phone, company=company).select_related('assigned_to')
         if exclude_id:
             qs = qs.exclude(pk=exclude_id)
-        return Response({'exists': qs.exists()})
+        
+        if qs.exists():
+            existing_lead = qs.first()
+            response_data = {'exists': True}
+            if existing_lead and existing_lead.assigned_to:
+                user_obj = existing_lead.assigned_to
+                # Build name with multiple fallbacks
+                assigned_name = f"{user_obj.first_name or ''} {user_obj.last_name or ''}".strip()
+                if not assigned_name:
+                    assigned_name = getattr(user_obj, 'username', None) or getattr(user_obj, 'email', None) or f"User #{user_obj.id}"
+                response_data['assigned_to'] = assigned_name
+            else:
+                response_data['assigned_to'] = 'Unassigned'
+            return Response(response_data)
+        
+        return Response({'exists': False})
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -310,8 +325,12 @@ class ASELeadViewSet(viewsets.ModelViewSet):
     def bulk_import(self, request):
         """
         Bulk import ASE leads in a single DB transaction.
+        - Skips rows with empty phone numbers
+        - Detects duplicate numbers and tells you which employee already added it
+        - Handles empty fields gracefully
+        
         Expects: {"leads": [{...}, {...}, ...]}
-        Returns: {"imported": N, "errors": [...]}
+        Returns: {"imported": N, "duplicates": N, "skipped": N, "errors": [...]}
         """
         rows = request.data.get('leads', [])
         if not isinstance(rows, list) or len(rows) == 0:
@@ -326,10 +345,70 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         # No round-robin, no team pools - just assign to self first
         # User can manually reassign later if needed
 
+        # Pre-fetch existing phones with their assigned employee info
+        existing_records = ASELead.objects.filter(company=company).select_related('assigned_to').values_list('phone', 'assigned_to__first_name', 'assigned_to__last_name', 'assigned_to__username')
+        existing_phone_map = {}
+        for phone, fn, ln, uname in existing_records:
+            if phone:  # skip None/empty phones
+                name = f"{fn or ''} {ln or ''}".strip() or uname or 'Unknown'
+                existing_phone_map[phone] = name
+
         to_create = []
         errors = []
+        duplicates = 0
+        skipped = 0
+        seen_phones = set()  # track duplicates within the import batch
 
         for i, row in enumerate(rows):
+            phone = str(row.get('phone', '')).strip()
+            
+            # Clean phone for comparison
+            phone_clean = phone.replace(' ', '').replace('-', '').replace('+', '')
+            
+            # Skip completely empty rows (no phone)
+            if not phone_clean:
+                skipped += 1
+                continue
+            
+            # Check duplicate in existing database
+            if phone_clean in existing_phone_map:
+                employee_name = existing_phone_map[phone_clean]
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': f"This number is already added by {employee_name}",
+                    'type': 'duplicate',
+                    'assigned_to': employee_name,
+                })
+                duplicates += 1
+                continue
+            
+            # Also check with original phone format
+            if phone in existing_phone_map:
+                employee_name = existing_phone_map[phone]
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': f"This number is already added by {employee_name}",
+                    'type': 'duplicate',
+                    'assigned_to': employee_name,
+                })
+                duplicates += 1
+                continue
+            
+            # Check duplicate within batch
+            if phone_clean in seen_phones:
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': 'Duplicate phone number in this import batch',
+                    'type': 'batch_duplicate',
+                })
+                duplicates += 1
+                continue
+            
+            seen_phones.add(phone_clean)
+
             try:
                 # Auto-assign ALL imports to the importing user
                 assigned_to = user
@@ -337,7 +416,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                     company_name=row.get('company_name', ''),
                     contact_person=row.get('contact_person', ''),
                     email=row.get('email') or None,
-                    phone=row.get('phone', ''),
+                    phone=phone,
                     website=row.get('website') or None,
                     industry=row.get('industry', 'other'),
                     budget_amount=row.get('budget_amount', ''),
@@ -354,7 +433,13 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 )
                 to_create.append(obj)
             except Exception as e:
-                errors.append({'row': i + 1, 'error': str(e)})
+                errors.append({
+                    'row': i + 1,
+                    'phone': phone,
+                    'error': str(e),
+                    'type': 'validation',
+                })
+                skipped += 1
 
         imported = 0
         if to_create:
@@ -362,14 +447,18 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 created = ASELead.objects.bulk_create(
                     to_create,
                     batch_size=500,
-                    ignore_conflicts=True,  # skip duplicate phone+company rows
                 )
                 imported = len(created)
 
         if imported > 0:
             notify_ase_data_changed('leads', 'bulk_imported', extra={'count': imported})
 
-        return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
+        return Response({
+            'imported': imported,
+            'duplicates': duplicates,
+            'skipped': skipped,
+            'errors': errors
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
     def export_by_ids(self, request):

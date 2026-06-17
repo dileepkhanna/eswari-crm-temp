@@ -57,7 +57,8 @@ export default function ASECustomerFormModal({
       if (customer?.id) params.append('exclude_id', String(customer.id));
       const data = await apiClient.get(`/ase/customers/check_phone/?${params}`);
       if (data?.exists) {
-        setPhoneError(`Phone number '${phone.trim()}' already exists in your company.`);
+        const assignedTo = data.assigned_to || 'Unknown';
+        setPhoneError(`Phone number '${phone.trim()}' already exists. Assigned to: ${assignedTo}`);
       }
     } catch {
       // silently ignore on blur
@@ -255,14 +256,14 @@ export default function ASECustomerFormModal({
             <div>
               <Label htmlFor="assigned_to">Assign To</Label>
               <Select
-                value={formData.assigned_to || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value || undefined }))}
+                value={formData.assigned_to || 'unassigned'}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value === 'unassigned' ? undefined : value }))}
               >
                 <SelectTrigger id="assigned_to">
                   <SelectValue placeholder="Select employee..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {teammates.map(member => (
                     <SelectItem key={member.id} value={member.id}>
                       {member.name}
