@@ -154,11 +154,11 @@ export default function BOEDashboard() {
     fetchRecords();
   }, [currentPage, debouncedSearch, dateFrom, dateTo, callStatusFilter]);
 
-  // Auto-poll every 10 seconds for live updates
-  useEffect(() => {
-    const interval = setInterval(fetchRecords, 5000);
-    return () => clearInterval(interval);
-  }, [currentPage, debouncedSearch, dateFrom, dateTo, callStatusFilter]);
+  // Auto-poll every 10 seconds for live updates - DISABLED due to data refresh issues
+  // useEffect(() => {
+  //   const interval = setInterval(fetchRecords, 5000);
+  //   return () => clearInterval(interval);
+  // }, [currentPage, debouncedSearch, dateFrom, dateTo, callStatusFilter]);
 
   // Date filter handler
   const handleDateFilterChange = (value: string) => {

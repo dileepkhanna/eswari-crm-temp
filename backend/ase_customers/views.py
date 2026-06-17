@@ -1239,6 +1239,11 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             if re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', raw_email):
                 lead_data['email'] = raw_email
             # else: silently drop invalid/placeholder emails
+        # Also check if request has email override
+        elif request.data.get('email'):
+            raw_email = request.data.get('email', '').strip()
+            if raw_email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', raw_email):
+                lead_data['email'] = raw_email
         
         # Only add website if it's a valid URL
         website = request.data.get('website', '').strip()
@@ -1248,6 +1253,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         # Set assigned_to if customer has one
         if customer.assigned_to:
             lead_data['assigned_to'] = customer.assigned_to.id
+        
+        # CRITICAL: Remove email from lead_data if it's empty or None to avoid validation errors
+        if 'email' in lead_data and not lead_data.get('email'):
+            del lead_data['email']
         
         # Debug: Log the prepared lead data
         logger.info(f"Prepared lead data: {lead_data}")

@@ -40,8 +40,9 @@ export default function MarketingLeadDashboard({ dashboardOnly = false }: { dash
       } catch (err) {}
     };
     fetchAll();
-    const interval = setInterval(fetchAll, 10000);
-    return () => clearInterval(interval);
+    // Auto-poll every 10 seconds - DISABLED due to data refresh issues
+    // const interval = setInterval(fetchAll, 10000);
+    // return () => clearInterval(interval);
   }, []);
 
   const formatCurrency = (value: number) => {

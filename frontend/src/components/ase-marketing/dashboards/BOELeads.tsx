@@ -154,11 +154,11 @@ export default function BOELeads({ hideTopBar = false }: { hideTopBar?: boolean 
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Silent poll every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(fetchLeads, 5000);
-    return () => clearInterval(interval);
-  }, [currentPage, debouncedSearch, statusFilter, dateFrom, dateTo, createdByFilter]);
+  // Silent poll every 5 seconds - DISABLED due to data refresh issues
+  // useEffect(() => {
+  //   const interval = setInterval(fetchLeads, 5000);
+  //   return () => clearInterval(interval);
+  // }, [currentPage, debouncedSearch, statusFilter, dateFrom, dateTo, createdByFilter]);
 
   // Fetch BOE users for "Created By" filter
   useEffect(() => {

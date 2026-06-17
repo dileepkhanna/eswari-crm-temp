@@ -147,11 +147,11 @@ export default function CREDashboard() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Silent poll every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(fetchLeads, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  // Silent poll every 5 seconds - DISABLED due to data refresh issues
+  // useEffect(() => {
+  //   const interval = setInterval(fetchLeads, 5000);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   // Date filter handler
   const handleDateFilterChange = (value: string) => {

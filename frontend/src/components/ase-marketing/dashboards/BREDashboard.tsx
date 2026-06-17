@@ -173,9 +173,9 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
       }
     };
     fetchBreStats();
-    // Auto-poll stats every 5 seconds for live updates
-    const interval = setInterval(fetchBreStats, 5000);
-    return () => clearInterval(interval);
+    // Auto-poll stats every 5 seconds for live updates - DISABLED due to data refresh issues
+    // const interval = setInterval(fetchBreStats, 5000);
+    // return () => clearInterval(interval);
   }, []);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
