@@ -533,14 +533,14 @@ export default function AdminASETasks() {
                 </Select>
               </div>
 
-              {/* Employee / Created By — admin & manager only */}
+              {/* Employee / Assigned To — admin & manager only */}
               {(user?.role === 'admin' || user?.role === 'manager') && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Created By</label>
+                  <label className="text-sm font-medium">Assigned To</label>
                   <Select value={employeeFilter} onValueChange={(v) => { setEmployeeFilter(v); setPage(1); }}>
-                    <SelectTrigger className="h-10 w-full"><SelectValue placeholder="All Creators" /></SelectTrigger>
+                    <SelectTrigger className="h-10 w-full"><SelectValue placeholder="All Employees" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Creators</SelectItem>
+                      <SelectItem value="all">All Employees</SelectItem>
                       {employees.length === 0 && (
                         <SelectItem value="loading" disabled>Loading employees...</SelectItem>
                       )}

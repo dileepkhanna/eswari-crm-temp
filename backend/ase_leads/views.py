@@ -74,24 +74,30 @@ class ASELeadViewSet(viewsets.ModelViewSet):
             company_id = self.request.query_params.get('company')
             if company_id:
                 qs = qs.filter(company_id=company_id)
-            else:
+            elif user.company:
+                # Scope to admin's own company to prevent cross-company data leakage
                 qs = qs.filter(company=user.company)
+            else:
+                return qs.none()
         elif user.role == 'hr':
+            if not user.company:
+                return qs.none()
             qs = qs.filter(company=user.company)
         elif not user.company:
             return qs.none()
         elif user.role == 'employee':
             qs = qs.filter(company=user.company).filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
         elif user.role == 'manager':
+            qs = qs.filter(company=user.company)
             employee_ids = list(
                 user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
             )
             employee_ids.append(user.id)
-            qs = qs.filter(company=user.company).filter(
+            qs = qs.filter(
                 Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
             ).distinct()
         else:
-            return qs.none()
+            qs = qs.filter(company=user.company)
         # Date filters
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
@@ -134,23 +140,16 @@ class ASELeadViewSet(viewsets.ModelViewSet):
                 serializer.save(created_by=user)
         elif user.role == 'employee':
             # Employee leads are ALWAYS assigned to themselves — no override allowed
-            # Remove assigned_to from validated_data if present
             validated_data = serializer.validated_data
-            if 'assigned_to' in validated_data:
-                validated_data.pop('assigned_to')
-            
+            validated_data.pop('assigned_to', None)
             serializer.save(created_by=user, company=user.company, assigned_to=user)
         elif user.role == 'manager':
-            # Default assigned_to to manager themselves if not explicitly provided
-            if not serializer.validated_data.get('assigned_to'):
-                # Remove assigned_to from validated_data if present
-                validated_data = serializer.validated_data
-                if 'assigned_to' in validated_data:
-                    validated_data.pop('assigned_to')
-                
-                serializer.save(created_by=user, company=user.company, assigned_to=user)
-            else:
+            # Managers can assign to their team; default to themselves
+            provided_assignee = serializer.validated_data.get('assigned_to')
+            if provided_assignee:
                 serializer.save(created_by=user, company=user.company)
+            else:
+                serializer.save(created_by=user, company=user.company, assigned_to=user)
         else:
             serializer.save(created_by=user, company=user.company)
         
@@ -323,26 +322,17 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         if not company:
             return Response({'error': 'User has no company assigned'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # For employee: assign all to themselves
-        # For manager: round-robin across their team (including themselves)
-        from accounts.models import User as UserModel
-        if user.role == 'employee':
-            assignees = [user]
-        elif user.role == 'manager':
-            team_ids = list(
-                UserModel.objects.filter(manager=user, company=company, is_active=True).values_list('id', flat=True)
-            )
-            team_ids.append(user.id)
-            assignees = list(UserModel.objects.filter(id__in=team_ids))
-        else:
-            assignees = []
+        # Auto-assignment: ALL imports assigned to the importing user
+        # No round-robin, no team pools - just assign to self first
+        # User can manually reassign later if needed
 
         to_create = []
         errors = []
 
         for i, row in enumerate(rows):
             try:
-                assigned_to = assignees[i % len(assignees)] if assignees else None
+                # Auto-assign ALL imports to the importing user
+                assigned_to = user
                 obj = ASELead(
                     company_name=row.get('company_name', ''),
                     contact_person=row.get('contact_person', ''),

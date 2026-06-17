@@ -4,6 +4,55 @@ import { UserRole } from '@/types';
 import type { Company } from '@/types';
 
 import { logger } from '@/lib/logger';
+
+/**
+ * Decode a JWT payload without verifying the signature.
+ * Returns the exp claim (Unix timestamp in seconds) or null if parsing fails.
+ */
+function getTokenExpiry(token: string): number | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns true if the JWT access token is expired or will expire within 30 seconds.
+ */
+function isTokenExpired(token: string): boolean {
+  const exp = getTokenExpiry(token);
+  if (exp === null) return true; // treat unreadable token as expired
+  return Date.now() / 1000 >= exp - 30; // 30-second buffer
+}
+
+/**
+ * Proactively refresh the access token using the stored refresh token.
+ * Updates localStorage with the new access token.
+ * Returns true if successful.
+ */
+async function proactiveTokenRefresh(refreshToken: string): Promise<boolean> {
+  try {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${apiBase}/auth/token/refresh/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (data.access) {
+      localStorage.setItem('access_token', data.access);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 interface AuthUser {
   id: string;
   userId: string;
@@ -131,10 +180,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('access_token');
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
       
-      if (token) {
+      if (accessToken) {
         try {
+          // Proactively check if the access token is expired before making any API calls.
+          // This prevents the burst of 401s on page load when the token has expired.
+          const isExpired = isTokenExpired(accessToken);
+          
+          if (isExpired && refreshToken) {
+            logger.log('Auth init: access token expired, refreshing proactively...');
+            const refreshed = await proactiveTokenRefresh(refreshToken);
+            if (!refreshed) {
+              logger.log('Auth init: proactive refresh failed, clearing tokens');
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              setUser(null);
+              setSession(null);
+              await checkAdminExists();
+              setIsLoading(false);
+              return;
+            }
+            logger.log('Auth init: proactive refresh succeeded');
+          }
+
           await fetchUserData();
         } catch (error) {
           // If fetching user data fails, clear the invalid tokens

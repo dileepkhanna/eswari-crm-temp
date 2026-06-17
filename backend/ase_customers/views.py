@@ -60,15 +60,31 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = ASECustomer.objects.select_related('company', 'assigned_to', 'created_by').all()
 
-        if user.role == 'admin':
+        if user.is_superuser:
+            # Superuser can see all — optionally scoped by ?company=
             company_id = self.request.query_params.get('company')
             if company_id:
                 qs = qs.filter(company_id=company_id)
+        elif user.role == 'admin':
+            company_id = self.request.query_params.get('company')
+            if company_id:
+                qs = qs.filter(company_id=company_id)
+            elif user.company:
+                # No company param — scope to admin's own company to prevent cross-company leakage
+                qs = qs.filter(company=user.company)
+            else:
+                return qs.none()
         elif user.role == 'hr':
+            if not user.company:
+                return qs.none()
             qs = qs.filter(company=user.company)
         elif user.role == 'employee':
+            if not user.company:
+                return qs.none()
             qs = qs.filter(company=user.company).filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
         elif user.role == 'manager':
+            if not user.company:
+                return qs.none()
             employee_ids = list(
                 user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
             )
@@ -79,7 +95,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                 Q(assigned_to__isnull=True)
             ).distinct()
         else:
-            qs = qs.filter(company=user.company)
+            return qs.none()
 
         # ── Additional backend filters ────────────────────────────────────────
         # Overdue filter: scheduled_date < now AND call_status = 'pending'
@@ -170,27 +186,46 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Set created_by and company when creating ASE customer.
-        Employees are auto-assigned to themselves.
+        Employees are always auto-assigned to themselves.
+        Managers can assign to their team members; defaults to themselves.
         """
         user = self.request.user
-        if user.role in ['manager', 'employee']:
-            # Remove assigned_to from validated_data if present
+        if user.role == 'employee':
+            # Employees are always assigned to themselves — no override allowed
             validated_data = serializer.validated_data
-            if 'assigned_to' in validated_data:
-                validated_data.pop('assigned_to')
-            
+            validated_data.pop('assigned_to', None)
             instance = serializer.save(
                 created_by=user,
                 company=user.company,
-                assigned_to=user,  # auto-assign to creator
+                assigned_to=user,
             )
+        elif user.role == 'manager':
+            # Managers can assign to their team; default to themselves
+            provided_assignee = serializer.validated_data.get('assigned_to')
+            if provided_assignee:
+                instance = serializer.save(
+                    created_by=user,
+                    company=user.company,
+                )
+            else:
+                instance = serializer.save(
+                    created_by=user,
+                    company=user.company,
+                    assigned_to=user,
+                )
         else:
             # Admin/HR must specify company in request data
             company = serializer.validated_data.get('company')
             if not company:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'company': 'This field is required.'})
-            instance = serializer.save(created_by=user)
+            
+            # Admin/HR: auto-assign to themselves if no assignee provided
+            provided_assignee = serializer.validated_data.get('assigned_to')
+            if provided_assignee:
+                instance = serializer.save(created_by=user)
+            else:
+                instance = serializer.save(created_by=user, assigned_to=user)
         
         notify_ase_data_changed('calls', 'created', record_id=instance.id)
     
@@ -644,19 +679,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             if not company:
                 return Response({'error': 'ASE company not found'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Build assignee pool
-        from accounts.models import User as UserModel
-        if user.role == 'employee':
-            assignees = [user]
-        elif user.role == 'manager':
-            team_ids = list(
-                UserModel.objects.filter(manager=user, company=company, is_active=True).values_list('id', flat=True)
-            )
-            team_ids.append(user.id)
-            assignees = list(UserModel.objects.filter(id__in=team_ids))
-        else:
-            assignees = []
-
+        # Auto-assignment: ALL imports assigned to the importing user
+        # No round-robin, no team pools - just assign to self first
+        # User can manually reassign later if needed
+        
         to_create = []
         errors = []
         duplicates = 0
@@ -734,7 +760,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             seen_phones.add(phone_clean)
             
             try:
-                assigned_to = assignees[len(to_create) % len(assignees)] if assignees else None
+                # Auto-assign ALL imports to the importing user first
+                # They can manually reassign later if needed
+                # This applies to all roles: admin, manager, employee
+                assigned_to = user
                 
                 # Handle empty fields gracefully - name and phone are required
                 name = str(row.get('name', '')).strip() or None
@@ -826,26 +855,10 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Get available employees for auto-assignment
-            from accounts.models import User
-            user_role = request.user.role
-            if user_role == 'employee':
-                # Employee imports → assign all to themselves
-                employees_list = [request.user]
-            elif user_role == 'manager':
-                # Manager imports → round-robin across team + self
-                team_ids = list(
-                    User.objects.filter(manager=request.user, company=request.user.company, is_active=True).values_list('id', flat=True)
-                )
-                team_ids.append(request.user.id)
-                employees_list = list(User.objects.filter(id__in=team_ids))
-            else:
-                # Admin/HR → round-robin across all active non-admin users in company
-                employees_list = list(User.objects.filter(
-                    company=request.user.company,
-                    role__in=['employee', 'manager'],
-                    is_active=True
-                ).order_by('id'))
+            # Auto-assignment logic: ALL imports assigned to the importing user first
+            # They can manually reassign later if needed
+            # This applies to all roles: admin, manager, employee
+            assigned_user = request.user
             
             created_customers = []
             errors = []
@@ -862,10 +875,8 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
                         'created_by': request.user,
                     }
                     
-                    # Auto-assign to employees in round-robin fashion
-                    if employees_list:
-                        assigned_employee = employees_list[len(created_customers) % len(employees_list)]
-                        customer_data['assigned_to'] = assigned_employee
+                    # Auto-assign ALL imported calls to the importing user
+                    customer_data['assigned_to'] = assigned_user
                     
                     # Create customer
                     customer = ASECustomer.objects.create(**customer_data)

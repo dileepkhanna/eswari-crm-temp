@@ -33,6 +33,22 @@ export default function ASECustomerFormModal({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [teammates, setTeammates] = useState<{ id: string; name: string }[]>([]);
+
+  // Load teammates for admin/manager to assign calls
+  useEffect(() => {
+    if (!open) return;
+    if (!['admin', 'manager'].includes(user?.role || '')) return;
+    const companyId = (user?.company as any)?.id;
+    if (!companyId) return; // no company resolved — skip to avoid leaking cross-company data
+    apiClient.get(`/ase/customers/teammates/?company=${companyId}`).then((data: any) => {
+      const list = Array.isArray(data) ? data : (data?.results ?? []);
+      setTeammates(list.map((u: any) => ({
+        id: String(u.id),
+        name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username,
+      })));
+    }).catch(() => {});
+  }, [open, user?.role, user?.company]);
 
   const checkPhoneDuplicate = async (phone: string) => {
     if (!phone.trim()) return;
@@ -57,6 +73,7 @@ export default function ASECustomerFormModal({
     service_interests: [],
     custom_services: '',
     notes: '',
+    assigned_to: undefined,
   });
 
   // Reset form when modal opens/closes or customer changes
@@ -75,6 +92,7 @@ export default function ASECustomerFormModal({
           service_interests: customer.service_interests || [],
           custom_services: customer.custom_services || '',
           notes: customer.notes || '',
+          assigned_to: customer.assigned_to ? String(customer.assigned_to) : undefined,
         });
       } else {
         // Create mode - reset to defaults
@@ -88,6 +106,7 @@ export default function ASECustomerFormModal({
           service_interests: [],
           custom_services: '',
           notes: '',
+          assigned_to: undefined,
         });
       }
     }
@@ -228,6 +247,29 @@ export default function ASECustomerFormModal({
                 value={formData.custom_call_status || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, custom_call_status: e.target.value }))}
               />
+            </div>
+          )}
+
+          {/* Assign To — admin/manager only */}
+          {['admin', 'manager'].includes(user?.role || '') && teammates.length > 0 && (
+            <div>
+              <Label htmlFor="assigned_to">Assign To</Label>
+              <Select
+                value={formData.assigned_to || ''}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value || undefined }))}
+              >
+                <SelectTrigger id="assigned_to">
+                  <SelectValue placeholder="Select employee..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unassigned</SelectItem>
+                  {teammates.map(member => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

@@ -18,7 +18,8 @@ export default function AdminASEEmployees() {
       // Handle both array and object with results property
       const companies = Array.isArray(companiesData) ? companiesData : companiesData.results || [];
       const aseCompany = companies.find((c: any) => 
-        c.code === 'ASE_TECH' || c.code === 'ASE' || c.name.includes('ASE')
+        c.code === 'ASE_TECH' || c.code === 'ASE' ||
+        (c.name && c.name.toLowerCase().startsWith('ase tech'))
       );
       return aseCompany;
     } catch (error) {

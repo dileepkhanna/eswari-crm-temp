@@ -193,7 +193,12 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     try {
       setLoading(true);
       setError(null);
-      const companyId = selectedCompany?.id || (user.role !== 'admin' ? user?.company?.id : undefined);
+      // Always resolve a company ID to prevent cross-company data leakage.
+      // Admin: use selectedCompany or their own company as fallback.
+      // Employee/Manager: backend scopes by user.company — still pass it for safety.
+      const companyId = selectedCompany?.id
+        || user?.company?.id
+        || undefined;
       const data = await ASECustomerService.getCustomers({
         page: currentPage,
         page_size: 50,
@@ -225,14 +230,27 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
   const createCustomer = useCallback(async (data: Partial<ASECustomerFormData>): Promise<ASECustomer> => {
     try {
       setError(null);
-      const companyId = (data as any).company || selectedCompany?.id || user?.company?.id;
-      if (!companyId) throw new Error('Company information is required');
-      
-      const newCustomer = await ASECustomerService.createCustomer({ ...data, company: companyId } as any);
+      // Resolve company: explicit in payload > selectedCompany > user's own company.
+      // Never fall back to a hardcoded ID — if no company is resolvable, backend will
+      // auto-assign for employee/manager roles, and admin must have selectedCompany set.
+      const companyId = (data as any).company
+        || selectedCompany?.id
+        || user?.company?.id;
+
+      const payload: any = { ...data };
+      if (companyId) {
+        payload.company = companyId;
+      } else if (user?.role === 'admin' || user?.role === 'hr') {
+        toast.error('No company selected. Please select a company first.');
+        throw new Error('No company selected');
+      }
+      // employee/manager: backend auto-assigns their company — don't block
+
+      const newCustomer = await ASECustomerService.createCustomer(payload as any);
       setCustomers(prev => [newCustomer, ...prev]);
       toast.success('ASE Customer created successfully');
       if (user) logCustomerActivity(
-        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        { id: String(user.id), name: user.name, role: user.role, company: { id: (user?.company as any)?.id || 0 } },
         'created', newCustomer.name || newCustomer.phone
       );
       return newCustomer;
@@ -252,7 +270,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c));
       toast.success('ASE Customer updated successfully');
       if (user) logCustomerActivity(
-        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        { id: String(user.id), name: user.name, role: user.role, company: { id: (user?.company as any)?.id || 0 } },
         'updated', updatedCustomer.name || updatedCustomer.phone
       );
       return updatedCustomer;
@@ -275,7 +293,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       setTotalCount(prev => Math.max(0, prev - 1));
       toast.success('ASE Customer deleted successfully');
       if (user) logCustomerActivity(
-        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        { id: String(user.id), name: user.name, role: user.role, company: { id: (user?.company as any)?.id || 0 } },
         'deleted', customer?.name || customer?.phone || id
       );
       // Re-fetch for accurate count/pagination (use ref to avoid stale closure)
@@ -367,7 +385,7 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       fetchCustomersRef.current();
       fetchStats();
       if (user) logCustomerActivity(
-        { id: String(user.id), name: user.name, role: user.role, company: { id: 3 } },
+        { id: String(user.id), name: user.name, role: user.role, company: { id: (user?.company as any)?.id || 0 } },
         'converted', customer?.name || customer?.phone || customerId
       );
       toast.success(`Customer converted to lead successfully! Lead ID: ${result.lead_id}`);

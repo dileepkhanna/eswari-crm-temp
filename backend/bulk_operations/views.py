@@ -11,7 +11,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
 from django.utils import timezone
-
 from leads.models import Lead
 from ase_leads.models import ASELead
 from capital.models import CapitalCustomer, CapitalLead, CapitalLoan, CapitalService
@@ -156,7 +155,6 @@ def bulk_update_lead_status(request):
 def bulk_update_ase_lead_status(request):
     """
     Bulk update status for ASE Technology leads.
-
     Request body:
     {
         "lead_ids": [1, 2, 3, ...],

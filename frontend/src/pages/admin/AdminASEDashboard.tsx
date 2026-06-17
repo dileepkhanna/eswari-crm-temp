@@ -11,9 +11,11 @@ import { ASECustomerService } from '@/services/ase-customer.service';
 import { apiClient } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { useASEWebSocket } from '@/hooks/useASEWebSocket';
+import { useAuth } from '@/contexts/AuthContextDjango';
 import { PhoneCall, CheckCircle, XCircle, Clock, Briefcase, Users, TrendingUp, AlertCircle, ListChecks, CalendarCheck, Target } from 'lucide-react';
 
 export default function AdminASEDashboard() {
+  const { user } = useAuth();
   const { leads, totalCount: leadsTotalCount, stats: leadsStats, refreshData: refreshLeads } = useASELead();
   const { customers, fetchCustomers } = useASECustomers();
   const [customerStats, setCustomerStats] = useState<any>(null);
@@ -54,38 +56,11 @@ export default function AdminASEDashboard() {
   useASEWebSocket('leads', () => { refreshLeads(); });
   useASEWebSocket('tasks', () => { fetchTasks(); });
 
+  // On mount: use the stable callbacks — no duplicate inline fetch
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [stats, perf, overdueNum, followUps] = await Promise.allSettled([
-          ASECustomerService.getStats(),
-          ASECustomerService.getTeamPerformance(),
-          ASECustomerService.getOverdueCount(),
-          ASECustomerService.getFollowUps(),
-        ]);
-        if (stats.status === 'fulfilled') setCustomerStats(stats.value);
-        if (perf.status === 'fulfilled') setTeamPerformance(perf.value);
-        if (overdueNum.status === 'fulfilled') setOverdueCount(overdueNum.value);
-        if (followUps.status === 'fulfilled') setTodayFollowUps((followUps.value as any)?.count ?? 0);
-      } catch (error) {
-        logger.error('Error fetching ASE dashboard stats:', error);
-      }
-    };
-
-    // Fetch tasks via my-tasks (works for all roles, returns tasks visible to current user)
-    const fetchTasksInit = async () => {
-      try {
-        const res: any = await apiClient.get('/ase-leads/tasks/my-tasks/?page=1&page_size=200');
-        const list = Array.isArray(res) ? res : res?.results ?? [];
-        setTasks(list);
-      } catch (err) {
-        logger.error('Error fetching ASE tasks:', err);
-      }
-    };
-
-    fetchAll();
-    fetchTasksInit();
-  }, []);
+    fetchCallStats();
+    fetchTasks();
+  }, [fetchCallStats, fetchTasks]);
 
   // Calculate call stats — use flat stats (not by_status) since ASECustomerStats is flat
   const totalCalls = customerStats?.total ?? customers.length;
@@ -121,7 +96,7 @@ export default function AdminASEDashboard() {
       />
 
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-        <AnnouncementBanner userRole="admin" maxDisplay={2} />
+        <AnnouncementBanner userRole={(user?.role as any) || 'employee'} maxDisplay={2} />
 
         {/* Key Metrics — Calls */}
         <div>

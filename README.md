@@ -58,6 +58,12 @@ The dev server also sets `Cache-Control: no-cache, no-store, must-revalidate` on
 
 ## ASE Customers
 
+### Activity Logging
+
+When a customer record is created or updated, an activity log entry is recorded via `logCustomerActivity()` in `ASECustomerContext`. The user context passed to this function includes the authenticated user's actual company ID (`user.company.id`), so activity log entries are always scoped to the correct company. If the company ID is unavailable it defaults to `0`.
+
+> Previously the update path hardcoded `company: { id: 3 }`, which incorrectly attributed activity logs to a fixed company regardless of which company the acting user belonged to. This has been corrected to use the dynamic company ID from the auth context.
+
 ### Real-Time WebSocket Events
 
 Mutating operations on ASE customer records broadcast a WebSocket notification to the `company_2` channel group so connected clients can refetch:
@@ -125,6 +131,32 @@ All status values use lowercase (snake_case) consistently.
 | `high` | High |
 | `urgent` | Urgent |
 
+### Lead Creation — Company Assignment
+
+When creating a lead via `ASELeadContext.createLead()`, the `company` field is resolved as follows:
+
+| Role | Behavior |
+|------|----------|
+| `admin` / `hr` | Must supply a company explicitly (via `aseCompanyId` or `selectedCompany`). If no company can be resolved, creation is blocked with an error toast. |
+| `employee` / `manager` | Company is optional on the frontend payload. If not supplied, the backend automatically assigns `user.company`. The frontend no longer blocks submission for these roles when no company context is set. |
+
+The resolution order for the company ID is: `aseCompanyId` → `user.company.id` → `selectedCompany.id`.
+
+### Role-Based Data Access
+
+The `ASELeadViewSet.get_queryset()` method applies role-based filtering to ensure users only see leads appropriate to their role:
+
+| Role | Access |
+|------|--------|
+| **Superuser** | All leads across all companies (optional `?company=<id>` filter) |
+| **Admin** | All leads in their company (or filtered by `?company=<id>`) |
+| **HR** | All leads in their company |
+| **Employee** | Only leads assigned to them OR created by them |
+| **Manager** | All leads in their company where assigned_to or created_by is the manager OR any of their team members |
+| **Other roles** | All leads in their company (fallback behavior) |
+
+> **Note**: Previously, users with unrecognized roles received no data (`qs.none()`). Now they receive company-scoped data as a safer fallback.
+
 ### Key API Endpoints
 
 ```
@@ -142,6 +174,41 @@ POST   /api/ase-leads/export-by-ids/          Export leads as Excel
 ```
 
 **`bulk_delete_by_filter`** accepts an optional JSON body with `search`, `status`, and/or `priority` fields. It deletes all leads in the user's company that match the supplied filters and is restricted to `admin` and `manager` roles.
+
+### Bulk Import Assignment Behavior
+
+**`POST /api/ase-leads/bulk-import/`** assigns all imported leads to the importing user.
+
+**Request body:**
+```json
+{
+  "leads": [
+    {
+      "company_name": "Example Corp",
+      "contact_person": "John Doe",
+      "email": "john@example.com",
+      "phone": "9876543210",
+      "status": "new",
+      "priority": "medium"
+    }
+  ]
+}
+```
+
+**Assignment behavior:**
+- All imported leads are assigned to the user who performs the import (`assigned_to = importing_user`)
+- No round-robin distribution or team-based assignment
+- Users can manually reassign leads after import if needed
+
+**Response:**
+```json
+{
+  "imported": 10,
+  "errors": []
+}
+```
+
+> **Note**: Previous versions attempted round-robin assignment across team members. This has been simplified so all imports are assigned to the importing user first, giving managers full control over subsequent reassignment.
 
 ### Real-Time WebSocket Events
 
@@ -176,6 +243,27 @@ All requests automatically attach a `Bearer` token from `localStorage`. The foll
 | `/auth/invite/register/` | Invite-based registration |
 
 This prevents a stale/expired token from triggering a `401 → refresh` loop on auth endpoints, which would abort the request before the response could be processed.
+
+### Auth Initialization & Proactive Token Refresh (`src/contexts/AuthContextDjango.tsx`)
+
+On app load, the auth context checks for a stored `access_token` in `localStorage`. Before making any API calls, it now **proactively inspects the token's expiry**:
+
+1. If the access token is expired **and** a `refresh_token` is present, it attempts a silent refresh before fetching the user profile.
+2. If the refresh succeeds, the new access token is stored and the normal `fetchUserData()` flow continues.
+3. If the refresh fails (e.g. the refresh token is also expired or revoked), both tokens are removed, the session is cleared, and the user is redirected to `/login`.
+
+This eliminates the burst of `401` responses that previously fired on page load when a session had expired overnight — the token is refreshed once, silently, before any authenticated requests go out.
+
+**Behavior summary:**
+
+| Scenario | Outcome |
+|---|---|
+| Access token valid | Proceeds directly to `fetchUserData()` |
+| Access token expired, refresh token valid | Refreshes silently, then fetches user |
+| Access token expired, no refresh token | Clears tokens, redirects to login |
+| Access token expired, refresh fails | Clears tokens, redirects to login |
+
+---
 
 ### Token Cleaner (`src/lib/tokenCleaner.ts`)
 
@@ -272,6 +360,78 @@ Import it from `@/types/user`:
 ```typescript
 import type { DBUser } from '@/types/user';
 ```
+
+---
+
+## Authentication
+
+### Login API Endpoint
+
+`POST /api/auth/login/`
+
+**Request body:**
+```json
+{
+  "email": "username_or_email",
+  "password": "your_password"
+}
+```
+
+> **Note**: Despite the field name being `email`, the backend accepts both email addresses and usernames. Use this field for any identifier (email, username, or user ID) when authenticating.
+
+**Response (success):**
+```json
+{
+  "access": "jwt_access_token",
+  "refresh": "jwt_refresh_token",
+  "user": { ... },
+  "company": { ... }
+}
+```
+
+**Example (Python):**
+```python
+import requests
+
+response = requests.post(
+    'http://127.0.0.1:8000/api/auth/login/',
+    json={'email': 'your_username', 'password': 'your_password'}
+)
+
+if response.status_code == 200:
+    data = response.json()
+    access_token = data['access']
+    # Use token in subsequent requests
+```
+
+---
+
+## Testing
+
+### Backend Test Scripts
+
+The backend includes several standalone test scripts for verifying specific functionality:
+
+| Script | Purpose |
+|--------|---------|
+| `test_bulk_import_assignment.py` | Verifies that managers can bulk import ASE customer calls and all records are correctly assigned to the importing manager |
+| `test_api_bulk_import.py` | Tests bulk import API endpoint with authentication and self-assignment verification |
+| `test_websocket_setup.py` | Tests WebSocket connection and notification delivery |
+| `smoke_test_ase_data_isolation.py` | Validates ASE data isolation between companies |
+
+**Running a test script:**
+
+```bash
+cd backend
+python test_bulk_import_assignment.py
+```
+
+These scripts use real API endpoints and require:
+- The Django server running on `http://127.0.0.1:8000`
+- Valid user credentials (configured in the script)
+- `pandas` installed for CSV generation (`pip install pandas`)
+
+> **Authentication in test scripts**: All test scripts now use the correct login payload format with the `email` field for the username/identifier, as the backend expects. See the Authentication section above for the correct format.
 
 ---
 

@@ -98,16 +98,17 @@ export default function AdminASECustomers() {
 
   const { fetchLeads: fetchASELeads } = useASELead();
 
-  // Derive the ASE company ID from loaded customers (most reliable source)
+  // Derive the ASE company ID — prefer loaded customers, then selectedCompany, then user's own company
   const aseCompanyId = useMemo(() => {
     if (customers.length > 0) return (customers[0] as unknown as { company?: number })?.company;
-    return selectedCompany?.id || user?.company?.id || null;
+    return selectedCompany?.id || user?.company?.id || undefined;
   }, [customers, selectedCompany, user]);
 
   const loadEmployees = useCallback(async () => {
     try {
-      // Use the dedicated teammates endpoint — always filter by ASE Technologies (company=2)
-      const companyId = aseCompanyId || 2; // ASE Technologies is always company 2
+      // Use the dedicated teammates endpoint — scope by the resolved company ID
+      const companyId = aseCompanyId || (user?.company as any)?.id;
+      if (!companyId) return; // no company resolved — skip to avoid leaking cross-company data
       const url = `/api/ase/customers/teammates/?company=${companyId}`;
       const response = await fetch(url, {
         headers: {
@@ -259,6 +260,8 @@ export default function AdminASECustomers() {
       await createCustomer({ ...(customerData as Partial<ASECustomerFormData>), company: aseCompanyId } as Partial<ASECustomerFormData>);
       logger.log('✅ ASE Customers: Customer created successfully');
       setIsCreateModalOpen(false);
+      // Refresh the display list immediately after creation
+      setRefreshKey(k => k + 1);
     } catch (error: unknown) {
       logger.error('❌ ASE Customers: Failed to create customer:', getErrorMessage(error));
       // Error toast is handled in the context
@@ -271,6 +274,8 @@ export default function AdminASECustomers() {
     try {
       await updateCustomer(selectedCustomer.id, customerData);
       setSelectedCustomer(null);
+      // Refresh display list after update
+      setRefreshKey(k => k + 1);
     } catch (error: unknown) {
       logger.error('❌ ASE Customers: Failed to update customer:', getErrorMessage(error));
       // Error toast is handled in the context
@@ -304,14 +309,14 @@ export default function AdminASECustomers() {
 
   const handleImportComplete = () => {
     // Refresh customers list after import
-    fetchCustomers();
+    setRefreshKey(k => k + 1);
   };
 
   const handleReassign = async (assignedTo: string, reason: string) => {
     if (!reassignTarget) return;
     await reassignCustomer(reassignTarget.id, assignedTo, reason);
     setReassignTarget(null);
-    fetchCustomers();
+    setRefreshKey(k => k + 1);
   };
   // filteredCustomers is now always the server-side paginated result
   const filteredCustomers = displayCustomers;
@@ -339,6 +344,8 @@ export default function AdminASECustomers() {
       await bulkDeleteCustomers(Array.from(selectedIds));
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
+      // Refresh display list after bulk delete
+      setRefreshKey(k => k + 1);
     } catch (error) {
       logger.error('Error deleting customers:', error);
     }
@@ -508,7 +515,7 @@ export default function AdminASECustomers() {
       setSelectedIds(new Set());
       setShowBulkStatusDialog(false);
       setBulkStatusValue('');
-      fetchCustomers();
+      setRefreshKey(k => k + 1);
     } catch (error) {
       logger.error('Error bulk updating status:', error);
       toast.error('Failed to update status');

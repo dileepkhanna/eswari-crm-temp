@@ -56,6 +56,9 @@ export interface ASECustomerFormData {
   service_interests?: string[];
   custom_services?: string;
   notes?: string;
+  assigned_to?: string | null;
+  company?: number | string;
+  scheduled_date?: string;
 }
 
 // Call log entry

@@ -285,7 +285,13 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       { label: '', items: [settingsNavItem], collapsible: false },
     ];
   } else {
-    const dashboardItem: NavItem = { label: 'Dashboard', icon: DashboardIcon, href: '', roles: ['manager', 'employee'] };
+    const dashboardItem: NavItem = { 
+      label: 'Dashboard', 
+      icon: DashboardIcon, 
+      // For ASE Technologies employees/managers, go to ASE dashboard
+      href: isASETechnologies ? '/ase-dashboard' : '', 
+      roles: ['manager', 'employee'] 
+    };
     
     let companySpecific: NavItem[];
     let companyLabel: string;
@@ -320,7 +326,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             { label: 'Reports', icon: ReportsIcon, href: '/capital-reports', roles: ['admin', 'manager'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
             { label: 'Activity', icon: ActivityIcon, href: '/capital-activity', roles: ['admin', 'manager'] as ('admin' | 'manager' | 'employee' | 'hr')[] },
             settingsNavItem]
-        : [dashboardItem, ...commonNavItems, ...companySpecific, settingsNavItem],
+        : [dashboardItem, ...commonNavItems, ...companySpecific.filter(item => item.label !== 'Dashboard'), settingsNavItem],
         collapsible: false }
     ];
   }

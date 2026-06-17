@@ -180,16 +180,23 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const createLead = async (leadData: ASELeadFormData): Promise<ASELead | null> => {
     try {
       setLoading(true);
-      // user.company in auth context is a Company object with .id
-      const companyId = aseCompanyId;
-      if (!companyId) {
-        toast.error('No company selected');
-        return null;
-      }
       const payload: any = { ...leadData };
+      
+      // For admin/hr, company is required and must be explicit
+      // For employee/manager, backend auto-assigns company from user.company
       if (!payload.company) {
-        payload.company = companyId;
+        const companyId = aseCompanyId
+          || (user?.company as any)?.id
+          || selectedCompany?.id;
+        if (companyId) {
+          payload.company = companyId;
+        } else if (user?.role === 'admin' || user?.role === 'hr') {
+          toast.error('No company selected');
+          return null;
+        }
+        // employee/manager: let backend set company — don't block
       }
+      
       const newLead = await aseLeadService.createLead(payload);
       // Optimistic: prepend to local state immediately
       setLeads(prev => [newLead, ...prev]);
@@ -197,7 +204,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
       toast.success('Lead created successfully');
       if (user) logActivity({
         userId: String(user.id), userName: user.name, userRole: user.role,
-        companyId: Number(companyId),
+        companyId: Number(aseCompanyId || (user?.company as any)?.id || 0),
         module: 'leads', action: 'created',
         details: `created lead: ${newLead.contact_person || newLead.phone}`,
       });
