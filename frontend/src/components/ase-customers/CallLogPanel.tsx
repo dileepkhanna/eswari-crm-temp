@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 interface CallLogPanelProps {
   customer: ASECustomer;
+  onStatusChanged?: (customerId: string, newStatus: string, customStatusText?: string) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,7 +30,7 @@ const DOT_COLORS: Record<string, string> = {
   custom: 'bg-purple-500',
 };
 
-export default function CallLogPanel({ customer }: CallLogPanelProps) {
+export default function CallLogPanel({ customer, onStatusChanged }: CallLogPanelProps) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -52,6 +53,16 @@ export default function CallLogPanel({ customer }: CallLogPanelProps) {
 
   const handleSubmit = async () => {
     if (!form.call_status) return;
+    
+    // Optimistic update - immediately notify parent of status change
+    if (onStatusChanged) {
+      onStatusChanged(
+        customer.id, 
+        form.call_status,
+        form.call_status === 'custom' ? form.custom_status : undefined
+      );
+    }
+    
     try {
       setSubmitting(true);
       await ASECustomerService.addCallLog(customer.id, {
@@ -59,12 +70,16 @@ export default function CallLogPanel({ customer }: CallLogPanelProps) {
         custom_status: form.call_status === 'custom' ? form.custom_status : undefined,
         notes: form.notes || undefined,
       });
-      toast.success('Call log added');
-      setForm({ call_status: customer.call_status, custom_status: '', notes: '' });
+      toast.success('Call status updated');
+      setForm({ call_status: form.call_status, custom_status: '', notes: '' });
       setShowForm(false);
       fetchLogs();
-    } catch {
-      toast.error('Failed to add call log');
+    } catch (error) {
+      toast.error('Failed to update call status');
+      // Revert optimistic update on error by refreshing
+      if (onStatusChanged) {
+        onStatusChanged(customer.id, customer.call_status, customer.custom_call_status);
+      }
     } finally {
       setSubmitting(false);
     }

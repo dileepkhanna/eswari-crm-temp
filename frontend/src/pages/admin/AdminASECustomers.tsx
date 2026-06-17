@@ -93,8 +93,8 @@ export default function AdminASECustomers() {
     setMonthFilter: contextSetMonthFilter,
   } = useASECustomers();
 
-  // Stable ref so WS callback always calls the latest fetchDisplay
-  useASEWebSocket('calls', useCallback(() => { setRefreshKey(k => k + 1); }, []));
+  // DISABLED WebSocket auto-refresh to prevent data isolation issues where employees see other employees' data during refresh
+  // useASEWebSocket('calls', useCallback(() => { setRefreshKey(k => k + 1); }, []));
 
   const { fetchLeads: fetchASELeads } = useASELead();
 
@@ -523,6 +523,22 @@ export default function AdminASECustomers() {
   };
 
   const handleStatusChange = async (customerId: string, newStatus: string, customStatusText?: string) => {
+    // Store original state for rollback on error
+    const originalCustomer = displayCustomers.find(c => c.id === customerId);
+    
+    // Optimistic UI update - immediately update the status in the table
+    setDisplayCustomers(prev =>
+      prev.map(c =>
+        c.id === customerId
+          ? { 
+              ...c, 
+              call_status: newStatus,
+              custom_call_status: newStatus === 'custom' ? customStatusText : c.custom_call_status
+            }
+          : c
+      )
+    );
+    
     try {
       const updateData: Record<string, unknown> = { call_status: newStatus };
       if (newStatus === 'custom' && customStatusText) {
@@ -533,6 +549,16 @@ export default function AdminASECustomers() {
       toast.success('Status updated successfully');
       refreshOverdueCount();
     } catch (error) {
+      // Revert optimistic update on error
+      if (originalCustomer) {
+        setDisplayCustomers(prev =>
+          prev.map(c =>
+            c.id === customerId
+              ? originalCustomer
+              : c
+          )
+        );
+      }
       logger.error('Error updating status:', error);
       toast.error('Failed to update status');
     }
@@ -543,6 +569,33 @@ export default function AdminASECustomers() {
       await handleStatusChange(customStatusModal.customerId, 'custom', customStatusText.trim());
       setCustomStatusModal({ open: false, customerId: null });
       setCustomStatusText('');
+    }
+  };
+
+  // Optimistic status update handler for CallLogPanel
+  const handleCallLogStatusChange = (customerId: string, newStatus: string, customStatusText?: string) => {
+    // Immediately update the UI without waiting for API response
+    setDisplayCustomers(prev =>
+      prev.map(c =>
+        c.id === customerId
+          ? { 
+              ...c, 
+              call_status: newStatus,
+              custom_call_status: newStatus === 'custom' ? customStatusText : c.custom_call_status
+            }
+          : c
+      )
+    );
+    
+    // Also update viewCustomer if it's currently displayed
+    if (viewCustomer?.id === customerId) {
+      setViewCustomer(prev =>
+        prev ? {
+          ...prev,
+          call_status: newStatus,
+          custom_call_status: newStatus === 'custom' ? customStatusText : prev.custom_call_status
+        } : null
+      );
     }
   };
 
@@ -1499,7 +1552,7 @@ export default function AdminASECustomers() {
                   </button>
                 </div>
                 {detailTab === 'calls' ? (
-                  <CallLogPanel customer={viewCustomer} />
+                  <CallLogPanel customer={viewCustomer} onStatusChanged={handleCallLogStatusChange} />
                 ) : (
                   <NotesPanel customer={viewCustomer} />
                 )}

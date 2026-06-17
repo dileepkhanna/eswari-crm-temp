@@ -173,8 +173,8 @@ export default function AdminASETasks() {
     setEmployees(mapped);
   }, [tasks]);
 
-  // Real-time updates via WebSocket
-  useASEWebSocket('tasks', () => { fetchTasks(); });
+  // DISABLED WebSocket auto-refresh to prevent data isolation issues where employees see other employees' data during refresh
+  // useASEWebSocket('tasks', () => { fetchTasks(); });
 
   // Client-side filters (search + date + month + quickDate)
   const filteredTasks = useMemo(() => {

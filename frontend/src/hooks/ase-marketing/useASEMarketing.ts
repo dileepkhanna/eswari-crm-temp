@@ -145,11 +145,11 @@ export function useMyLeadQueue(params?: Record<string, any>) {
 
   useEffect(() => { hasFetched.current = false; fetchQueue(); }, [fetchQueue]);
 
-  // Silent auto-poll every 5 seconds for live updates
-  useEffect(() => {
-    const interval = setInterval(() => { fetchQueue(); }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchQueue]);
+  // DISABLED auto-poll to prevent data isolation issues where employees see other employees' data during refresh
+  // useEffect(() => {
+  //   const interval = setInterval(() => { fetchQueue(); }, 5000);
+  //   return () => clearInterval(interval);
+  // }, [fetchQueue]);
 
   return { data, loading, error, refetch: fetchQueue };
 }

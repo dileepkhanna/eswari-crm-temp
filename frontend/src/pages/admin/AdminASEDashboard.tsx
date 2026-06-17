@@ -51,10 +51,10 @@ export default function AdminASEDashboard() {
     }
   }, []);
 
-  // Real-time WebSocket updates for the dashboard
-  useASEWebSocket('calls', () => { fetchCallStats(); fetchCustomers(); });
-  useASEWebSocket('leads', () => { refreshLeads(); });
-  useASEWebSocket('tasks', () => { fetchTasks(); });
+  // DISABLED WebSocket auto-refresh to prevent data isolation issues where employees see other employees' data during refresh
+  // useASEWebSocket('calls', () => { fetchCallStats(); fetchCustomers(); });
+  // useASEWebSocket('leads', () => { refreshLeads(); });
+  // useASEWebSocket('tasks', () => { fetchTasks(); });
 
   // On mount: use the stable callbacks — no duplicate inline fetch
   useEffect(() => {

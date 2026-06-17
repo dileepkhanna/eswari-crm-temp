@@ -38,8 +38,8 @@ export default function AdminASELeads() {
     currentPage, setCurrentPage, totalPages, totalCount,
   } = useASELead();
 
-  // Real-time updates via WebSocket
-  useASEWebSocket('leads', () => { refreshData(); });
+  // DISABLED WebSocket auto-refresh to prevent data isolation issues where employees see other employees' data during refresh
+  // useASEWebSocket('leads', () => { refreshData(); });
 
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [selectedLead, setSelectedLead] = useState<ASELead | null>(null);
