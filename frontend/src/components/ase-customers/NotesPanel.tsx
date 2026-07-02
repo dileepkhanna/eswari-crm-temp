@@ -21,8 +21,10 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
     try {
       setLoading(true);
       const data = await ASECustomerService.getNotes(customer.id);
+      console.log(`[NotesPanel] Fetched ${data.length} notes for customer ${customer.id}:`, data);
       setNotes(data);
-    } catch {
+    } catch (error) {
+      console.error('[NotesPanel] Failed to load notes:', error);
       toast.error('Failed to load notes');
     } finally {
       setLoading(false);
@@ -30,6 +32,9 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
   };
 
   useEffect(() => { fetchNotes(); }, [customer.id]);
+
+  // Check if customer has main notes field content
+  const hasMainNotes = customer.notes && customer.notes.trim().length > 0;
 
   const handleSubmit = async () => {
     const trimmed = content.trim();
@@ -55,7 +60,9 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
         <div className="flex items-center gap-2">
           <FileTextIcon className="w-4 h-4 text-primary" />
           <span className="font-medium text-sm">Notes</span>
-          <span className="text-xs text-muted-foreground">({notes.length})</span>
+          <span className="text-xs text-muted-foreground">
+            ({(hasMainNotes ? 1 : 0) + notes.length})
+          </span>
         </div>
         <Button
           variant="outline"
@@ -92,7 +99,7 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
       {/* Timeline */}
       {loading ? (
         <div className="text-center py-6 text-sm text-muted-foreground">Loading notes...</div>
-      ) : notes.length === 0 ? (
+      ) : !hasMainNotes && notes.length === 0 ? (
         <div className="text-center py-6 text-sm text-muted-foreground">
           No notes yet. Add a note to track conversation context.
         </div>
@@ -101,6 +108,41 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
           {/* Vertical line */}
           <div className="absolute left-3 top-2 bottom-2 w-px bg-border" />
 
+          {/* Main notes field from edit form (if exists) */}
+          {hasMainNotes && (
+            <div className="relative flex gap-3 pb-4">
+              {/* Dot */}
+              <div className="relative z-10 mt-1 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <FileTextIcon className="w-3 h-3 text-white" />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-300">
+                    Main Notes
+                  </span>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ClockIcon className="w-3 h-3" />
+                    <span>
+                      {new Date(customer.updated_at || customer.created_at).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground bg-amber-50 rounded px-2 py-1.5 whitespace-pre-wrap border border-amber-200">
+                  {customer.notes}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 italic">
+                  💡 This note is from the main "Notes" field in the edit form
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* CustomerNote entries */}
           {notes.map(note => (
             <div key={note.id} className="relative flex gap-3 pb-4">
               {/* Dot */}

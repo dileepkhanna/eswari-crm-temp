@@ -30,7 +30,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,eswariconnects.com,www.eswariconnects.com', cast=lambda v: [s.strip() for s in v.split(',')])
 
 
-# Application definition
+#Application definition
 
 INSTALLED_APPS = [
     "daphne",  # ASGI server for WebSocket support (must be listed first)

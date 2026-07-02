@@ -11,6 +11,21 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     strictPort: true,
+    allowedHosts: [
+      // Specific hosts
+      'stupid-books-push.loca.lt',
+      'petite-sides-run.loca.lt',
+      'localhost',
+      // Wildcard patterns for tunnel services
+      '.ngrok-free.app',
+      '.ngrok.io',
+      '.ngrok-free.dev',
+      '.loca.lt',
+      '.serveo.net',
+      '.localhost.run',
+      // Allow all hosts (use with caution - only for development)
+      'all',
+    ],
     headers: {
       // Force browser to always revalidate index.html so stale builds never get cached
       'Cache-Control': 'no-cache, no-store, must-revalidate',

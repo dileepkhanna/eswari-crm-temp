@@ -109,7 +109,9 @@ class ASECustomerListSerializer(serializers.ModelSerializer):
             'company_name_display',
             'service_interests',
             'custom_services',
+            'notes',  # Added for NotesPanel to display main notes
             'created_at',
+            'updated_at',  # Added for NotesPanel timestamp
             'scheduled_date',
             'is_converted',
         ]

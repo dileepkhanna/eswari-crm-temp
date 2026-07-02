@@ -324,10 +324,17 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     def notes_history(self, request, pk=None):
         """GET: list notes for a customer. POST: append a new note."""
         from .models import CustomerNote
+        import logging
+        logger = logging.getLogger(__name__)
+        
         customer = self.get_object()
 
         if request.method == 'GET':
-            notes = CustomerNote.objects.filter(customer=customer).select_related('author')
+            # Explicitly order by created_at descending to show all notes (newest first)
+            notes = CustomerNote.objects.filter(customer=customer).select_related('author').order_by('-created_at')
+            logger.info(f"[notes_history GET] Customer {customer.id} ({customer.name}): Found {notes.count()} notes")
+            for note in notes[:5]:  # Log first 5 notes
+                logger.info(f"  - Note ID {note.id}: Created {note.created_at}, Author: {note.author.username if note.author else 'None'}")
             serializer = CustomerNoteSerializer(notes, many=True)
             return Response(serializer.data)
 
@@ -340,6 +347,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             author=request.user,
             content=content,
         )
+        logger.info(f"[notes_history POST] Created note ID {note.id} for customer {customer.id} ({customer.name}) by {request.user.username}")
         return Response(CustomerNoteSerializer(note).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get', 'post'])

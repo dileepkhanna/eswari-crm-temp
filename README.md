@@ -38,6 +38,62 @@ The Vite dev server proxies `/api` and `/media` requests to `http://localhost:80
 
 The dev server also sets `Cache-Control: no-cache, no-store, must-revalidate` on all responses, forcing the browser to always revalidate assets. This prevents stale builds from being served during development.
 
+#### Remote Access with Tunnel Services
+
+The dev server is configured to accept connections from multiple tunnel services, allowing you to:
+- Test the application on mobile devices over the internet
+- Share the dev environment with remote stakeholders
+- Debug mobile-specific issues without deploying
+
+**Supported tunnel services:**
+- **ngrok** (`*.ngrok-free.app`, `*.ngrok.io`, `*.ngrok-free.dev`)
+- **localtunnel** (`*.loca.lt`)
+- **serveo** (`*.serveo.net`)
+- **localhost.run** (`*.localhost.run`)
+- `localhost` (standard local development)
+
+**Currently configured specific hosts:**
+- `stupid-books-push.loca.lt` (localtunnel)
+- `petite-sides-run.loca.lt` (localtunnel)
+
+**Example usage with ngrok:**
+```bash
+# In one terminal, start the dev server
+npm run dev
+
+# In another terminal, expose it via ngrok
+ngrok http 8080
+
+# Access your app via the ngrok URL (e.g., https://abc123.ngrok-free.app)
+```
+
+**Example usage with localtunnel:**
+```bash
+# Install localtunnel globally (one time)
+npm install -g localtunnel
+
+# In one terminal, start the dev server
+npm run dev
+
+# In another terminal, create tunnel
+lt --port 8080 --subdomain stupid-books-push
+
+# Access your app via the configured localtunnel URL: https://stupid-books-push.loca.lt
+```
+
+**Example usage with serveo:**
+```bash
+# In one terminal, start the dev server
+npm run dev
+
+# In another terminal, create SSH tunnel
+ssh -R 80:localhost:8080 serveo.net
+
+# Access your app via the serveo URL shown in terminal output
+```
+
+> **Note**: The dev server allows all hosts in development mode for maximum flexibility with tunnel services. Only use tunnel services for development — never expose production servers this way. When adding specific tunnel URLs to `allowedHosts` in `vite.config.ts`, use the hostname only without protocol (e.g., `upset-mice-tell.loca.lt` not `https://upset-mice-tell.loca.lt`).
+
 ---
 
 ## Modules
@@ -63,6 +119,41 @@ The dev server also sets `Cache-Control: no-cache, no-store, must-revalidate` on
 When a customer record is created or updated, an activity log entry is recorded via `logCustomerActivity()` in `ASECustomerContext`. The user context passed to this function includes the authenticated user's actual company ID (`user.company.id`), so activity log entries are always scoped to the correct company. If the company ID is unavailable it defaults to `0`.
 
 > Previously the update path hardcoded `company: { id: 3 }`, which incorrectly attributed activity logs to a fixed company regardless of which company the acting user belonged to. This has been corrected to use the dynamic company ID from the auth context.
+
+### Customer Notes
+
+**GET `/api/ase-customers/{id}/notes/`** — Retrieve all notes for a specific customer.
+
+**Ordering**: Notes are returned in **descending order by creation date** (newest first). This ensures the most recent communications and updates appear at the top of the list.
+
+**Diagnostic Logging**: The endpoint logs note retrieval operations for debugging purposes. Server logs include:
+- Total note count per customer query
+- Details of the first 5 notes (ID, creation time, author)
+
+**Response format**:
+```json
+[
+  {
+    "id": 123,
+    "customer": 456,
+    "author": {
+      "id": 789,
+      "name": "John Doe"
+    },
+    "note_text": "Customer interested in premium package",
+    "created_at": "2026-07-02T10:30:00Z"
+  },
+  ...
+]
+```
+
+**Notes Timeline UI**: The frontend `NotesPanel` component displays notes in a timeline format with two types:
+
+1. **Main Notes** (amber badge) — The primary `notes` field from the customer edit form. Displayed at the top of the timeline when present, with a timestamp from the customer's `updated_at` or `created_at` field. The `notes` and `updated_at` fields are included in the `ASECustomerListSerializer` response to support the NotesPanel display without requiring additional API calls.
+
+2. **Timeline Notes** (blue badge) — Individual `CustomerNote` entries created through the "Add Note" button. Each shows the author name and creation timestamp.
+
+The timeline shows the total count including both types, and displays an empty state only when both the main notes field and timeline notes are empty.
 
 ### Real-Time WebSocket Events
 
@@ -418,6 +509,9 @@ The backend includes several standalone test scripts for verifying specific func
 | `test_api_bulk_import.py` | Tests bulk import API endpoint with authentication and self-assignment verification |
 | `test_websocket_setup.py` | Tests WebSocket connection and notification delivery |
 | `smoke_test_ase_data_isolation.py` | Validates ASE data isolation between companies |
+| `check_birthdays.py` | Diagnostic tool for troubleshooting the birthday notification system |
+| `test_notes.py` | Verifies ASE customer notes functionality, including main notes field and CustomerNote entries |
+| `check_ase_health.py` | Comprehensive health check for ASE Customers and ASE Leads modules |
 
 **Running a test script:**
 
@@ -431,7 +525,98 @@ These scripts use real API endpoints and require:
 - Valid user credentials (configured in the script)
 - `pandas` installed for CSV generation (`pip install pandas`)
 
+**Note:** `test_notes.py`, `check_birthdays.py`, and `check_ase_health.py` can be run directly against the database without the server running:
+
+```bash
+cd backend
+python manage.py shell < test_notes.py
+```
+
 > **Authentication in test scripts**: All test scripts now use the correct login payload format with the `email` field for the username/identifier, as the backend expects. See the Authentication section above for the correct format.
+
+### Birthday System Diagnostics
+
+The `check_birthdays.py` script provides comprehensive diagnostics for the birthday notification system:
+
+```bash
+cd backend
+python check_birthdays.py
+```
+
+**What it checks:**
+1. **Birthdays in database** — Lists all registered birthdays with announcement settings
+2. **Today's birthdays** — Shows employees with birthdays today that should trigger notifications
+3. **Upcoming birthdays** — Lists birthdays in the next 7 days with countdown
+4. **FCM tokens** — Active mobile push notification tokens (device type, user)
+5. **Web push subscriptions** — Active browser push subscriptions
+6. **Recent announcements** — Recent birthday announcement records
+7. **Recent notifications** — Recent birthday/announcement notifications sent
+8. **Firebase status** — Whether Firebase Admin SDK is properly initialized
+
+This script does NOT require the Django server to be running and can be executed directly against the database.
+
+### ASE Module Health Check
+
+The `check_ase_health.py` script provides comprehensive diagnostics for both ASE Customers and ASE Leads modules:
+
+```bash
+cd backend
+python check_ase_health.py
+```
+
+**What it checks:**
+1. **Database Tables** — Verifies all ASE-related tables exist and shows record counts
+2. **Models** — Confirms ASECustomer, ASELead, CustomerNote, and CallLog models load correctly
+3. **Serializers** — Validates serializer configuration, including required fields like `notes` and `updated_at` in list serializers
+4. **Views** — Tests that ViewSets load properly with correct queryset and serializer classes
+5. **Sample Data** — Retrieves sample records to verify data structure and relationships
+6. **Relationships** — Checks foreign key relationships (assigned_to, created_by, company) and related objects
+7. **API Endpoints** — Verifies URL routing is configured correctly
+
+**Sample output:**
+```
+======================================================================
+ASE MODULE HEALTH CHECK
+======================================================================
+
+1️⃣ DATABASE TABLES CHECK
+----------------------------------------------------------------------
+✅ Found 4 ASE-related tables:
+   - ase_customers_asecustomer: 150 records
+   - ase_leads_aselead: 75 records
+   - ase_customers_customernote: 320 records
+   - ase_customers_calllog: 95 records
+
+2️⃣ MODELS CHECK
+----------------------------------------------------------------------
+✅ ASECustomer: 150 records
+✅ ASELead: 75 records
+✅ CustomerNote: 320 records
+✅ CallLog: 95 records
+
+...
+
+======================================================================
+SUMMARY
+======================================================================
+📊 ASE Customers (Calls): 150
+   - With main notes: 45
+   - CustomerNote entries: 320
+   - Call logs: 95
+
+📊 ASE Leads: 75
+
+✅ NO ISSUES DETECTED!
+```
+
+**Use cases:**
+- Verify ASE modules are properly configured after initial setup
+- Troubleshoot issues with ASE data not appearing in frontend
+- Confirm serializers include all required fields for UI features (e.g., NotesPanel)
+- Validate database relationships and foreign keys
+- Check for missing or misconfigured API endpoints
+
+This script does NOT require the Django server to be running and can be executed directly against the database.
 
 ---
 
