@@ -273,7 +273,20 @@ export default function AdminASECustomers() {
     
     try {
       await updateCustomer(selectedCustomer.id, customerData);
+      const customerId = selectedCustomer.id;
       setSelectedCustomer(null);
+      
+      // If this customer is currently being viewed in the detail panel, refresh it
+      if (viewCustomer?.id === customerId) {
+        // Fetch the updated customer data
+        try {
+          const updatedCustomer = await ASECustomerService.getCustomer(customerId);
+          setViewCustomer(updatedCustomer);
+        } catch (error) {
+          logger.error('Failed to refresh view customer:', error);
+        }
+      }
+      
       // Refresh display list after update
       setRefreshKey(k => k + 1);
     } catch (error: unknown) {

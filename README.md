@@ -204,6 +204,15 @@ Exceeding these limits will return a validation error from the API.
 
 The timeline shows the total count including both types, and displays an empty state only when both the main notes field and timeline notes are empty.
 
+**Component Interface**: The `NotesPanel` component accepts an optional `onCustomerUpdate` callback prop that can be invoked after note operations to refresh the parent customer data. This enables real-time updates when notes are modified.
+
+```typescript
+<NotesPanel 
+  customer={customerData} 
+  onCustomerUpdate={() => refreshCustomerData()} 
+/>
+```
+
 ### Overdue Follow-up Indicator
 
 The ASE Customers UI displays a pulsing red dot indicator next to customer phone numbers when a follow-up is overdue. The indicator appears when:

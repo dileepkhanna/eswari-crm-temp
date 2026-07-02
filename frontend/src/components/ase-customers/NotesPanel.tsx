@@ -8,9 +8,10 @@ import { toast } from 'sonner';
 
 interface NotesPanelProps {
   customer: ASECustomer;
+  onCustomerUpdate?: () => void; // Optional callback to refresh customer data
 }
 
-export default function NotesPanel({ customer }: NotesPanelProps) {
+export default function NotesPanel({ customer, onCustomerUpdate }: NotesPanelProps) {
   const [notes, setNotes] = useState<CustomerNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -31,7 +32,7 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
     }
   };
 
-  useEffect(() => { fetchNotes(); }, [customer.id]);
+  useEffect(() => { fetchNotes(); }, [customer.id, customer.notes, customer.updated_at]);
 
   // Check if customer has main notes field content
   const hasMainNotes = customer.notes && customer.notes.trim().length > 0;
