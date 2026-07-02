@@ -206,13 +206,17 @@ The timeline shows the total count including both types, and displays an empty s
 
 ### Overdue Follow-up Indicator
 
-The ASE Customers UI displays a pulsing red alarm clock emoji (⏰) next to customer phone numbers when a follow-up is overdue. The indicator appears when:
+The ASE Customers UI displays a pulsing red dot indicator next to customer phone numbers when a follow-up is overdue. The indicator appears when:
 
 - The customer has a `scheduled_date` set
 - The `call_status` is `pending`
 - The scheduled date/time is in the past
 
-This visual alert helps prioritize overdue follow-ups at a glance. Hovering over the indicator shows the original scheduled date and time.
+The indicator uses a modern double-ring animation:
+- An outer ring with a pulsing animation (`animate-ping`) for attention
+- A solid inner red dot for visibility
+
+Hovering over the indicator shows the original scheduled date and time as a tooltip. This visual alert helps prioritize overdue follow-ups at a glance without cluttering the interface.
 
 ### Real-Time WebSocket Events
 

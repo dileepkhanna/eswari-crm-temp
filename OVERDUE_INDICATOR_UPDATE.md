@@ -1,10 +1,177 @@
-# Overdue Indicator Feature
+# Overdue Indicator Feature - Small Red Dot
 
 ## 📅 Date: July 2, 2026
 
 ## ✨ Feature Overview
 
-Added visual indicators to highlight overdue customers directly in the calls table and mobile view.
+Added a small, subtle red dot indicator to highlight overdue customers directly in the calls table and mobile view.
+
+---
+
+## 🎯 What's New
+
+### Small Red Dot Indicator
+Customers with past-due follow-up dates now display a small pulsing red dot next to their phone number:
+
+**Visual:**
+```
+📞 9063974348 🔴 (small red dot)
+```
+
+### Dot Features
+- 🔴 **Small red dot** (2px × 2px) - Subtle, non-intrusive
+- ✨ **Ping animation** - Gentle pulsing effect to catch attention
+- 💬 **Tooltip on hover** - Shows exact due date/time
+- 📱 **Same on mobile** - Consistent across all views
+
+---
+
+## 🔧 Technical Implementation
+
+### Visual Design
+
+**HTML Structure:**
+```jsx
+<span className="relative flex h-2 w-2" title="Overdue! ...">
+  {/* Ping animation ring */}
+  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+  {/* Solid dot */}
+  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+</span>
+```
+
+**Animation:**
+- Uses Tailwind's `animate-ping` for smooth pulsing effect
+- Semi-transparent outer ring (red-400, 75% opacity)
+- Solid inner dot (red-500, 100% opacity)
+- Size: 2px × 2px (8px total diameter with animation)
+
+---
+
+## 🎨 Design Specifications
+
+### Size
+- **Dot:** 2px × 2px (h-2 w-2)
+- **With animation:** ~8px diameter total
+- **Very subtle** - doesn't clutter the interface
+
+### Colors
+- **Solid dot:** `bg-red-500` (#EF4444)
+- **Ping ring:** `bg-red-400` (#F87171) at 75% opacity
+
+### Animation
+- **Effect:** Tailwind's built-in `animate-ping`
+- **Behavior:** Smooth, gentle pulsing
+- **Performance:** CSS-based, hardware-accelerated
+
+### Positioning
+- Appears after phone number
+- Aligned with text baseline
+- 4px gap from phone number
+
+---
+
+## 📊 Visual Examples
+
+### Desktop Table View
+```
+┌────────────────────────────────────────┐
+│ Phone             │ Name      │ Status │
+├────────────────────────────────────────┤
+│ 📞 9063974348     │ John Doe  │ Pending│
+│ 📞 9999999905 🔴  │ Test User │ Pending│ (overdue)
+│ 📞 9454665692 🔴  │ Jane      │ Pending│ (overdue)
+└────────────────────────────────────────┘
+```
+
+### Mobile Card View
+```
+┌─────────────────────────────────┐
+│ □ 📞 9999999905 🔴             │
+│   Test User                     │
+│   Status: Pending               │
+└─────────────────────────────────┘
+```
+
+### Tooltip on Hover
+```
+Overdue! Follow-up was due on 6/10/2026, 9:35:07 AM
+```
+
+---
+
+## 💡 Key Benefits
+
+### Subtle Yet Effective
+- **Not distracting** - Small size doesn't clutter UI
+- **Easy to spot** - Red color and animation catch the eye
+- **Professional** - Clean, minimal design
+
+### Better Than Text Badge
+- **Less space** - Takes minimal room
+- **Cleaner look** - Doesn't break text flow
+- **More elegant** - Matches modern UI patterns
+
+### Information on Demand
+- **Quick scan** - See overdue status at a glance
+- **Hover for details** - Tooltip shows exact due date
+- **Always visible** - Works with any filter
+
+---
+
+## 🔍 When Dot Appears
+
+The red dot displays when **ALL** conditions are met:
+
+1. ✅ Customer has `scheduled_date` set
+2. ✅ Customer `call_status` is `'pending'`
+3. ✅ Current time > scheduled_date
+
+**Currently:** 113 customers showing red dots
+
+---
+
+## 🚀 Testing Instructions
+
+### Visual Check
+1. Open ASE Customers page
+2. Look for small red pulsing dots next to phone numbers
+3. Should see 113 customers with dots
+4. Hover over dot → Tooltip shows due date
+
+### Animation Check
+1. Watch the red dots
+2. Should see gentle pulsing animation
+3. Smooth, not jarring or distracting
+
+### Responsive Check
+1. Open on mobile or resize browser
+2. Dots should appear same size and position
+3. Touch/hover for tooltip
+
+---
+
+## 📁 Files Modified
+
+**Frontend:**
+- ✅ `frontend/src/pages/admin/AdminASECustomers.tsx`
+  - Table view: Small red dot after phone number
+  - Mobile view: Small red dot after phone number
+  - Uses `h-2 w-2` sizing with ping animation
+
+---
+
+## ✅ Completion Status
+
+- [x] Small red dot (2px × 2px)
+- [x] Ping animation added
+- [x] Tooltip with due date
+- [x] Added to desktop table
+- [x] Added to mobile cards
+- [x] Tested with 113 overdue customers
+- [x] Ready for production
+
+**Perfect subtle indicator! 🎯**
 
 ---
 

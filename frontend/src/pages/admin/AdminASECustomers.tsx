@@ -901,10 +901,11 @@ export default function AdminASECustomers() {
                             <span className="text-sm font-medium">{customer.phone}</span>
                             {isOverdue(customer) && (
                               <span 
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white animate-pulse"
+                                className="relative flex h-2 w-2"
                                 title={`Overdue! Follow-up was due on ${new Date(customer.scheduled_date!).toLocaleString()}`}
                               >
-                                ⏰ OVERDUE
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                               </span>
                             )}
                           </div>
@@ -1194,10 +1195,11 @@ export default function AdminASECustomers() {
                             <span className="font-semibold text-base">{customer.phone}</span>
                             {isOverdue(customer) && (
                               <span 
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white animate-pulse"
+                                className="relative flex h-2 w-2"
                                 title={`Overdue! Follow-up was due on ${new Date(customer.scheduled_date!).toLocaleString()}`}
                               >
-                                ⏰
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                               </span>
                             )}
                           </div>
