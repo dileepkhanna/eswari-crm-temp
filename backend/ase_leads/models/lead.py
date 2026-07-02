@@ -30,6 +30,7 @@ class ASELead(models.Model):
         ('analytics', 'Analytics & Reporting'),
         ('influencer', 'Influencer Marketing'),
         ('video_marketing', 'Video Marketing'),
+        ('school_management', 'School Management'),
         ('custom', 'Custom/Other Services'),
     ]
     

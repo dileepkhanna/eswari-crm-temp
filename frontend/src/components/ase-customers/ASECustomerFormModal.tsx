@@ -75,6 +75,7 @@ export default function ASECustomerFormModal({
     custom_services: '',
     notes: '',
     assigned_to: undefined,
+    scheduled_date: undefined,
   });
 
   // Reset form when modal opens/closes or customer changes
@@ -94,6 +95,7 @@ export default function ASECustomerFormModal({
           custom_services: customer.custom_services || '',
           notes: customer.notes || '',
           assigned_to: customer.assigned_to ? String(customer.assigned_to) : undefined,
+          scheduled_date: customer.scheduled_date || undefined,
         });
       } else {
         // Create mode - reset to defaults
@@ -108,6 +110,7 @@ export default function ASECustomerFormModal({
           custom_services: '',
           notes: '',
           assigned_to: undefined,
+          scheduled_date: undefined,
         });
       }
     }
@@ -274,6 +277,20 @@ export default function ASECustomerFormModal({
             </div>
           )}
 
+          {/* Follow-up Date (Scheduled Date) */}
+          <div>
+            <Label htmlFor="scheduled_date">Follow-up Date</Label>
+            <Input
+              id="scheduled_date"
+              type="datetime-local"
+              value={formData.scheduled_date ? new Date(formData.scheduled_date).toISOString().slice(0, 16) : ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value ? new Date(e.target.value).toISOString() : undefined }))}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Set when you plan to follow up with this customer
+            </p>
+          </div>
+
           {/* Service Interests */}
           <div>
             <Label>Service Interests</Label>
@@ -342,7 +359,11 @@ export default function ASECustomerFormModal({
               value={formData.notes || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
+              maxLength={500}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              {(formData.notes || '').length}/500 characters
+            </p>
           </div>
 
           {/* Form Actions */}

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 
 class ASECustomer(models.Model):
@@ -25,6 +26,22 @@ class ASECustomer(models.Model):
         ('medium', 'Medium'),
         ('high', 'High'),
         ('urgent', 'Urgent'),
+    ]
+    
+    # Service interest choices (same as ASE Leads)
+    SERVICE_CHOICES = [
+        ('seo', 'SEO'),
+        ('social_media', 'Social Media Marketing'),
+        ('content_marketing', 'Content Marketing'),
+        ('ppc', 'Pay-Per-Click Advertising'),
+        ('email_marketing', 'Email Marketing'),
+        ('web_design', 'Web Design & Development'),
+        ('branding', 'Branding & Design'),
+        ('analytics', 'Analytics & Reporting'),
+        ('influencer', 'Influencer Marketing'),
+        ('video_marketing', 'Video Marketing'),
+        ('school_management', 'School Management'),
+        ('custom', 'Custom/Other Services'),
     ]
     
     # Basic Information
@@ -67,8 +84,8 @@ class ASECustomer(models.Model):
     service_interests = models.JSONField(default=list, blank=True, help_text="Digital marketing services of interest")
     custom_services = models.TextField(blank=True, null=True, help_text="Custom services not in predefined list")
     
-    # Notes
-    notes = models.TextField(blank=True, null=True, help_text="Customer notes")
+    # Notes (max 500 characters)
+    notes = models.TextField(blank=True, null=True, help_text="Customer notes (max 500 characters)")
     
     # Conversion tracking
     is_converted = models.BooleanField(default=False, help_text="Converted to lead")
@@ -95,6 +112,27 @@ class ASECustomer(models.Model):
     def __str__(self):
         display_name = self.name or self.company_name or "Unnamed Customer"
         return f"{display_name} - {self.phone}"
+    
+    def clean(self):
+        """Validate model fields"""
+        super().clean()
+        # Validate notes length (max 500 characters)
+        if self.notes and len(self.notes) > 500:
+            raise ValidationError({'notes': 'Notes cannot exceed 500 characters.'})
+    
+    def save(self, *args, **kwargs):
+        """Override save to run validation"""
+        self.clean()
+        super().save(*args, **kwargs)
+    
+    @property
+    def service_interests_display(self):
+        """Return human-readable service interests"""
+        if not self.service_interests:
+            return []
+        
+        service_dict = dict(self.SERVICE_CHOICES)
+        return [service_dict.get(service, service) for service in self.service_interests]
     
     @property
     def assigned_to_name(self):
@@ -124,7 +162,7 @@ class CallLog(models.Model):
     )
     call_status = models.CharField(max_length=20, choices=ASECustomer.CALL_STATUS_CHOICES)
     custom_status = models.CharField(max_length=100, blank=True, null=True)
-    notes = models.TextField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True, help_text="Call notes (max 500 characters)")
     called_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -132,6 +170,17 @@ class CallLog(models.Model):
         indexes = [
             models.Index(fields=['customer', 'called_at']),
         ]
+    
+    def clean(self):
+        """Validate notes length"""
+        super().clean()
+        if self.notes and len(self.notes) > 500:
+            raise ValidationError({'notes': 'Call notes cannot exceed 500 characters.'})
+    
+    def save(self, *args, **kwargs):
+        """Override save to run validation"""
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         caller = self.called_by.username if self.called_by else 'Unknown'
@@ -142,6 +191,7 @@ class CustomerNote(models.Model):
     """
     Append-only conversation notes for an ASE Customer.
     Each entry is immutable — employees add new notes rather than overwriting.
+    Max 500 characters per note.
     """
     customer = models.ForeignKey(
         ASECustomer,
@@ -154,7 +204,7 @@ class CustomerNote(models.Model):
         null=True,
         related_name='customer_notes',
     )
-    content = models.TextField()
+    content = models.TextField(help_text="Note content (max 500 characters)")
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -162,6 +212,17 @@ class CustomerNote(models.Model):
         indexes = [
             models.Index(fields=['customer', 'created_at']),
         ]
+    
+    def clean(self):
+        """Validate note content length"""
+        super().clean()
+        if self.content and len(self.content) > 500:
+            raise ValidationError({'content': 'Note cannot exceed 500 characters.'})
+    
+    def save(self, *args, **kwargs):
+        """Override save to run validation"""
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         author = self.author.username if self.author else 'Unknown'

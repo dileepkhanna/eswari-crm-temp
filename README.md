@@ -114,6 +114,48 @@ ssh -R 80:localhost:8080 serveo.net
 
 ## ASE Customers
 
+### Model Structure
+
+ASE Customers is a simplified call tracking model for ASE Technologies with the following key fields:
+
+**Basic Information:**
+- `name` — Customer name (optional)
+- `phone` — Primary phone number (required, unique per company)
+- `email` — Email address (optional)
+- `company_name` — Company name (optional)
+
+**Call Management:**
+- `call_status` — Status choices: `pending`, `answered`, `not_answered`, `busy`, `not_interested`, `custom`
+- `custom_call_status` — Free-text status when `call_status` is `custom`
+- `scheduled_date` — Scheduled call date/time
+- `call_date` — Actual call date/time
+
+**Service Interests:**
+- `service_interests` — JSONField containing list of service codes (matches ASE Lead SERVICE_CHOICES):
+  - `seo` — SEO
+  - `social_media` — Social Media Marketing
+  - `content_marketing` — Content Marketing
+  - `ppc` — Pay-Per-Click Advertising
+  - `email_marketing` — Email Marketing
+  - `web_design` — Web Design & Development
+  - `branding` — Branding & Design
+  - `analytics` — Analytics & Reporting
+  - `influencer` — Influencer Marketing
+  - `video_marketing` — Video Marketing
+  - `school_management` — School Management
+  - `custom` — Custom/Other Services
+- `custom_services` — Free-text field for services not in predefined list
+
+**UI Display**: When displaying service interests in the customer table, if a customer has selected `custom` as a service interest, the UI displays the actual text from the `custom_services` field instead of the generic "custom" label, providing clearer insight into the customer's specific needs.
+
+**Conversion Tracking:**
+- `is_converted` — Boolean flag indicating if converted to ASE Lead
+- `converted_lead_id` — Reference to the converted lead record
+
+**Related Models:**
+- `CallLog` — Tracks every call/status update with timestamp and notes (max 500 characters per call, validated at API level)
+- `CustomerNote` — Append-only conversation notes (immutable entries, max 500 characters per note, validated at API level)
+
 ### Activity Logging
 
 When a customer record is created or updated, an activity log entry is recorded via `logCustomerActivity()` in `ASECustomerContext`. The user context passed to this function includes the authenticated user's actual company ID (`user.company.id`), so activity log entries are always scoped to the correct company. If the company ID is unavailable it defaults to `0`.
@@ -125,6 +167,13 @@ When a customer record is created or updated, an activity log entry is recorded 
 **GET `/api/ase-customers/{id}/notes/`** — Retrieve all notes for a specific customer.
 
 **Ordering**: Notes are returned in **descending order by creation date** (newest first). This ensures the most recent communications and updates appear at the top of the list.
+
+**Validation**: All note fields are validated for maximum length:
+- Main `notes` field: **500 characters maximum**
+- Individual `CustomerNote` entries: **500 characters maximum**
+- `CallLog` notes: **500 characters maximum**
+
+Exceeding these limits will return a validation error from the API.
 
 **Diagnostic Logging**: The endpoint logs note retrieval operations for debugging purposes. Server logs include:
 - Total note count per customer query
@@ -154,6 +203,16 @@ When a customer record is created or updated, an activity log entry is recorded 
 2. **Timeline Notes** (blue badge) — Individual `CustomerNote` entries created through the "Add Note" button. Each shows the author name and creation timestamp.
 
 The timeline shows the total count including both types, and displays an empty state only when both the main notes field and timeline notes are empty.
+
+### Overdue Follow-up Indicator
+
+The ASE Customers UI displays a pulsing red alarm clock emoji (⏰) next to customer phone numbers when a follow-up is overdue. The indicator appears when:
+
+- The customer has a `scheduled_date` set
+- The `call_status` is `pending`
+- The scheduled date/time is in the past
+
+This visual alert helps prioritize overdue follow-ups at a glance. Hovering over the indicator shows the original scheduled date and time.
 
 ### Real-Time WebSocket Events
 

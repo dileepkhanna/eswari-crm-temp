@@ -84,7 +84,11 @@ export default function NotesPanel({ customer }: NotesPanelProps) {
             onChange={e => setContent(e.target.value)}
             className="text-sm min-h-[80px] resize-none"
             autoFocus
+            maxLength={500}
           />
+          <p className="text-xs text-muted-foreground">
+            {content.length}/500 characters
+          </p>
           <div className="flex gap-2 justify-end">
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowForm(false); setContent(''); }}>
               Cancel

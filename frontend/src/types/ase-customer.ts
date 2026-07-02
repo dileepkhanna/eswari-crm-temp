@@ -291,6 +291,7 @@ export const ASE_SERVICE_OPTIONS = [
   { value: 'analytics', label: 'Analytics & Reporting' },
   { value: 'influencer', label: 'Influencer Marketing' },
   { value: 'video_marketing', label: 'Video Marketing' },
+  { value: 'school_management', label: 'School Management' },
   { value: 'custom', label: 'Custom/Other Services' },
 ];
 

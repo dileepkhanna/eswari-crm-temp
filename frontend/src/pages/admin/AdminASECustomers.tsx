@@ -648,6 +648,16 @@ export default function AdminASECustomers() {
     }
   };
 
+  // Helper function to check if a customer is overdue
+  const isOverdue = (customer: ASECustomer) => {
+    if (!customer.scheduled_date || customer.call_status !== 'pending') {
+      return false;
+    }
+    const scheduledDate = new Date(customer.scheduled_date);
+    const now = new Date();
+    return scheduledDate < now;
+  };
+
   if (error) {
     return (
       <div className="min-h-screen bg-background">
@@ -889,6 +899,14 @@ export default function AdminASECustomers() {
                               <PhoneIcon className="w-3 h-3 text-green-600 group-hover:text-green-700" />
                             </button>
                             <span className="text-sm font-medium">{customer.phone}</span>
+                            {isOverdue(customer) && (
+                              <span 
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white animate-pulse"
+                                title={`Overdue! Follow-up was due on ${new Date(customer.scheduled_date!).toLocaleString()}`}
+                              >
+                                ⏰ OVERDUE
+                              </span>
+                            )}
                           </div>
                         </td>
                         
@@ -907,12 +925,18 @@ export default function AdminASECustomers() {
                             {customer.service_interests && customer.service_interests.length > 0 ? (
                               customer.service_interests.slice(0, 2).map((interest) => {
                                 const serviceOption = ASE_SERVICE_OPTIONS.find(s => s.value === interest);
+                                // If it's custom and custom_services text exists, show that text
+                                const displayText = interest === 'custom' && customer.custom_services 
+                                  ? customer.custom_services 
+                                  : (serviceOption?.label || interest);
+                                
                                 return (
                                   <span
                                     key={interest}
                                     className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                                    title={interest === 'custom' && customer.custom_services ? customer.custom_services : undefined}
                                   >
-                                    {serviceOption?.label || interest}
+                                    {displayText}
                                   </span>
                                 );
                               })
@@ -1168,6 +1192,14 @@ export default function AdminASECustomers() {
                               <PhoneIcon className="w-4 h-4 text-green-600 group-hover:text-green-700" />
                             </button>
                             <span className="font-semibold text-base">{customer.phone}</span>
+                            {isOverdue(customer) && (
+                              <span 
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white animate-pulse"
+                                title={`Overdue! Follow-up was due on ${new Date(customer.scheduled_date!).toLocaleString()}`}
+                              >
+                                ⏰
+                              </span>
+                            )}
                           </div>
                           {customer.name && (
                             <p className="text-sm text-muted-foreground mt-1">{customer.name}</p>
@@ -1300,12 +1332,18 @@ export default function AdminASECustomers() {
                         <div className="flex flex-wrap gap-1">
                           {customer.service_interests.slice(0, 3).map((interest) => {
                             const serviceOption = ASE_SERVICE_OPTIONS.find(s => s.value === interest);
+                            // If it's custom and custom_services text exists, show that text
+                            const displayText = interest === 'custom' && customer.custom_services 
+                              ? customer.custom_services 
+                              : (serviceOption?.label || interest);
+                            
                             return (
                               <span
                                 key={interest}
                                 className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                                title={interest === 'custom' && customer.custom_services ? customer.custom_services : undefined}
                               >
-                                {serviceOption?.label || interest}
+                                {displayText}
                               </span>
                             );
                           })}

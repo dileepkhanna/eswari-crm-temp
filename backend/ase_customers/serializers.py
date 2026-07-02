@@ -8,6 +8,7 @@ class ASECustomerSerializer(serializers.ModelSerializer):
     """
     assigned_to_name = serializers.ReadOnlyField()
     created_by_name = serializers.ReadOnlyField()
+    service_interests_display = serializers.ReadOnlyField()
     
     # Company information
     company_name_display = serializers.CharField(source='company.name', read_only=True)
@@ -33,6 +34,7 @@ class ASECustomerSerializer(serializers.ModelSerializer):
             'scheduled_date',
             'call_date',
             'service_interests',
+            'service_interests_display',
             'custom_services',
             'notes',
             'is_converted',
@@ -70,6 +72,12 @@ class ASECustomerSerializer(serializers.ModelSerializer):
                         f"Phone number '{value}' already exists in your company (Unassigned)"
                     )
         return value
+    
+    def validate_notes(self, value):
+        """Validate notes field length (max 500 characters)"""
+        if value and len(value) > 500:
+            raise serializers.ValidationError("Notes cannot exceed 500 characters.")
+        return value
 
     def create(self, validated_data):
         """
@@ -91,6 +99,7 @@ class ASECustomerListSerializer(serializers.ModelSerializer):
     Lightweight serializer for listing ASE Customers
     """
     assigned_to_name = serializers.ReadOnlyField()
+    service_interests_display = serializers.ReadOnlyField()
     company_name_display = serializers.CharField(source='company.name', read_only=True)
     
     class Meta:
@@ -108,6 +117,7 @@ class ASECustomerListSerializer(serializers.ModelSerializer):
             'company',
             'company_name_display',
             'service_interests',
+            'service_interests_display',
             'custom_services',
             'notes',  # Added for NotesPanel to display main notes
             'created_at',
@@ -145,6 +155,12 @@ class CallLogSerializer(serializers.ModelSerializer):
         if obj.call_status == 'custom' and obj.custom_status:
             return obj.custom_status
         return dict(ASECustomer.CALL_STATUS_CHOICES).get(obj.call_status, obj.call_status)
+    
+    def validate_notes(self, value):
+        """Validate call notes length (max 500 characters)"""
+        if value and len(value) > 500:
+            raise serializers.ValidationError("Call notes cannot exceed 500 characters.")
+        return value
 
 
 class CustomerNoteSerializer(serializers.ModelSerializer):
@@ -159,3 +175,9 @@ class CustomerNoteSerializer(serializers.ModelSerializer):
         if obj.author:
             return f"{obj.author.first_name} {obj.author.last_name}".strip() or obj.author.username
         return 'Unknown'
+    
+    def validate_content(self, value):
+        """Validate note content length (max 500 characters)"""
+        if value and len(value) > 500:
+            raise serializers.ValidationError("Note cannot exceed 500 characters.")
+        return value
