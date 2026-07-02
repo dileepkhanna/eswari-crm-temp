@@ -1607,7 +1607,10 @@ export default function AdminASECustomers() {
                 {detailTab === 'calls' ? (
                   <CallLogPanel customer={viewCustomer} onStatusChanged={handleCallLogStatusChange} />
                 ) : (
-                  <NotesPanel customer={viewCustomer} />
+                  <NotesPanel 
+                    key={`${viewCustomer.id}-${viewCustomer.updated_at || viewCustomer.created_at}`} 
+                    customer={viewCustomer} 
+                  />
                 )}
               </div>
               <AlertDialogFooter>
