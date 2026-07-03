@@ -35,6 +35,7 @@ export default function AdminASECustomers() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [overdueFilter, setOverdueFilter] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [scheduledDateFilter, setScheduledDateFilter] = useState<string>(''); // For follow-up filtering
   const [monthFilter, setMonthFilter] = useState<string>('all');
   const [dateFromFilter, setDateFromFilter] = useState<string>('');
   const [dateToFilter, setDateToFilter] = useState<string>('');
@@ -151,7 +152,8 @@ export default function AdminASECustomers() {
     if (conversionFilter === 'converted') apiParams.is_converted = 'true';
     else if (conversionFilter === 'not_converted') apiParams.is_converted = 'false';
     if (overdueFilter) apiParams.overdue = 'true';
-    if (selectedDate) apiParams.date = selectedDate;
+    if (selectedDate) apiParams.date = selectedDate; // created_at date
+    if (scheduledDateFilter) apiParams.scheduled_date = scheduledDateFilter; // scheduled follow-up date
     // Only send date_from/date_to — skip the redundant month param to avoid double-filtering
     if (dateFromFilter) apiParams.date_from = dateFromFilter;
     if (dateToFilter) apiParams.date_to = dateToFilter;
@@ -176,7 +178,7 @@ export default function AdminASECustomers() {
     };
     fetchDisplay();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage, refreshKey]); // refreshKey forces re-fetch after mutations
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, scheduledDateFilter, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId, currentPage, refreshKey]); // refreshKey forces re-fetch after mutations
 
   // Fetch count-only stat card data without downloading all matching records
   useEffect(() => {
@@ -244,7 +246,7 @@ export default function AdminASECustomers() {
     };
     fetchFilteredStats();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, scheduledDateFilter, overdueFilter, dateFromFilter, dateToFilter, aseCompanyId]);
 
     const getErrorMessage = (err: unknown) => {
       if (typeof err === 'string') return err;
@@ -257,9 +259,15 @@ export default function AdminASECustomers() {
       logger.log('📄 ASE Customers: Creating customer with data:', customerData);
       // Always pass the ASE company ID explicitly so admin doesn't accidentally
       // create customers under the wrong company (e.g. Eswari Group)
-      await createCustomer({ ...(customerData as Partial<ASECustomerFormData>), company: aseCompanyId } as Partial<ASECustomerFormData>);
+      const newCustomer = await createCustomer({ ...(customerData as Partial<ASECustomerFormData>), company: aseCompanyId } as Partial<ASECustomerFormData>);
       logger.log('✅ ASE Customers: Customer created successfully');
       setIsCreateModalOpen(false);
+      
+      // Open the detail panel to show the newly created customer (including notes)
+      if (newCustomer) {
+        setViewCustomer(newCustomer);
+      }
+      
       // Refresh the display list immediately after creation
       setRefreshKey(k => k + 1);
     } catch (error: unknown) {
@@ -274,17 +282,16 @@ export default function AdminASECustomers() {
     try {
       await updateCustomer(selectedCustomer.id, customerData);
       const customerId = selectedCustomer.id;
-      setSelectedCustomer(null);
       
-      // If this customer is currently being viewed in the detail panel, refresh it
-      if (viewCustomer?.id === customerId) {
-        // Fetch the updated customer data
-        try {
-          const updatedCustomer = await ASECustomerService.getCustomer(customerId);
-          setViewCustomer(updatedCustomer);
-        } catch (error) {
-          logger.error('Failed to refresh view customer:', error);
-        }
+      // Fetch the updated customer data to reopen the detail panel
+      try {
+        const updatedCustomer = await ASECustomerService.getCustomer(customerId);
+        // Reopen the detail panel with fresh data (this ensures notes are visible)
+        setViewCustomer(updatedCustomer);
+        setSelectedCustomer(null);
+      } catch (error) {
+        logger.error('Failed to refresh view customer:', error);
+        setSelectedCustomer(null);
       }
       
       // Refresh display list after update
@@ -585,6 +592,21 @@ export default function AdminASECustomers() {
     }
   };
 
+  // Handler to fetch fresh customer data before opening detail view
+  const handleViewCustomer = async (customer: ASECustomer) => {
+    try {
+      // Fetch the latest customer data from the API to ensure notes are up-to-date
+      const freshCustomer = await ASECustomerService.getCustomer(customer.id);
+      setDetailTab('calls');
+      setViewCustomer(freshCustomer);
+    } catch (error) {
+      logger.error('Failed to load customer details:', error);
+      // Fallback to cached data if API call fails
+      setDetailTab('calls');
+      setViewCustomer(customer);
+    }
+  };
+
   // Optimistic status update handler for CallLogPanel
   const handleCallLogStatusChange = (customerId: string, newStatus: string, customStatusText?: string) => {
     // Immediately update the UI without waiting for API response
@@ -619,12 +641,12 @@ export default function AdminASECustomers() {
   useEffect(() => {
     setCurrentPage(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, overdueFilter, dateFromFilter, dateToFilter]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, scheduledDateFilter, overdueFilter, dateFromFilter, dateToFilter]);
 
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, currentPage, overdueFilter, dateFromFilter, dateToFilter]);
+  }, [searchTerm, statusFilter, conversionFilter, assigneeFilter, selectedDate, scheduledDateFilter, currentPage, overdueFilter, dateFromFilter, dateToFilter]);
 
   // Derive labels for the count-only stat cards
   const todayStats = useMemo(() => {
@@ -725,11 +747,29 @@ export default function AdminASECustomers() {
               </div>
             </div>
           </div>
-          <div className="glass-card p-3 md:p-4 rounded-xl">
+          <div 
+            className="glass-card p-3 md:p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-orange-500 transition-all"
+            onClick={() => {
+              // Clear other filters and show today's scheduled follow-ups
+              const today = new Date().toISOString().split('T')[0];
+              setSearchTerm('');
+              setStatusFilter('all');
+              setConversionFilter('all');
+              setAssigneeFilter('all');
+              setOverdueFilter(false);
+              setMonthFilter('all');
+              setDateFromFilter('');
+              setDateToFilter('');
+              setSelectedDate(''); // Clear created_at date filter
+              setScheduledDateFilter(today); // Set scheduled_date filter
+              setCurrentPage(1);
+            }}
+            title="Click to view today's scheduled follow-ups"
+          >
             <div className="flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Follow-ups Today</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Follow-ups Today 📅</p>
                 <p className={`text-xl md:text-2xl font-bold ${followUpCount > 0 ? 'text-orange-500' : 'text-foreground'}`}>
                   {followUpCount}
                 </p>
@@ -756,7 +796,7 @@ export default function AdminASECustomers() {
               {/* Filters Button */}
               <Button
                 variant={(() => {
-                  const hasFilters = statusFilter !== 'all' || conversionFilter !== 'all' || assigneeFilter !== 'all' || overdueFilter || selectedDate || monthFilter !== 'all' || dateFromFilter || dateToFilter;
+                  const hasFilters = statusFilter !== 'all' || conversionFilter !== 'all' || assigneeFilter !== 'all' || overdueFilter || selectedDate || scheduledDateFilter || monthFilter !== 'all' || dateFromFilter || dateToFilter;
                   return hasFilters ? 'default' : 'outline';
                 })()}
                 onClick={() => setAdvancedFilterOpen(true)}
@@ -772,6 +812,7 @@ export default function AdminASECustomers() {
                   if (assigneeFilter !== 'all') count++;
                   if (overdueFilter) count++;
                   if (selectedDate) count++;
+                  if (scheduledDateFilter) count++;
                   if (monthFilter !== 'all' || dateFromFilter || dateToFilter) count++;
                   return count > 0 ? <span className="ml-1 bg-white/20 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
                 })()}
@@ -809,7 +850,7 @@ export default function AdminASECustomers() {
               </Button>
             </div>
             {/* Active filter badges */}
-            {(statusFilter !== 'all' || overdueFilter || assigneeFilter !== 'all' || monthFilter !== 'all' || dateFromFilter) && (
+            {(statusFilter !== 'all' || overdueFilter || assigneeFilter !== 'all' || scheduledDateFilter || monthFilter !== 'all' || dateFromFilter) && (
               <div className="flex flex-wrap items-center gap-1.5">
                 {statusFilter !== 'all' && (
                   <span className="h-6 px-2 text-[10px] rounded-full bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
@@ -821,6 +862,12 @@ export default function AdminASECustomers() {
                   <span className="h-6 px-2 text-[10px] rounded-full bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
                     Overdue {overdueCount > 0 && `(${overdueCount})`}
                     <button onClick={() => setOverdueFilter(false)} aria-label="Clear overdue filter"><XIcon className="w-2.5 h-2.5" /></button>
+                  </span>
+                )}
+                {scheduledDateFilter && (
+                  <span className="h-6 px-2 text-[10px] rounded-full bg-orange-100 text-orange-700 border border-orange-200 flex items-center gap-1">
+                    📅 Follow-ups: {new Date(scheduledDateFilter).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <button onClick={() => setScheduledDateFilter('')} aria-label="Clear follow-up date filter"><XIcon className="w-2.5 h-2.5" /></button>
                   </span>
                 )}
                 {assigneeFilter !== 'all' && (
@@ -1040,10 +1087,7 @@ export default function AdminASECustomers() {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => {
-                                setDetailTab('calls');
-                                setViewCustomer(customer);
-                              }}
+                              onClick={() => handleViewCustomer(customer)}
                               className="h-7 px-2 text-xs"
                             >
                               View
@@ -1062,7 +1106,7 @@ export default function AdminASECustomers() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem
-                                  onClick={() => { setDetailTab('calls'); setViewCustomer(customer); }}
+                                  onClick={() => handleViewCustomer(customer)}
                                   className="cursor-pointer"
                                 >
                                   <MailIcon className="w-4 h-4 mr-2" />
@@ -1233,7 +1277,7 @@ export default function AdminASECustomers() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
-                            onClick={() => { setDetailTab('calls'); setViewCustomer(customer); }}
+                            onClick={() => handleViewCustomer(customer)}
                             className="cursor-pointer"
                           >
                             <MailIcon className="w-4 h-4 mr-2" />
@@ -1934,6 +1978,7 @@ export default function AdminASECustomers() {
                     setDateFromFilter('');
                     setDateToFilter('');
                     setSelectedDate('');
+                    setScheduledDateFilter('');
                   }}
                 >
                   Clear All

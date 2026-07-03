@@ -213,6 +213,27 @@ The timeline shows the total count including both types, and displays an empty s
 />
 ```
 
+### Customer Creation UX
+
+When a new ASE customer is created via the "Add Call" form, the application automatically opens the customer detail panel to display the newly created record. This provides immediate confirmation of the creation and allows users to:
+
+- View the complete customer information
+- Add timeline notes immediately after creation
+- Review and edit details if needed
+- Access the notes panel without having to search for the new record
+
+This improves the user workflow by eliminating the need to manually locate and open the newly created customer in the list.
+
+### Customer Detail View Data Freshness
+
+When opening a customer detail panel, the application **always fetches fresh data from the API** before displaying the detail view. This ensures:
+
+- Notes are always up-to-date, even if another user has added notes since the list was last refreshed
+- Customer information reflects the latest changes from the database
+- Users see the current state of the customer record, not stale cached data
+
+If the API call fails (network issues, server errors), the application gracefully falls back to the cached customer data from the list view, ensuring the detail panel can still be opened.
+
 ### Overdue Follow-up Indicator
 
 The ASE Customers UI displays a pulsing red dot indicator next to customer phone numbers when a follow-up is overdue. The indicator appears when:
@@ -226,6 +247,30 @@ The indicator uses a modern double-ring animation:
 - A solid inner red dot for visibility
 
 Hovering over the indicator shows the original scheduled date and time as a tooltip. This visual alert helps prioritize overdue follow-ups at a glance without cluttering the interface.
+
+### Interactive Dashboard Stats
+
+The ASE Customers dashboard includes interactive stats cards that act as quick filters:
+
+**Today's Follow-ups Card**: The "Today's Follow-ups" stats card (with calendar icon) is clickable. When clicked, it automatically:
+- Sets the scheduled date filter to today's date
+- Displays all customers with follow-ups scheduled for today
+- Provides visual feedback with hover effects (orange ring on hover)
+- Resets pagination to page 1
+
+This provides a quick way to view and action today's scheduled follow-up calls without manually configuring date filters. The card displays a subtle hover effect and cursor pointer to indicate interactivity.
+
+### Scheduled Follow-up Date Filter
+
+The ASE Customers view supports filtering by scheduled follow-up date:
+
+**Filter Badge Display**: When a scheduled date filter is active, a badge is displayed in the active filters row showing:
+- Calendar emoji (📅) for visual recognition
+- Label "Follow-ups:" followed by the formatted date (e.g., "Follow-ups: Jun 15, 2026")
+- Clear button (X) to remove the filter
+- Orange styling (bg-orange-100, text-orange-700, border-orange-200) to distinguish it from other filter badges
+
+The filter badge is displayed alongside other active filters such as status, overdue, assignee, and date range filters, providing a unified filtering experience.
 
 ### Real-Time WebSocket Events
 
