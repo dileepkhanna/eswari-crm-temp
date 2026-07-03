@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import TopBar from '@/components/layout/TopBar';
@@ -31,6 +32,8 @@ export default function AdminASECustomers() {
   const { user } = useAuth();
   const resolvedUserRole: 'admin' | 'manager' | 'employee' | 'hr' = (user && typeof user.role === 'string' && ['admin', 'manager', 'employee', 'hr'].includes(user.role)) ? (user.role as 'admin' | 'manager' | 'employee' | 'hr') : 'admin';
   const { selectedCompany } = useCompany();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [conversionFilter, setConversionFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [overdueFilter, setOverdueFilter] = useState<boolean>(false);
@@ -62,6 +65,7 @@ export default function AdminASECustomers() {
   const [followUpCount, setFollowUpCount] = useState<number>(0);
   const [filteredStats, setFilteredStats] = useState({ todayCalls: 0, answered: 0, converted: 0 });
   const [, setLoadingStats] = useState(false);
+  
   // Single source of truth for the paginated display — always filtered server-side
   const [displayCustomers, setDisplayCustomers] = useState<ASECustomer[]>([]);
   const [displayCount, setDisplayCount] = useState(0);
@@ -69,6 +73,33 @@ export default function AdminASECustomers() {
   const [displayLoading, setDisplayLoading] = useState(false);
   // Incrementing this forces fetchDisplay to re-run (used after delete/convert)
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Handle browser back button for modal - integrate modal state with URL
+  useEffect(() => {
+    const modalParam = searchParams.get('modal');
+    const editId = searchParams.get('editId');
+    
+    // If URL says modal should be closed but it's open, close it (back button was pressed)
+    if (!modalParam && (isCreateModalOpen || selectedCustomer)) {
+      setIsCreateModalOpen(false);
+      setSelectedCustomer(null);
+      return;
+    }
+    
+    // If URL says to open edit modal but it's not open, open it
+    if (modalParam === 'edit' && editId && !selectedCustomer) {
+      const customer = displayCustomers.find(c => String(c.id) === editId);
+      if (customer) {
+        setSelectedCustomer(customer);
+        setIsCreateModalOpen(false);
+      }
+    }
+    
+    // If URL says to open create modal but it's not open, open it
+    if (modalParam === 'create' && !isCreateModalOpen && !selectedCustomer) {
+      setIsCreateModalOpen(true);
+    }
+  }, [searchParams, isCreateModalOpen, selectedCustomer, displayCustomers]);
   
   const { 
     customers, 
@@ -845,7 +876,10 @@ export default function AdminASECustomers() {
                 </div>
               )}
               {/* Add Call */}
-              <Button className="btn-primary h-9" onClick={() => setIsCreateModalOpen(true)}>
+              <Button className="btn-primary h-9" onClick={() => {
+                setIsCreateModalOpen(true);
+                navigate('?modal=create', { replace: true });
+              }}>
                 <PlusIcon className="w-4 h-4 mr-1" /> Add Call
               </Button>
             </div>
@@ -1113,7 +1147,10 @@ export default function AdminASECustomers() {
                                   View Details
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => setSelectedCustomer(customer)}
+                                  onClick={() => {
+                                  setSelectedCustomer(customer);
+                                  navigate(`?modal=edit&editId=${customer.id}`, { replace: true });
+                                }}
                                   className="cursor-pointer"
                                 >
                                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1284,7 +1321,10 @@ export default function AdminASECustomers() {
                             View Details
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => setSelectedCustomer(customer)}
+                            onClick={() => {
+                                  setSelectedCustomer(customer);
+                                  navigate(`?modal=edit&editId=${customer.id}`, { replace: true });
+                                }}
                             className="cursor-pointer"
                           >
                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1428,7 +1468,10 @@ export default function AdminASECustomers() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => setSelectedCustomer(customer)}
+                          onClick={() => {
+                                  setSelectedCustomer(customer);
+                                  navigate(`?modal=edit&editId=${customer.id}`, { replace: true });
+                                }}
                           className="h-7 min-h-7 px-2 text-xs"
                         >
                           Edit
@@ -1478,7 +1521,10 @@ export default function AdminASECustomers() {
                     }
                   </p>
                   {customers.length === 0 && (
-                    <Button onClick={() => setIsCreateModalOpen(true)}>
+                    <Button onClick={() => {
+                setIsCreateModalOpen(true);
+                navigate('?modal=create', { replace: true });
+              }}>
                       <PlusIcon className="w-4 h-4 mr-2" />
                       Add First Call
                     </Button>
@@ -1531,6 +1577,7 @@ export default function AdminASECustomers() {
           onClose={() => {
             setIsCreateModalOpen(false);
             setSelectedCustomer(null);
+            navigate(window.location.pathname, { replace: true });
           }}
           onSave={selectedCustomer ? handleUpdateCustomer : handleCreateCustomer}
           customer={selectedCustomer}
@@ -1659,7 +1706,11 @@ export default function AdminASECustomers() {
               </div>
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setViewCustomer(null)}>Close</AlertDialogCancel>
-                <AlertDialogAction onClick={() => { setSelectedCustomer(viewCustomer); setViewCustomer(null); }}>
+                <AlertDialogAction onClick={() => { 
+                  setSelectedCustomer(viewCustomer); 
+                  setViewCustomer(null);
+                  if (viewCustomer) navigate(`?modal=edit&editId=${viewCustomer.id}`, { replace: true });
+                }}>
                   Edit Customer
                 </AlertDialogAction>
               </AlertDialogFooter>
