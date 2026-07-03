@@ -283,8 +283,28 @@ export default function ASECustomerFormModal({
             <Input
               id="scheduled_date"
               type="datetime-local"
-              value={formData.scheduled_date ? new Date(formData.scheduled_date).toISOString().slice(0, 16) : ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value ? new Date(e.target.value).toISOString() : undefined }))}
+              value={(() => {
+                if (!formData.scheduled_date) return '';
+                try {
+                  const date = new Date(formData.scheduled_date);
+                  if (isNaN(date.getTime())) return '';
+                  return date.toISOString().slice(0, 16);
+                } catch {
+                  return '';
+                }
+              })()}
+              onChange={(e) => {
+                if (!e.target.value) {
+                  setFormData(prev => ({ ...prev, scheduled_date: undefined }));
+                  return;
+                }
+                try {
+                  const isoString = new Date(e.target.value).toISOString();
+                  setFormData(prev => ({ ...prev, scheduled_date: isoString }));
+                } catch {
+                  // Invalid date, ignore
+                }
+              }}
             />
             <p className="text-xs text-muted-foreground mt-1">
               Set when you plan to follow up with this customer
