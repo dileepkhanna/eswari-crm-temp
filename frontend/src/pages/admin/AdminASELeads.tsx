@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useMemo } from 'react';
+﻿import { useState, useEffect, useRef, useMemo } from 'react';
 import { useASELead } from '@/contexts/ASELeadContext';
 import { useAuth } from '@/contexts/AuthContextDjango';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -48,6 +48,9 @@ export default function AdminASELeads() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
+  
+  // Filtered stats state - updates based on active filters
+  const [filteredStats, setFilteredStats] = useState<{ new: number; demo_done: number; presentation: number; }>({ new: 0, demo_done: 0, presentation: 0 });
 
   // Fetch all creators from API (not just current page)
   const uniqueCreators = useMemo(() => {
@@ -242,6 +245,56 @@ export default function AdminASELeads() {
     setSelectedLead(null);
   };
 
+  // Debug logging for stats
+  useEffect(() => {
+    if (stats) {
+      logger.log('📊 ASE Leads Stats:', stats);
+      logger.log('📊 Demo Done Count:', stats?.by_status?.['demo_done']?.count);
+      logger.log('📊 Presentation Count:', stats?.by_status?.['presentation']?.count);
+    }
+  }, [stats]);
+
+  // Fetch filtered status counts when filters change
+  useEffect(() => {
+    const fetchFilteredCounts = async () => {
+      try {
+        const companyId = selectedCompany?.id || (user?.company as any)?.id;
+        
+        // Build base params with active filters
+        const baseParams: any = {
+          company: companyId,
+          page: 1,
+          page_size: 1, // We only need count, not actual data
+        };
+        
+        // Add all active filters
+        if (searchTerm) baseParams.search = searchTerm;
+        if (priorityFilter) baseParams.priority = priorityFilter;
+        if (industryFilter) baseParams.industry = industryFilter;
+        if (createdByFilter) baseParams.created_by = createdByFilter;
+        if (dateFromFilter) baseParams.date_from = dateFromFilter;
+        if (dateToFilter) baseParams.date_to = dateToFilter;
+        
+        // Fetch counts for each status (excluding current statusFilter to get independent counts)
+        const [newRes, demoRes, presRes] = await Promise.all([
+          aseLeadService.getLeads({ ...baseParams, status: 'new' }),
+          aseLeadService.getLeads({ ...baseParams, status: 'demo_done' }),
+          aseLeadService.getLeads({ ...baseParams, status: 'presentation' }),
+        ]);
+        
+        setFilteredStats({
+          new: newRes.count || 0,
+          demo_done: demoRes.count || 0,
+          presentation: presRes.count || 0,
+        });
+      } catch (error) {
+        logger.error('Failed to fetch filtered stats:', error);
+      }
+    };
+    
+    fetchFilteredCounts();
+  }, [searchTerm, priorityFilter, industryFilter, createdByFilter, dateFromFilter, dateToFilter, selectedCompany, user]);
+
   return (
     <div className="min-h-screen bg-background">
       <TopBar title="ASE Leads" />
@@ -253,9 +306,9 @@ export default function AdminASELeads() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {[
             { label: 'Total Leads', value: totalCount, color: 'text-blue-600', bg: 'bg-blue-50', icon: <PhoneCallIcon className="w-5 h-5 text-blue-600" />, filter: '' },
-            { label: 'New', value: stats?.by_status?.['new']?.count ?? leads.filter(l => l.status === 'new').length, color: 'text-green-600', bg: 'bg-green-50', icon: <CheckCircleIcon className="w-5 h-5 text-green-600" />, filter: 'new' },
-            { label: 'Demo Done', value: stats?.by_status?.['demo_done']?.count ?? leads.filter(l => l.status === 'demo_done').length, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: <ArrowRightIcon className="w-5 h-5 text-indigo-600" />, filter: 'demo_done' },
-            { label: 'Presentation', value: stats?.by_status?.['presentation']?.count ?? leads.filter(l => l.status === 'presentation').length, color: 'text-orange-500', bg: 'bg-orange-50', icon: <CalendarClockIcon className="w-5 h-5 text-orange-500" />, filter: 'presentation' },
+            { label: 'New', value: filteredStats.new, color: 'text-green-600', bg: 'bg-green-50', icon: <CheckCircleIcon className="w-5 h-5 text-green-600" />, filter: 'new' },
+            { label: 'Demo Done', value: filteredStats.demo_done, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: <ArrowRightIcon className="w-5 h-5 text-indigo-600" />, filter: 'demo_done' },
+            { label: 'Presentation', value: filteredStats.presentation, color: 'text-orange-500', bg: 'bg-orange-50', icon: <CalendarClockIcon className="w-5 h-5 text-orange-500" />, filter: 'presentation' },
           ].map(card => (
             <button
               key={card.label}

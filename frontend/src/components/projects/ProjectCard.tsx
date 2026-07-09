@@ -17,11 +17,19 @@ interface ProjectCardProps {
 }
 
 const statusColors: Record<string, string> = {
-  pre_launch: 'bg-info/15 text-info border-info/30',
-  launch: 'bg-success/15 text-success border-success/30',
-  under_construction: 'bg-warning/15 text-warning border-warning/30',
-  mid_stage: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
-  ready_to_go: 'bg-green-500/15 text-green-600 border-green-500/30',
+  pre_launch: 'bg-info text-white border-info shadow-lg',
+  launch: 'bg-success text-white border-success shadow-lg',
+  under_construction: 'bg-warning text-white border-warning shadow-lg',
+  mid_stage: 'bg-blue-600 text-white border-blue-600 shadow-lg',
+  ready_to_go: 'bg-green-600 text-white border-green-600 shadow-lg',
+};
+
+const statusLabels: Record<string, string> = {
+  pre_launch: 'Pre Launch',
+  launch: 'Launch',
+  under_construction: 'Under Construction',
+  mid_stage: 'Mid Stage',
+  ready_to_go: 'Ready to Move',
 };
 
 export default function ProjectCard({ project, delay = 0, onView, onEdit, onDelete, canEdit = false, canDelete = false }: ProjectCardProps) {
@@ -67,11 +75,11 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, onDele
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
         <Badge 
           className={cn(
-            "absolute top-4 right-4 capitalize border",
+            "absolute top-4 right-4 capitalize border font-semibold px-3 py-1",
             statusColors[project.status]
           )}
         >
-          {project.status.replace(/_/g, ' ')}
+          {statusLabels[project.status] || project.status.replace(/_/g, ' ')}
         </Badge>
         <div className="absolute bottom-4 left-4 right-4">
           <h3 className="text-xl font-bold text-white mb-1 line-clamp-1 drop-shadow-lg">{project.name}</h3>

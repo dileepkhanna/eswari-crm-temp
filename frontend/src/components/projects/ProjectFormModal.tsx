@@ -665,7 +665,7 @@ export default function ProjectFormModal({
                   <SelectItem value="launch">Launch</SelectItem>
                   <SelectItem value="under_construction">Under Construction</SelectItem>
                   <SelectItem value="mid_stage">Mid Stage</SelectItem>
-                  <SelectItem value="ready_to_go">Ready to Go</SelectItem>
+                  <SelectItem value="ready_to_go">Ready to Move</SelectItem>
                 </SelectContent>
               </Select>
             </div>

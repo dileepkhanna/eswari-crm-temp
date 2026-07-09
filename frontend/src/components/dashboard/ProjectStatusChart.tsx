@@ -14,7 +14,7 @@ const statusMap: Record<string, ProjectStatus> = {
   'Launch': 'launch',
   'Under Construction': 'under_construction',
   'Mid Stage': 'mid_stage',
-  'Ready to Go': 'ready_to_go',
+  'Ready to Move': 'ready_to_go',
 };
 
 const statusColors: Record<string, string> = {
@@ -22,7 +22,7 @@ const statusColors: Record<string, string> = {
   'Launch': 'hsl(152, 69%, 31%)',
   'Under Construction': 'hsl(45, 93%, 47%)',
   'Mid Stage': 'hsl(271, 81%, 56%)',
-  'Ready to Go': 'hsl(220, 9%, 46%)',
+  'Ready to Move': 'hsl(220, 9%, 46%)',
 };
 
 const statusGradients: Record<string, string> = {
@@ -30,7 +30,7 @@ const statusGradients: Record<string, string> = {
   'Launch': 'from-emerald-500 to-teal-600',
   'Under Construction': 'from-amber-400 to-orange-500',
   'Mid Stage': 'from-purple-500 to-violet-600',
-  'Ready to Go': 'from-gray-500 to-slate-600',
+  'Ready to Move': 'from-gray-500 to-slate-600',
 };
 
 const statusIcons: Record<string, React.ElementType> = {
@@ -38,7 +38,7 @@ const statusIcons: Record<string, React.ElementType> = {
   'Launch': Hammer,
   'Under Construction': Building,
   'Mid Stage': Pause,
-  'Ready to Go': CheckCircle2,
+  'Ready to Move': CheckCircle2,
 };
 
 export default function ProjectStatusChart({ projects, title = "Projects Overview" }: ProjectStatusChartProps) {
@@ -49,7 +49,7 @@ export default function ProjectStatusChart({ projects, title = "Projects Overvie
     { name: 'Launch', count: projects.filter(p => p.status === 'launch').length },
     { name: 'Under Construction', count: projects.filter(p => p.status === 'under_construction').length },
     { name: 'Mid Stage', count: projects.filter(p => p.status === 'mid_stage').length },
-    { name: 'Ready to Go', count: projects.filter(p => p.status === 'ready_to_go').length },
+    { name: 'Ready to Move', count: projects.filter(p => p.status === 'ready_to_go').length },
   ].filter(item => item.count > 0);
 
   const filteredProjects = selectedStatus 

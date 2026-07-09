@@ -234,6 +234,8 @@ When opening a customer detail panel, the application **always fetches fresh dat
 
 If the API call fails (network issues, server errors), the application gracefully falls back to the cached customer data from the list view, ensuring the detail panel can still be opened.
 
+
+
 ### Overdue Follow-up Indicator
 
 The ASE Customers UI displays a pulsing red dot indicator next to customer phone numbers when a follow-up is overdue. The indicator appears when:
@@ -417,6 +419,31 @@ POST   /api/ase-leads/export-by-ids/          Export leads as Excel
 ```
 
 > **Note**: Previous versions attempted round-robin assignment across team members. This has been simplified so all imports are assigned to the importing user first, giving managers full control over subsequent reassignment.
+
+### Dashboard Statistics with Dynamic Filtering
+
+The ASE Leads dashboard displays real-time statistics cards that automatically update based on active filters:
+
+**Stats Cards:**
+- **Total Leads** — Total count across all statuses (always reflects active filters)
+- **New** — Count of leads with status `new`
+- **Demo Done** — Count of leads with status `demo_done`
+- **Presentation** — Count of leads with status `presentation`
+
+**Filter-Aware Behavior:**
+When users apply filters (search, priority, industry, creator, date range), the status count cards automatically update to reflect only the filtered subset. This is achieved through:
+
+1. **Independent Status Queries** — Each status card fetches its own count using the active filters, excluding the status filter itself
+2. **Automatic Updates** — Counts refresh whenever any filter changes (search term, priority, industry, creator, date range)
+3. **Visual Feedback** — Selected status cards show a highlighted border to indicate active filtering
+
+**Example:**
+If a user searches for "technology" and filters by "high priority", the stats cards will show:
+- New: 5 (only technology + high priority + new status)
+- Demo Done: 3 (only technology + high priority + demo_done status)
+- Presentation: 2 (only technology + high priority + presentation status)
+
+This provides immediate insight into the distribution of leads across statuses within the current filter context.
 
 ### Real-Time WebSocket Events
 
@@ -614,6 +641,33 @@ if response.status_code == 200:
 
 ---
 
+## Deployment
+
+The project includes automated deployment scripts for production updates.
+
+### Automated Deployment
+
+Use Python deployment scripts for reliable, automated deployments:
+
+```bash
+# Install dependencies
+pip install paramiko
+
+# Deploy datetime fix
+python deploy_datetime_fix.py
+```
+
+See `DEPLOYMENT_INSTRUCTIONS.md` for detailed deployment procedures, including manual deployment steps and troubleshooting.
+
+### Production Server
+
+- **Host:** 13.205.34.169
+- **User:** ec2-user
+- **Project Path:** /var/www/eswari-crm
+- **SSH Key:** ~/LightsailDefaultKey-ap-south-1.pem
+
+---
+
 ## Testing
 
 ### Backend Test Scripts
@@ -629,6 +683,7 @@ The backend includes several standalone test scripts for verifying specific func
 | `check_birthdays.py` | Diagnostic tool for troubleshooting the birthday notification system |
 | `test_notes.py` | Verifies ASE customer notes functionality, including main notes field and CustomerNote entries |
 | `check_ase_health.py` | Comprehensive health check for ASE Customers and ASE Leads modules |
+| `check_ase_lead_stats.py` | Production diagnostic tool that queries the live database to verify ASE Lead status counts (new, demo_done, presentation, quotation) |
 
 **Running a test script:**
 
@@ -648,6 +703,33 @@ These scripts use real API endpoints and require:
 cd backend
 python manage.py shell < test_notes.py
 ```
+
+### ASE Lead Stats Checker (Production Diagnostic)
+
+The `check_ase_lead_stats.py` script is a production diagnostic tool that verifies ASE Lead status counts in the live database:
+
+```bash
+cd backend
+python check_ase_lead_stats.py
+```
+
+**What it checks:**
+1. **Total lead count** — All ASE leads in the database
+2. **Status breakdown** — Counts for each status (new, demo_done, presentation, quotation)
+3. **Sample leads** — Shows first 5 leads for each status to verify data exists
+
+**Requirements:**
+- SSH access to production server (13.205.34.169)
+- SSH key file at the configured path
+- `paramiko` library installed (`pip install paramiko`)
+
+**Use cases:**
+- Verify backend data matches frontend dashboard stats
+- Diagnose discrepancies between database and UI display
+- Confirm lead status updates are being persisted correctly
+- Troubleshoot caching issues in frontend
+
+The script connects to production via SSH and runs Django ORM queries directly against the live database, providing ground truth for ASE Lead statistics.
 
 > **Authentication in test scripts**: All test scripts now use the correct login payload format with the `email` field for the username/identifier, as the backend expects. See the Authentication section above for the correct format.
 

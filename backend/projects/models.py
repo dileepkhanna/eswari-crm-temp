@@ -10,7 +10,7 @@ class Project(models.Model):
         ('launch', 'Launch'),
         ('under_construction', 'Under Construction'),
         ('mid_stage', 'Mid Stage'),
-        ('ready_to_go', 'Ready to Go'),
+        ('ready_to_go', 'Ready to Move'),
     ]
 
     TYPE_CHOICES = [
