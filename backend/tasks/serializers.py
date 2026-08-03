@@ -12,6 +12,8 @@ class CompanyNestedSerializer(serializers.Serializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     assigned_to_detail = UserSerializer(source='assigned_to', read_only=True)
+    created_by_detail = UserSerializer(source='created_by', read_only=True)
+    converted_by_detail = UserSerializer(source='converted_by', read_only=True)
     project_detail = ProjectSerializer(source='project', read_only=True)
     lead_detail = LeadSerializer(source='lead', read_only=True)
     company_detail = CompanyNestedSerializer(source='company', read_only=True)
@@ -19,4 +21,4 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'converted_at', 'converted_by']

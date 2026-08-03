@@ -39,6 +39,7 @@ class ASECustomerSerializer(serializers.ModelSerializer):
             'notes',
             'is_converted',
             'converted_lead_id',
+            'is_disabled',
             'created_at',
             'updated_at',
         ]
@@ -143,6 +144,7 @@ class CallLogSerializer(serializers.ModelSerializer):
             'custom_status',
             'notes',
             'called_at',
+            'is_disabled',
         ]
         read_only_fields = ['called_by', 'called_at']
 

@@ -59,7 +59,7 @@ interface TaskListProps {
 
 export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false, employees = [] }: TaskListProps) {
   const { user } = useAuth();
-  const { tasks, leads, projects, addTask, updateTask, deleteTask } = useData();
+  const { tasks, leads, projects, addTask, updateTask, deleteTask, refreshData } = useData();
   
   // Helper function to check if current user can see a task's phone number
   const canSeePhoneNumber = (task: Task) => {
@@ -84,6 +84,10 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const [isCreating, setIsCreating] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const tasksPerPage = 50; // Show 50 tasks per page
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -137,6 +141,17 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
     });
   }, [tasks, searchQuery, statusFilter, projectFilter, userFilter, assignedToFilter, dueDateFilter, dateRange]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * tasksPerPage;
+    const endIndex = startIndex + tasksPerPage;
+    return filteredTasks.slice(startIndex, endIndex);
+  }, [filteredTasks, currentPage, tasksPerPage]);
+  
+  // Reset to page 1 when filters change
+  const resetPage = () => setCurrentPage(1);
+
   // Check if user can see any phone numbers (for table headers) - MOVED AFTER filteredTasks
   const canSeeAnyPhoneNumbers = useMemo(() => {
     return filteredTasks.some(task => canSeePhoneNumber(task));
@@ -164,32 +179,20 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   };
 
   const handleBulkDelete = async () => {
-    const failedDeletions: string[] = [];
-    const successfulDeletions: string[] = [];
-    
     try {
-      for (const id of selectedIds) {
-        try {
-          await deleteTask(id);
-          successfulDeletions.push(id);
-        } catch (error) {
-          logger.error(`Failed to delete task ${id}:`, error);
-          failedDeletions.push(id);
-        }
-      }
+      const taskIdsArray = Array.from(selectedIds);
+      await apiClient.bulkDeleteTasks(taskIdsArray);
       
-      if (successfulDeletions.length > 0) {
-        toast.success(`${successfulDeletions.length} task(s) deleted successfully`);
-      }
-      
-      if (failedDeletions.length > 0) {
-        toast.error(`Failed to delete ${failedDeletions.length} task(s). They may have been already deleted or you don't have permission.`);
-      }
+      toast.success(`${taskIdsArray.length} task(s) deleted successfully`);
       
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
+      
+      // Refresh the data using context instead of hard reload
+      await refreshData();
     } catch (error) {
-      toast.error("Failed to delete tasks");
+      logger.error('Bulk delete failed:', error);
+      toast.error("Failed to delete tasks. Please try again.");
     }
   };
 
@@ -279,7 +282,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             <Input
               placeholder="Search tasks by title, company, contact..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); resetPage(); }}
               className="pl-10 h-10"
             />
           </div>
@@ -287,7 +290,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           {/* Filter Dropdowns */}
           <div className="flex gap-2 flex-wrap w-full lg:w-auto">
             {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); resetPage(); }}>
               <SelectTrigger className="h-10 w-[140px]">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
@@ -303,7 +306,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             </Select>
 
             {/* Project Filter */}
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <Select value={projectFilter} onValueChange={(value) => { setProjectFilter(value); resetPage(); }}>
               <SelectTrigger className="h-10 w-[140px]">
                 <SelectValue placeholder="All Projects" />
               </SelectTrigger>
@@ -405,10 +408,40 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         </div>
       </div>
 
+      {/* Pagination Controls - Top */}
+      {filteredTasks.length > tasksPerPage && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 py-3 glass-card rounded-xl">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * tasksPerPage) + 1} to {Math.min(currentPage * tasksPerPage, filteredTasks.length)} of {filteredTasks.length} tasks
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Customer Contact Info Notice - Only for Admin/Employee */}
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
-        {filteredTasks.map((task, index) => (
+        {paginatedTasks.map((task, index) => (
           <div
             key={task.id}
             className="glass-card rounded-xl p-4 animate-fade-in"
@@ -509,7 +542,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTasks.map((task, index) => (
+            {paginatedTasks.map((task, index) => (
               <TableRow
                 key={task.id}
                 className="table-row-hover animate-fade-in"
@@ -623,6 +656,36 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {filteredTasks.length > tasksPerPage && (
+        <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-3 px-2">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * tasksPerPage) + 1} to {Math.min(currentPage * tasksPerPage, filteredTasks.length)} of {filteredTasks.length} tasks
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {filteredTasks.length === 0 && (
         <div className="text-center py-12">

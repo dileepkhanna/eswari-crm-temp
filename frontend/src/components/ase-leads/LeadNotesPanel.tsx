@@ -1,0 +1,185 @@
+import { useState, useEffect } from 'react';
+import { FileTextIcon, UserIcon, ClockIcon, PlusIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { ASELead } from '@/types/ase-customer';
+import { aseLeadService, LeadNote } from '@/services/ase-lead.service';
+import { toast } from 'sonner';
+
+interface LeadNotesPanelProps {
+  lead: ASELead;
+  onLeadUpdate?: () => void; // Optional callback to refresh lead data
+}
+
+export default function LeadNotesPanel({ lead, onLeadUpdate }: LeadNotesPanelProps) {
+  const [notes, setNotes] = useState<LeadNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [content, setContent] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchNotes = async () => {
+    try {
+      setLoading(true);
+      const data = await aseLeadService.getNotes(lead.id);
+      console.log(`[LeadNotesPanel] Fetched ${data.length} notes for lead ${lead.id}:`, data);
+      setNotes(data);
+    } catch (error) {
+      console.error('[LeadNotesPanel] Failed to load notes:', error);
+      toast.error('Failed to load notes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchNotes(); }, [lead.id, lead.notes, lead.updated_at]);
+
+  // Check if lead has main notes field content
+  const hasMainNotes = lead.notes && lead.notes.trim().length > 0;
+
+  const handleSubmit = async () => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    try {
+      setSubmitting(true);
+      const note = await aseLeadService.addNote(lead.id, trimmed);
+      setNotes(prev => [note, ...prev]);
+      setContent('');
+      setShowForm(false);
+      toast.success('Note added');
+    } catch {
+      toast.error('Failed to add note');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileTextIcon className="w-4 h-4 text-primary" />
+          <span className="font-medium text-sm">Notes</span>
+          <span className="text-xs text-muted-foreground">
+            ({(hasMainNotes ? 1 : 0) + notes.length})
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => setShowForm(v => !v)}
+        >
+          <PlusIcon className="w-3 h-3 mr-1" />
+          Add Note
+        </Button>
+      </div>
+
+      {/* Add Note Form */}
+      {showForm && (
+        <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+          <Textarea
+            placeholder="Write a note about this lead..."
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            className="text-sm min-h-[80px] resize-none"
+            autoFocus
+            maxLength={500}
+          />
+          <p className="text-xs text-muted-foreground">
+            {content.length}/500 characters
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowForm(false); setContent(''); }}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-7 text-xs" onClick={handleSubmit} disabled={submitting || !content.trim()}>
+              {submitting ? 'Saving...' : 'Save Note'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Timeline */}
+      {loading ? (
+        <div className="text-center py-6 text-sm text-muted-foreground">Loading notes...</div>
+      ) : !hasMainNotes && notes.length === 0 ? (
+        <div className="text-center py-6 text-sm text-muted-foreground">
+          No notes yet. Add a note to track lead interactions.
+        </div>
+      ) : (
+        <div className="relative space-y-0">
+          {/* Vertical line */}
+          <div className="absolute left-3 top-2 bottom-2 w-px bg-border" />
+
+          {/* Main notes field from edit form (if exists) */}
+          {hasMainNotes && (
+            <div className="relative flex gap-3 pb-4">
+              {/* Dot */}
+              <div className="relative z-10 mt-1 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <FileTextIcon className="w-3 h-3 text-white" />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-300">
+                    Main Notes
+                  </span>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ClockIcon className="w-3 h-3" />
+                    <span>
+                      {new Date(lead.updated_at || lead.created_at).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground bg-amber-50 rounded px-2 py-1.5 whitespace-pre-wrap border border-amber-200">
+                  {lead.notes}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 italic">
+                  💡 This note is from the main "Notes" field in the edit form
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* LeadNote entries */}
+          {notes.map(note => (
+            <div key={note.id} className="relative flex gap-3 pb-4">
+              {/* Dot */}
+              <div className="relative z-10 mt-1 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                <FileTextIcon className="w-3 h-3 text-white" />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <UserIcon className="w-3 h-3" />
+                    <span className="font-medium text-foreground">{note.author_name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ClockIcon className="w-3 h-3" />
+                    <span>
+                      {new Date(note.created_at).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground bg-muted/40 rounded px-2 py-1.5 whitespace-pre-wrap">
+                  {note.content}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

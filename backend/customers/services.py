@@ -805,7 +805,8 @@ class ConversionService:
         """
         customer.is_converted = True
         customer.converted_lead_id = str(lead.id)
-        customer.save(update_fields=['is_converted', 'converted_lead_id', 'updated_at'])
+        customer.is_disabled = True  # Hide from active customer lists
+        customer.save(update_fields=['is_converted', 'converted_lead_id', 'is_disabled', 'updated_at'])
     
     @staticmethod
     def log_conversion(

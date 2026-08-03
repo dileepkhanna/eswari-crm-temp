@@ -370,20 +370,26 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
     try {
       setError(null);
       const customer = customers.find(c => c.id === customerId);
+      
+      // Remove the customer from the list BEFORE making the API call (optimistic update)
+      setCustomers(prev => prev.filter(c => c.id !== customerId));
+      
+      // Update stats immediately to reflect the change
+      setStats(prev => prev ? {
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+        converted: Math.max(0, prev.converted + 1)
+      } : prev);
+      
+      // Now make the API call
       const result = await ASECustomerService.convertToLead(customerId, leadData);
       
-      // Optimistically mark as converted in local state immediately
-      setCustomers(prev => 
-        prev.map(c => 
-          c.id === customerId 
-            ? { ...c, is_converted: true, converted_lead_id: result.lead_id }
-            : c
-        )
-      );
+      // Re-fetch to get the full server state (avoids stale data) - after a small delay
+      setTimeout(() => {
+        fetchCustomersRef.current();
+        fetchStats();
+      }, 100);
       
-      // Re-fetch to get the full server state (avoids stale data)
-      fetchCustomersRef.current();
-      fetchStats();
       if (user) logCustomerActivity(
         { id: String(user.id), name: user.name, role: user.role, company: { id: (user?.company as any)?.id || 0 } },
         'converted', customer?.name || customer?.phone || customerId
@@ -393,6 +399,9 @@ export function ASECustomerProvider({ children }: ASECustomerProviderProps) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to convert customer to lead';
       setError(errorMessage);
       toast.error(errorMessage);
+      
+      // Re-fetch to restore the correct state if conversion failed
+      fetchCustomersRef.current();
       throw err;
     }
   }, [fetchStats, user, customers]);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContextDjango';
+import { useRouteBasedCompany } from '@/hooks/useRouteBasedCompany';
 import Sidebar from './Sidebar';
 import { UserRole } from '@/types';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,9 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
   const { user, isAuthenticated, isLoading, session } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  
+  // Automatically switch company based on current route
+  useRouteBasedCompany();
 
   // Show loading while auth is being determined
   if (isLoading) {

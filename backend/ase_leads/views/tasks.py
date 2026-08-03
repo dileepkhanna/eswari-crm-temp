@@ -26,7 +26,8 @@ from rest_framework import status
 
 from ase_leads.models import ASELead
 from ase_leads.models.task import ASELeadTask
-from ase_leads.serializers import ASELeadTaskSerializer
+from ase_leads.models.task_note import TaskNote
+from ase_leads.serializers import ASELeadTaskSerializer, TaskNoteSerializer
 from eswari_crm.ws_utils import notify_ase_data_changed
 
 User = get_user_model()
@@ -82,6 +83,11 @@ def my_tasks(request):
         tasks = ASELeadTask.objects.filter(
             assigned_to=request.user
         ).select_related('lead', 'assigned_to', 'created_by')
+    
+    # Filter out disabled tasks by default (unless explicitly requested)
+    show_disabled = request.query_params.get('show_disabled', 'false').lower()
+    if show_disabled != 'true':
+        tasks = tasks.filter(is_disabled=False)
 
     # Filter by status
     task_status = request.query_params.get('status')
@@ -112,7 +118,16 @@ def my_tasks(request):
         'created_at', '-created_at',
     ]
     if ordering in valid_orderings:
-        tasks = tasks.order_by(ordering)
+        # Handle NULL due_date values by sorting them last
+        if 'due_date' in ordering:
+            from django.db.models import F
+            # NULLs last for ascending, NULLs first for descending (but we want them last always)
+            if ordering == 'due_date':
+                tasks = tasks.order_by(F('due_date').asc(nulls_last=True))
+            else:  # -due_date
+                tasks = tasks.order_by(F('due_date').desc(nulls_last=True))
+        else:
+            tasks = tasks.order_by(ordering)
     else:
         # Custom status-based ordering: pending/in_progress → top, completed → middle, cancelled → bottom
         from django.db.models import Case, When, Value, IntegerField
@@ -145,7 +160,7 @@ def create_task(request):
       - title (required): Brief title of the task
       - description (optional): Detailed description
       - priority (optional): low, medium, high, urgent (default: medium)
-      - due_date (required): When this task is due (ISO datetime)
+      - due_date (optional): When this task is due (ISO datetime)
 
     Returns:
       201 with serialized task on success
@@ -181,12 +196,6 @@ def create_task(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if not due_date:
-        return Response(
-            {'error': 'due_date is required.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     # Validate lead exists (optional - standalone tasks don't need a lead)
     lead = None
     if lead_id:
@@ -195,6 +204,24 @@ def create_task(request):
         except ASELead.DoesNotExist:
             return Response(
                 {'error': 'Lead not found.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Check for duplicate: if this lead already has an active (non-completed, non-cancelled) task
+        existing_task = ASELeadTask.objects.filter(
+            lead=lead,
+            is_disabled=False
+        ).exclude(
+            status__in=['completed', 'cancelled']
+        ).first()
+        
+        if existing_task:
+            return Response(
+                {
+                    'error': 'A task already exists for this lead.',
+                    'existing_task_id': existing_task.id,
+                    'existing_task_title': existing_task.title,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -207,16 +234,17 @@ def create_task(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Parse due_date
-    from django.utils.dateparse import parse_datetime
-    if isinstance(due_date, str):
-        parsed_due_date = parse_datetime(due_date)
-        if not parsed_due_date:
-            return Response(
-                {'error': 'due_date must be a valid ISO datetime.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        due_date = parsed_due_date
+    # Parse due_date (optional)
+    if due_date:
+        from django.utils.dateparse import parse_datetime
+        if isinstance(due_date, str):
+            parsed_due_date = parse_datetime(due_date)
+            if not parsed_due_date:
+                return Response(
+                    {'error': 'due_date must be a valid ISO datetime.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            due_date = parsed_due_date
 
     # Build task data
     task_data = {
@@ -225,8 +253,11 @@ def create_task(request):
         'created_by': request.user,
         'task_type': task_type,
         'title': title,
-        'due_date': due_date,
     }
+    
+    # Add due_date only if provided
+    if due_date:
+        task_data['due_date'] = due_date
 
     # Optional fields
     description = request.data.get('description')
@@ -245,6 +276,13 @@ def create_task(request):
 
     # Create the task
     task = ASELeadTask.objects.create(**task_data)
+    
+    # If task is being created from a lead conversion, disable the lead
+    convert_from_lead = request.data.get('convert_from_lead', False)
+    if convert_from_lead and lead:
+        lead.is_disabled = True
+        lead.converted_task_id = task.id
+        lead.save(update_fields=['is_disabled', 'converted_task_id'])
 
     # Return serialized task
     serializer = ASELeadTaskSerializer(task, context={'request': request})
@@ -393,3 +431,65 @@ def delete_task(request, pk):
     task.delete()
     notify_ase_data_changed('tasks', 'deleted', record_id=task_id)
     return Response({'message': 'Task deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def task_notes_history(request, pk):
+    """
+    GET: Retrieve notes history for a task
+    POST: Add a new note to a task
+    
+    GET returns all notes in reverse chronological order (newest first)
+    POST creates a new note with the current user as author
+    
+    Request body for POST:
+      - note (required): Note content (max 500 characters)
+    
+    Returns:
+      GET: 200 with list of notes
+      POST: 201 with created note
+      404 if task not found
+      400 if validation fails
+    """
+    # Fetch the task
+    try:
+        task = ASELeadTask.objects.get(pk=pk)
+    except ASELeadTask.DoesNotExist:
+        return Response(
+            {'error': 'Task not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    
+    if request.method == 'GET':
+        # Return all notes for this task
+        notes = TaskNote.objects.filter(task=task).select_related('created_by')
+        serializer = TaskNoteSerializer(notes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'POST':
+        # Create a new note
+        note_content = request.data.get('note', '').strip()
+        
+        if not note_content:
+            return Response(
+                {'error': 'note is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        if len(note_content) > 500:
+            return Response(
+                {'error': 'note cannot exceed 500 characters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Create the note
+        task_note = TaskNote.objects.create(
+            task=task,
+            note=note_content,
+            created_by=request.user
+        )
+        
+        serializer = TaskNoteSerializer(task_note)
+        notify_ase_data_changed('tasks', 'note_added', record_id=task.id)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

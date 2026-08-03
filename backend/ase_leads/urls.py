@@ -11,7 +11,7 @@ from .views import (
     assign_to_boe, assign_to_cre, boe_users, cre_users,
     list_activities, create_activity, update_activity, delete_activity,
     activity_timeline,
-    my_tasks, create_task, update_task, complete_task, overdue_tasks, delete_task,
+    my_tasks, create_task, update_task, complete_task, overdue_tasks, delete_task, task_notes_history,
     team_performance, my_performance, pipeline_overview, conversion_rates,
     add_lead, bulk_upload, download_template,
     bre_research_list, bre_research_update, bre_research_delete, bre_research_bulk_assign,
@@ -102,6 +102,7 @@ urlpatterns = [
     path('ase-leads/tasks/<int:pk>/', update_task, name='ase-leads-update-task'),
     path('ase-leads/tasks/<int:pk>/complete/', complete_task, name='ase-leads-complete-task'),
     path('ase-leads/tasks/<int:pk>/delete/', delete_task, name='ase-leads-delete-task'),
+    path('ase-leads/tasks/<int:pk>/notes_history/', task_notes_history, name='ase-leads-task-notes-history'),
     path('ase-leads/tasks/overdue/', overdue_tasks, name='ase-leads-overdue-tasks'),
 
     # Analytics Endpoints

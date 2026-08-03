@@ -86,6 +86,10 @@ export interface Lead {
   company_detail?: Company;
   createdAt: Date;
   updatedAt: Date;
+  // Conversion tracking
+  is_converted?: boolean;
+  converted_task_id?: number;
+  converted_at?: Date;
 }
 
 export interface LeadNote {
@@ -111,6 +115,13 @@ export interface Task {
   company_detail?: Company;
   createdAt: Date;
   updatedAt: Date;
+  createdBy?: string;
+  createdByName?: string;
+  // Conversion tracking
+  converted_from_lead_id?: number;
+  converted_at?: Date;
+  converted_by?: string;
+  converted_by_name?: string;
 }
 
 export interface TaskNote {

@@ -69,6 +69,11 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
             created_by_field='created_by'
         )
         
+        # Filter out disabled customers by default (unless explicitly requested)
+        show_disabled = self.request.query_params.get('show_disabled', 'false').lower()
+        if show_disabled != 'true':
+            queryset = queryset.filter(is_disabled=False)
+        
         # Apply filters from query parameters with sanitization
         # Filter by conversion status
         converted = self.request.query_params.get('converted', None)

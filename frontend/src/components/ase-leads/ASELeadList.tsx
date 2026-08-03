@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EditIcon, TrashIcon, PhoneIcon, MailIcon, BuildingIcon, EyeIcon, XIcon, ListTodo, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import LeadNotesPanel from './LeadNotesPanel';
 
 interface ASELeadListProps {
   onEditLead?: (lead: ASELead) => void;
@@ -143,6 +144,11 @@ function LeadDetailModal({ lead, onClose }: { lead: ASELead; onClose: () => void
               <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 rounded-lg px-3 py-2">{lead.notes}</p>
             </div>
           )}
+
+          {/* Notes Panel - Interactive Notes History */}
+          <div className="mb-4">
+            <LeadNotesPanel lead={lead} />
+          </div>
         </div>
 
         <div className="flex justify-end px-6 pb-5 border-t border-border pt-4">
@@ -175,7 +181,6 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
   const [taskTitle, setTaskTitle] = useState('');
   const [taskType, setTaskType] = useState('followup');
   const [taskPriority, setTaskPriority] = useState('medium');
-  const [taskDueDate, setTaskDueDate] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
 
   const openConvertToTask = (lead: ASELead) => {
@@ -184,32 +189,44 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
     setTaskType('followup');
     setTaskPriority(lead.priority || 'medium');
     setTaskDescription(`Contact: ${lead.contact_person}\nPhone: ${lead.phone || ''}\nEmail: ${lead.email || ''}\nServices: ${Array.isArray(lead.service_interests_display) ? lead.service_interests_display.join(', ') : ''}`);
-    // Default due date: tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setTaskDueDate(tomorrow.toISOString().slice(0, 16));
   };
 
   const handleConvertToTask = async () => {
     if (!convertLead) return;
     if (!taskTitle.trim()) { toast.error('Title is required'); return; }
-    if (!taskDueDate) { toast.error('Due date is required'); return; }
+    
     try {
       setConvertLoading(true);
-      await apiClient.post('/ase-leads/tasks/', {
+      
+      // Remove the lead from the UI optimistically
+      const leadId = convertLead.id;
+      
+      const taskData: any = {
         lead_id: parseInt(convertLead.id),
         title: taskTitle.trim(),
         task_type: taskType,
         priority: taskPriority,
-        due_date: new Date(taskDueDate).toISOString(),
         description: taskDescription.trim(),
-      });
-      // Update lead status to indicate it's been converted
-      await updateLead(convertLead.id, { status: 'demo_done' as any });
+        convert_from_lead: true, // Flag to disable the lead
+      };
+      
+      await apiClient.post('/ase-leads/tasks/', taskData);
+      
       toast.success('Lead converted to task successfully');
       setConvertLead(null);
+      
+      // Refresh the leads list to remove the converted lead
+      window.location.reload();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to convert lead to task');
+      // Handle duplicate task error specifically
+      if (err.response?.data?.error?.includes('already exists')) {
+        const existingTaskTitle = err.response.data.existing_task_title || 'Existing Task';
+        toast.error('Duplicate Task', {
+          description: `A task "${existingTaskTitle}" already exists for this lead. Please complete or cancel the existing task first.`,
+        });
+      } else {
+        toast.error(err.message || 'Failed to convert lead to task');
+      }
     } finally {
       setConvertLoading(false);
     }
@@ -339,15 +356,6 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Due Date <span className="text-red-500">*</span></Label>
-                <input
-                  type="datetime-local"
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                  value={taskDueDate}
-                  onChange={(e) => setTaskDueDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label>Description</Label>
                 <textarea
                   className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
@@ -359,7 +367,7 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConvertLead(null)} disabled={convertLoading}>Cancel</Button>
-            <Button onClick={handleConvertToTask} disabled={convertLoading || !taskTitle.trim() || !taskDueDate}>
+            <Button onClick={handleConvertToTask} disabled={convertLoading || !taskTitle.trim()}>
               {convertLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Convert to Task
             </Button>
@@ -515,14 +523,15 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                   onChange={onToggleAll}
                 />
               </th>
-              <th className="text-left py-2 px-2 font-medium w-[18%]">Name</th>
-              <th className="text-left py-2 px-2 font-medium w-[13%]">Phone</th>
-              <th className="text-left py-2 px-2 font-medium w-[16%]">Services</th>
-              <th className="text-left py-2 px-2 font-medium w-[12%]">Budget</th>
-              <th className="text-left py-2 px-2 font-medium w-[9%]">Priority</th>
-              <th className="text-left py-2 px-2 font-medium w-[13%]">Status</th>
-              <th className="text-left py-2 px-2 font-medium w-[10%]">Assigned</th>
-              <th className="text-left py-2 px-2 font-medium w-[7%]">Created</th>
+              <th className="text-left py-2 px-2 font-medium w-[17%]">Name</th>
+              <th className="text-left py-2 px-2 font-medium w-[12%]">Phone</th>
+              <th className="text-left py-2 px-2 font-medium w-[14%]">Services</th>
+              <th className="text-left py-2 px-2 font-medium w-[10%]">Budget</th>
+              <th className="text-left py-2 px-2 font-medium w-[8%]">Priority</th>
+              <th className="text-left py-2 px-2 font-medium w-[12%]">Status</th>
+              <th className="text-left py-2 px-2 font-medium w-[9%]">Assigned</th>
+              <th className="text-left py-2 px-2 font-medium w-[6%]">Created</th>
+              <th className="text-left py-2 px-2 font-medium w-[6%]">Converted</th>
               <th className="text-left py-2 px-2 font-medium w-[9%]">Actions</th>
             </tr>
           </thead>
@@ -605,6 +614,11 @@ export default function ASELeadList({ onEditLead, onDeleteLead, selectedIds, onT
                 <td className="py-2.5 px-2">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
+                  </span>
+                </td>
+                <td className="py-2.5 px-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {lead.converted_at ? new Date(lead.converted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
                   </span>
                 </td>
                 <td className="py-2.5 px-2">

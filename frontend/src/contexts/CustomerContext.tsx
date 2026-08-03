@@ -49,6 +49,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [isInitialLoad, setIsInitialLoad] = useState(false); // Start with false
   const CACHE_DURATION = 30000; // 30 seconds cache
+  const CACHE_VERSION = 'v2'; // Increment this to force cache refresh
 
   // Fetch real users from the API filtered by current company
   const fetchUsers = async (forceRefresh = false) => {
@@ -57,8 +58,38 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
     if (isCacheValid) return;
     
     try {
+      // Clear ALL old employee cache versions before fetching
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('employees_')) {
+          localStorage.removeItem(key);
+          console.log('🗑️ Pre-fetch cache clear:', key);
+        }
+      });
+      
+      // SIMPLE FIX: For /admin/customers and /admin/leads routes, always use Eswari Group (company ID 1)
+      const currentPath = window.location.pathname;
+      let companyId;
+      
+      if (currentPath.includes('/admin/customers') || currentPath === '/customers' || currentPath.includes('/admin/leads') || currentPath === '/leads') {
+        // Eswari Group section - hardcode company ID 1
+        companyId = 1;
+        console.log('🏢 Eswari Group section detected - using company ID 1');
+      } else {
+        // Use selectedCompany or user's company for other sections
+        companyId = selectedCompany?.id || (user?.company as any)?.id;
+      }
+      
+      console.log('🏢 Fetching employees for company ID:', companyId);
+      console.log('🏢 Selected company:', selectedCompany);
+      console.log('🏢 User company:', (user as any)?.company);
+      
       // Use the new assignable users endpoint that respects role-based permissions
-      const response = await apiClient.getAssignableUsers();
+      // Pass company parameter for multi-company admins
+      const response = await apiClient.getAssignableUsers(companyId);
+      
+      console.log('📥 Raw API response from assignable users:', response);
+      console.log('🔍 Current user:', user);
+      console.log('🏢 User company:', (user as any)?.company);
       
       // Handle both paginated and non-paginated responses
       let usersData: any[];
@@ -69,6 +100,9 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       } else {
         usersData = [];
       }
+      
+      console.log('👥 Parsed users data:', usersData.length, 'users');
+      console.log('👥 User companies:', usersData.map(u => ({ name: u.first_name + ' ' + u.last_name, company: u.company?.name })));
       
       // Transform Django user data to match frontend interface
       const transformedUsers: User[] = usersData.map((user: any) => {
@@ -107,9 +141,19 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       );
       setEmployees(employeeUsers);
       
-      // Cache employees data to localStorage
+      // Cache employees data to localStorage with company ID in key
       try {
-        localStorage.setItem(`employees_${user?.id}`, JSON.stringify(employeeUsers));
+        const companyId = (user?.company as any)?.id || user?.companyId || 'none';
+        const cacheKey = `employees_${CACHE_VERSION}_${user?.id}_company_${companyId}`;
+        localStorage.setItem(cacheKey, JSON.stringify(employeeUsers));
+        
+        // Force clear ALL old employee cache formats to ensure fresh data
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('employees_') && key !== cacheKey) {
+            localStorage.removeItem(key);
+            console.log('🗑️ Cleared old employee cache:', key);
+          }
+        });
       } catch (error) {
         logger.error('❌ Error caching employee data:', error);
       }
@@ -207,7 +251,17 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       
       // Load cached data immediately for instant UI
       const cachedCustomers = localStorage.getItem(`customers_${user.id}`);
-      const cachedEmployees = localStorage.getItem(`employees_${user.id}`);
+      const companyId = selectedCompany?.id || (user.company as any)?.id || (user as any)?.companyId || 'none';
+      const cacheKey = `employees_${CACHE_VERSION}_${user.id}_company_${companyId}`;
+      const cachedEmployees = localStorage.getItem(cacheKey);
+      
+      // Force clear ALL old employee cache formats (including old versions)
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('employees_') && key !== cacheKey) {
+          localStorage.removeItem(key);
+          console.log('🗑️ Cleared old employee cache on load:', key);
+        }
+      });
       
       if (cachedCustomers && cachedEmployees) {
         try {
@@ -240,7 +294,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       // Fetch fresh data in background (non-blocking)
       setTimeout(() => {
         Promise.all([
-          fetchUsers(),
+          fetchUsers(true), // Force refresh when user or selectedCompany changes
           fetchCustomers()
         ]).catch(error => {
           logger.error('❌ Error during background data fetch:', error);
@@ -275,7 +329,7 @@ export function CustomerProvider({ children }: CustomerProviderProps) {
       setCustomers([]);
       setEmployees([]);
     }
-  }, [user?.id]); // Only depend on user.id to prevent infinite loops
+  }, [user?.id, selectedCompany?.id]); // Re-fetch when user OR selectedCompany changes
 
   const addCustomer = useCallback(async (customerData: Partial<Customer>) => {
     try {

@@ -113,6 +113,8 @@ class ASELeadTask(models.Model):
     
     # Scheduling
     due_date = models.DateTimeField(
+        null=True,
+        blank=True,
         help_text="When this task is due"
     )
     completed_at = models.DateTimeField(
@@ -132,6 +134,12 @@ class ASELeadTask(models.Model):
         help_text="When to send a reminder for this task"
     )
     
+    # Conversion tracking
+    is_disabled = models.BooleanField(
+        default=False,
+        help_text="Set to True when converted to lead - hides from active task lists"
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -143,7 +151,7 @@ class ASELeadTask(models.Model):
     )
     
     class Meta:
-        ordering = ['due_date', '-priority']
+        ordering = ['-priority', 'due_date', '-created_at']
         verbose_name = 'ASE Lead Task'
         verbose_name_plural = 'ASE Lead Tasks'
         indexes = [
@@ -152,10 +160,12 @@ class ASELeadTask(models.Model):
             models.Index(fields=['due_date', 'status']),
             models.Index(fields=['assigned_to', 'due_date']),
             models.Index(fields=['status', 'priority', 'due_date']),
+            models.Index(fields=['is_disabled']),
         ]
     
     def __str__(self):
-        return f"{self.get_task_type_display()} - {self.lead.company_name} - Due: {self.due_date.strftime('%Y-%m-%d')}"
+        due_str = self.due_date.strftime('%Y-%m-%d') if self.due_date else 'No Due Date'
+        return f"{self.get_task_type_display()} - {self.lead.company_name} - Due: {due_str}"
     
     @property
     def assigned_to_name(self):
@@ -188,7 +198,7 @@ class ASELeadTask(models.Model):
     @property
     def is_overdue(self):
         """Check if this task is overdue"""
-        if self.status not in ['completed', 'cancelled']:
+        if self.due_date and self.status not in ['completed', 'cancelled']:
             from django.utils import timezone
             return timezone.now() > self.due_date
         return False
@@ -196,7 +206,7 @@ class ASELeadTask(models.Model):
     @property
     def is_due_soon(self):
         """Check if this task is due within the next 24 hours"""
-        if self.status not in ['completed', 'cancelled']:
+        if self.due_date and self.status not in ['completed', 'cancelled']:
             from django.utils import timezone
             from datetime import timedelta
             now = timezone.now()

@@ -14,11 +14,16 @@ class LeadSerializer(CompanyValidationMixin, serializers.ModelSerializer):
     assigned_to_detail = UserSerializer(source='assigned_to', read_only=True)
     created_by_detail = UserSerializer(source='created_by', read_only=True)
     company_detail = CompanyNestedSerializer(source='company', read_only=True)
+    is_converted = serializers.SerializerMethodField()
     
     class Meta:
         model = Lead
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'created_by']
+        read_only_fields = ['created_at', 'updated_at', 'created_by', 'converted_task_id', 'converted_at', 'is_disabled']
+    
+    def get_is_converted(self, obj):
+        """Check if lead has been converted to a task"""
+        return bool(obj.converted_task_id)
     
     def validate(self, data):
         """

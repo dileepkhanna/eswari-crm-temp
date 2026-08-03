@@ -147,6 +147,42 @@ export class ASELeadService {
     const url = company ? `${this.baseUrl}/creators/?company=${company}` : `${this.baseUrl}/creators/`;
     return await apiClient.get(url);
   }
+
+  async getConverters(company?: string | number): Promise<{ id: number; name: string }[]> {
+    const url = company ? `${this.baseUrl}/converters/?company=${company}` : `${this.baseUrl}/converters/`;
+    return await apiClient.get(url);
+  }
+
+  // Get notes history for a lead
+  async getNotes(leadId: string): Promise<LeadNote[]> {
+    try {
+      const response = await apiClient.get(`${this.baseUrl}/${leadId}/notes_history/`);
+      return Array.isArray(response) ? response : response.results || [];
+    } catch (error) {
+      console.error('Error fetching lead notes:', error);
+      throw error;
+    }
+  }
+
+  // Append a new note
+  async addNote(leadId: string, content: string): Promise<LeadNote> {
+    try {
+      const response = await apiClient.post(`${this.baseUrl}/${leadId}/notes_history/`, { content });
+      return response;
+    } catch (error) {
+      console.error('Error adding lead note:', error);
+      throw error;
+    }
+  }
+}
+
+export interface LeadNote {
+  id: number;
+  lead: string;
+  author: number;
+  author_name: string;
+  content: string;
+  created_at: string;
 }
 
 export const aseLeadService = new ASELeadService();

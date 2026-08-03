@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import ASELead, ASELeadActivity, ASELeadTask
+from .models.task_note import TaskNote
 
 
 @admin.register(ASELead)
@@ -215,3 +216,27 @@ class ASELeadTaskAdmin(admin.ModelAdmin):
         if not change:  # If creating new object
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(TaskNote)
+class TaskNoteAdmin(admin.ModelAdmin):
+    """Admin interface for TaskNote model"""
+    list_display = ['id', 'task', 'note_preview', 'created_by_name', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['note', 'task__title', 'created_by__username', 'created_by__first_name', 'created_by__last_name']
+    readonly_fields = ['created_by', 'created_at', 'created_by_name']
+    ordering = ['-created_at']
+    
+    def note_preview(self, obj):
+        """Show first 50 characters of note"""
+        return obj.note[:50] + '...' if len(obj.note) > 50 else obj.note
+    note_preview.short_description = 'Note'
+    
+    fieldsets = (
+        ('Task Note', {
+            'fields': ('task', 'note')
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_by_name', 'created_at')
+        }),
+    )

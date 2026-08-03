@@ -39,6 +39,24 @@ interface ASETask {
   lead_company_name?: string;
   lead_contact_person?: string;
   lead_phone?: string;
+  lead_details?: {
+    id: string;
+    company_name: string;
+    contact_person: string;
+    email?: string;
+    phone: string;
+    status: string;
+    status_display: string;
+    priority: string;
+    priority_display: string;
+    engagement_level?: string;
+    lead_score?: number;
+    assigned_to_details?: {
+      id: number;
+      full_name: string;
+      role: string;
+    };
+  };
   is_overdue: boolean;
   created_at: string;
 }
@@ -280,7 +298,6 @@ export default function AdminASETasks() {
 
   const handleFormSubmit = async () => {
     if (!formTitle.trim()) { toast.error('Title is required'); return; }
-    if (!formDueDate) { toast.error('Due date is required'); return; }
     try {
       setFormLoading(true);
       if (editingTask) {
@@ -288,7 +305,6 @@ export default function AdminASETasks() {
           title: formTitle.trim(),
           task_type: formType,
           priority: formPriority,
-          due_date: new Date(formDueDate).toISOString(),
           description: formDescription.trim() || undefined,
         });
         toast.success('Task updated');
@@ -297,7 +313,6 @@ export default function AdminASETasks() {
           title: formTitle.trim(),
           task_type: formType,
           priority: formPriority,
-          due_date: new Date(formDueDate).toISOString(),
           description: formDescription.trim() || undefined,
         });
         toast.success('Task created');
@@ -633,9 +648,7 @@ export default function AdminASETasks() {
             )}
             <span className="text-sm text-muted-foreground">{count} task(s)</span>
           </div>
-          <Button onClick={openCreateForm} className="shrink-0">
-            <Plus className="w-4 h-4 mr-2" /> Add Task
-          </Button>
+          {/* Add Task button hidden for all roles (admin, manager, employee) */}
         </div>
 
         {/* Mobile Card View */}
@@ -648,21 +661,27 @@ export default function AdminASETasks() {
               <p className="text-muted-foreground">No tasks found</p>
             </div>
           ) : filteredTasks.map((task) => (
-            <div key={task.id} className={`glass-card rounded-xl p-4 animate-fade-in ${task.is_overdue && task.status !== 'completed' ? 'border-red-300 bg-red-50/20' : ''}`}>
+            <div key={task.id} className="glass-card rounded-xl p-4 animate-fade-in">
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{task.title}</p>
-                  {task.lead_company_name && <p className="text-xs text-muted-foreground">{task.lead_company_name}</p>}
+                  {(task.lead_company_name || task.lead_details?.company_name) && (
+                    <p className="text-xs text-muted-foreground">{task.lead_company_name || task.lead_details?.company_name}</p>
+                  )}
+                  {(task.lead_contact_person || task.lead_details?.contact_person) && (
+                    <p className="text-xs text-muted-foreground">Contact: {task.lead_contact_person || task.lead_details?.contact_person}</p>
+                  )}
+                  {(task.lead_phone || task.lead_details?.phone) && (
+                    <p className="text-xs text-muted-foreground">Phone: {task.lead_phone || task.lead_details?.phone}</p>
+                  )}
                 </div>
                 <StatusChip status={task.status} />
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm mb-2">
                 <div><p className="text-xs text-muted-foreground">Type</p><p className="text-xs font-medium">{TASK_TYPES.find(t => t.value === task.task_type)?.label || task.task_type}</p></div>
-                <div><p className="text-xs text-muted-foreground">Due</p><p className="text-xs font-medium">{task.due_date ? format(new Date(task.due_date), 'MMM dd') : '-'}</p></div>
                 <div><p className="text-xs text-muted-foreground">Priority</p><PriorityChip priority={task.priority} /></div>
                 <div><p className="text-xs text-muted-foreground">Assigned To</p><p className="text-xs font-medium">{task.assigned_to_name?.split(' ')[0] || '-'}</p></div>
               </div>
-              {task.is_overdue && task.status !== 'completed' && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded mb-2 inline-block">Overdue</span>}
               <div className="flex gap-2 flex-wrap items-center mt-2">
                 {/* Compact status badge dropdown */}
                 <DropdownMenu>
@@ -713,24 +732,26 @@ export default function AdminASETasks() {
                 <TableHead className="w-10 p-2"><Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} /></TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Title</TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Company</TableHead>
+                <TableHead className="font-semibold p-2 text-xs">Contact Person</TableHead>
+                <TableHead className="font-semibold p-2 text-xs">Phone</TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Type</TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Status</TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Priority</TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Assigned To</TableHead>
-                <TableHead className="font-semibold p-2 text-xs">Due Date</TableHead>
                 <TableHead className="font-semibold p-2 text-xs">Created</TableHead>
                 <TableHead className="font-semibold p-2 text-xs w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTasks.map((task) => (
-                <TableRow key={task.id} className={`hover:bg-muted/50 ${task.is_overdue && task.status !== 'completed' ? 'bg-red-50/30' : ''}`}>
+                <TableRow key={task.id} className="hover:bg-muted/50">
                   <TableCell className="p-2"><Checkbox checked={selectedIds.has(task.id)} onCheckedChange={() => toggleSelect(task.id)} /></TableCell>
                   <TableCell className="p-2">
                     <p className="font-medium text-sm truncate max-w-[180px]">{task.title}</p>
-                    {task.is_overdue && task.status !== 'completed' && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Overdue</span>}
                   </TableCell>
-                  <TableCell className="p-2"><p className="text-xs truncate max-w-[120px]">{task.lead_company_name || '-'}</p></TableCell>
+                  <TableCell className="p-2"><p className="text-xs truncate max-w-[120px]">{task.lead_company_name || task.lead_details?.company_name || '-'}</p></TableCell>
+                  <TableCell className="p-2"><p className="text-xs truncate max-w-[120px]">{task.lead_contact_person || task.lead_details?.contact_person || '-'}</p></TableCell>
+                  <TableCell className="p-2"><p className="text-xs truncate max-w-[100px]">{task.lead_phone || task.lead_details?.phone || '-'}</p></TableCell>
                   <TableCell className="p-2"><span className="text-xs">{TASK_TYPES.find(t => t.value === task.task_type)?.label || task.task_type}</span></TableCell>
                   <TableCell className="p-2">
                     <Select value={task.status} onValueChange={(v) => handleStatusChange(task.id, v)}>
@@ -740,9 +761,6 @@ export default function AdminASETasks() {
                   </TableCell>
                   <TableCell className="p-2"><PriorityChip priority={task.priority} /></TableCell>
                   <TableCell className="p-2"><span className="text-xs text-muted-foreground truncate block max-w-[100px]">{task.assigned_to_name?.split(' ')[0] || '-'}</span></TableCell>
-                  <TableCell className="p-2">
-                    {task.due_date ? <div className="flex items-center gap-1 text-xs text-muted-foreground"><Calendar className="w-3 h-3" />{format(new Date(task.due_date), 'MMM dd')}</div> : '-'}
-                  </TableCell>
                   <TableCell className="p-2"><span className="text-xs text-muted-foreground">{format(new Date(task.created_at), 'MMM dd')}</span></TableCell>
                   <TableCell className="p-2">
                     <DropdownMenu>
@@ -827,10 +845,6 @@ export default function AdminASETasks() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Due Date <span className="text-red-500">*</span></Label>
-                <Input type="datetime-local" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
                 <Label>Description</Label>
                 <textarea className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optional description..." />
               </div>
@@ -847,7 +861,7 @@ export default function AdminASETasks() {
 
         {/* View Task Detail Dialog */}
         <Dialog open={!!viewingTask} onOpenChange={(open) => { if (!open) setViewingTask(null); }}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Task Details</DialogTitle></DialogHeader>
             {viewingTask && (
               <div className="space-y-4 py-2">
@@ -859,13 +873,48 @@ export default function AdminASETasks() {
                   <StatusChip status={viewingTask.status} />
                   <PriorityChip priority={viewingTask.priority} />
                   <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-300">{TASK_TYPES.find(t => t.value === viewingTask.task_type)?.label || viewingTask.task_type}</span>
-                  {viewingTask.is_overdue && viewingTask.status !== 'completed' && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Overdue</span>}
                 </div>
                 {viewingTask.description && (
                   <div><p className="text-xs font-medium text-muted-foreground mb-1">Description</p><p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">{viewingTask.description}</p></div>
                 )}
+                
+                {/* Lead Information Section */}
+                {viewingTask.lead_details && (
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-semibold mb-3 text-primary">Lead Information</p>
+                    <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                      {viewingTask.lead_details.company_name && (
+                        <div><p className="text-xs text-muted-foreground">Company</p><p className="font-medium">{viewingTask.lead_details.company_name}</p></div>
+                      )}
+                      {viewingTask.lead_details.contact_person && (
+                        <div><p className="text-xs text-muted-foreground">Contact Person</p><p className="font-medium">{viewingTask.lead_details.contact_person}</p></div>
+                      )}
+                      {viewingTask.lead_details.phone && (
+                        <div><p className="text-xs text-muted-foreground">Phone</p><p className="font-medium">{viewingTask.lead_details.phone}</p></div>
+                      )}
+                      {viewingTask.lead_details.email && (
+                        <div><p className="text-xs text-muted-foreground">Email</p><p className="font-medium truncate" title={viewingTask.lead_details.email}>{viewingTask.lead_details.email}</p></div>
+                      )}
+                      {viewingTask.lead_details.status_display && (
+                        <div><p className="text-xs text-muted-foreground">Lead Status</p><p className="font-medium">{viewingTask.lead_details.status_display}</p></div>
+                      )}
+                      {viewingTask.lead_details.priority_display && (
+                        <div><p className="text-xs text-muted-foreground">Lead Priority</p><p className="font-medium">{viewingTask.lead_details.priority_display}</p></div>
+                      )}
+                      {viewingTask.lead_details.assigned_to_details && (
+                        <div><p className="text-xs text-muted-foreground">Lead Assigned To</p><p className="font-medium">{viewingTask.lead_details.assigned_to_details.full_name}</p></div>
+                      )}
+                      {viewingTask.lead_details.engagement_level && (
+                        <div><p className="text-xs text-muted-foreground">Engagement Level</p><p className="font-medium capitalize">{viewingTask.lead_details.engagement_level.replace('_', ' ')}</p></div>
+                      )}
+                      {viewingTask.lead_details.lead_score !== undefined && viewingTask.lead_details.lead_score > 0 && (
+                        <div><p className="text-xs text-muted-foreground">Lead Score</p><p className="font-medium">{viewingTask.lead_details.lead_score}/100</p></div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><p className="text-xs text-muted-foreground">Due Date</p><p className="font-medium">{viewingTask.due_date ? format(new Date(viewingTask.due_date), 'MMM dd, yyyy hh:mm a') : '-'}</p></div>
                   <div><p className="text-xs text-muted-foreground">Created</p><p className="font-medium">{format(new Date(viewingTask.created_at), 'MMM dd, yyyy')}</p></div>
                   <div><p className="text-xs text-muted-foreground">Assigned To</p><p className="font-medium">{viewingTask.assigned_to_name || '-'}</p></div>
                   <div><p className="text-xs text-muted-foreground">Created By</p><p className="font-medium">{viewingTask.created_by_name || '-'}</p></div>

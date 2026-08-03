@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon, PhoneCallIcon, CheckCircleIcon, ArrowRightIcon, CalendarClockIcon, MoreHorizontalIcon } from 'lucide-react';
+import { PlusIcon, SearchIcon, FilterIcon, DownloadIcon, UploadIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, LayoutListIcon, KanbanIcon, XIcon, PhoneCallIcon, CheckCircleIcon, ArrowRightIcon, CalendarClockIcon, MoreHorizontalIcon, FileTextIcon } from 'lucide-react';
 import { ASELead, ASELeadFormData } from '@/types/ase-customer';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -50,7 +50,7 @@ export default function AdminASELeads() {
   const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
   
   // Filtered stats state - updates based on active filters
-  const [filteredStats, setFilteredStats] = useState<{ new: number; demo_done: number; presentation: number; }>({ new: 0, demo_done: 0, presentation: 0 });
+  const [filteredStats, setFilteredStats] = useState<{ new: number; demo_done: number; presentation: number; quotation: number; }>({ new: 0, demo_done: 0, presentation: 0, quotation: 0 });
 
   // Fetch all creators from API (not just current page)
   const uniqueCreators = useMemo(() => {
@@ -161,6 +161,7 @@ export default function AdminASELeads() {
         'Assigned To': lead.assigned_to_name || '',
         'Created By': lead.created_by_name || '',
         'Created At': new Date(lead.created_at).toLocaleDateString(),
+        'Converted At': lead.converted_at ? new Date(lead.converted_at).toLocaleDateString() : '',
       }));
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
@@ -276,16 +277,18 @@ export default function AdminASELeads() {
         if (dateToFilter) baseParams.date_to = dateToFilter;
         
         // Fetch counts for each status (excluding current statusFilter to get independent counts)
-        const [newRes, demoRes, presRes] = await Promise.all([
+        const [newRes, demoRes, presRes, quotRes] = await Promise.all([
           aseLeadService.getLeads({ ...baseParams, status: 'new' }),
           aseLeadService.getLeads({ ...baseParams, status: 'demo_done' }),
           aseLeadService.getLeads({ ...baseParams, status: 'presentation' }),
+          aseLeadService.getLeads({ ...baseParams, status: 'quotation' }),
         ]);
         
         setFilteredStats({
           new: newRes.count || 0,
           demo_done: demoRes.count || 0,
           presentation: presRes.count || 0,
+          quotation: quotRes.count || 0,
         });
       } catch (error) {
         logger.error('Failed to fetch filtered stats:', error);
@@ -303,12 +306,13 @@ export default function AdminASELeads() {
         <AnnouncementBanner userRole={(user?.role === 'team_lead' ? 'employee' : user?.role) || 'admin'} maxDisplay={2} />
 
         {/* ── Stats Cards ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           {[
             { label: 'Total Leads', value: totalCount, color: 'text-blue-600', bg: 'bg-blue-50', icon: <PhoneCallIcon className="w-5 h-5 text-blue-600" />, filter: '' },
             { label: 'New', value: filteredStats.new, color: 'text-green-600', bg: 'bg-green-50', icon: <CheckCircleIcon className="w-5 h-5 text-green-600" />, filter: 'new' },
             { label: 'Demo Done', value: filteredStats.demo_done, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: <ArrowRightIcon className="w-5 h-5 text-indigo-600" />, filter: 'demo_done' },
             { label: 'Presentation', value: filteredStats.presentation, color: 'text-orange-500', bg: 'bg-orange-50', icon: <CalendarClockIcon className="w-5 h-5 text-orange-500" />, filter: 'presentation' },
+            { label: 'Quotation', value: filteredStats.quotation, color: 'text-purple-600', bg: 'bg-purple-50', icon: <FileTextIcon className="w-5 h-5 text-purple-600" />, filter: 'quotation' },
           ].map(card => (
             <button
               key={card.label}
@@ -439,7 +443,7 @@ export default function AdminASELeads() {
               )}
               {createdByFilter && (
                 <span className="h-6 px-2 text-[10px] rounded-full bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
-                  {uniqueCreators.find(c => c[0] === createdByFilter)?.[1] || 'Creator'}
+                  Converted By: {uniqueCreators.find(c => c[0] === createdByFilter)?.[1] || 'Unknown'}
                   <button onClick={() => setCreatedByFilter('')}><XIcon className="w-2.5 h-2.5" /></button>
                 </span>
               )}
@@ -627,7 +631,7 @@ export default function AdminASELeads() {
                   <option value="retail">Retail & E-commerce</option>
                   <option value="real_estate">Real Estate</option>
                   <option value="education">Education</option>
-                  <option value="hospitality">Hospitality</option>
+                  <option value="hospitality">Hospitality & Tourism</option>
                   <option value="manufacturing">Manufacturing</option>
                   <option value="professional_services">Professional Services</option>
                   <option value="non_profit">Non-Profit</option>
@@ -635,17 +639,17 @@ export default function AdminASELeads() {
                   <option value="food_beverage">Food & Beverage</option>
                   <option value="fashion">Fashion & Beauty</option>
                   <option value="sports_fitness">Sports & Fitness</option>
-                  <option value="entertainment">Entertainment</option>
+                  <option value="entertainment">Entertainment & Media</option>
                   <option value="other">Other</option>
                 </select>
               </div>
 
-              {/* Created By */}
+              {/* Converted By (Created By) */}
               {(user?.role === 'admin' || user?.role === 'manager') && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Created By</label>
+                  <label className="text-sm font-medium">Converted By</label>
                   <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={createdByFilter} onChange={(e) => setCreatedByFilter(e.target.value)}>
-                    <option value="">All Creators</option>
+                    <option value="">All Converters</option>
                     {uniqueCreators.map(([id, name]) => (
                       <option key={id} value={id}>{name}</option>
                     ))}

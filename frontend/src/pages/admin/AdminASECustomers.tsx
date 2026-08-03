@@ -63,7 +63,7 @@ export default function AdminASECustomers() {
   const [viewCustomer, setViewCustomer] = useState<ASECustomer | null>(null);
   const [detailTab, setDetailTab] = useState<'calls' | 'notes'>('calls');
   const [followUpCount, setFollowUpCount] = useState<number>(0);
-  const [filteredStats, setFilteredStats] = useState({ todayCalls: 0, answered: 0, converted: 0 });
+  const [filteredStats, setFilteredStats] = useState({ todayCalls: 0, answered: 0 });
   const [, setLoadingStats] = useState(false);
   
   // Single source of truth for the paginated display — always filtered server-side
@@ -141,23 +141,45 @@ export default function AdminASECustomers() {
       // Use the dedicated teammates endpoint — scope by the resolved company ID
       const companyId = aseCompanyId || (user?.company as any)?.id;
       if (!companyId) return; // no company resolved — skip to avoid leaking cross-company data
-      const url = `/api/ase/customers/teammates/?company=${companyId}`;
+      
+      // Add cache-busting timestamp to force fresh data
+      const timestamp = new Date().getTime();
+      const url = `/api/ase/customers/teammates/?company=${companyId}&_t=${timestamp}`;
+      
+      logger.log('🔄 Loading employees for company:', companyId);
+      
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
       });
 
       if (response.ok) {
         const data = await response.json();
+        logger.log('📥 Raw employees response:', data);
+        
         type RawEmployee = { id: string | number; first_name?: string; last_name?: string; username?: string; role?: string };
         const raw = Array.isArray(data) ? data as RawEmployee[] : (data.results || []) as RawEmployee[];
-        setEmployees(raw.map((e) => ({ id: String(e.id), first_name: e.first_name || '', last_name: e.last_name || '', username: e.username || `${e.first_name || ''}`.trim(), role: e.role || '' })));
+        
+        const transformedEmployees = raw.map((e) => ({ 
+          id: String(e.id), 
+          first_name: e.first_name || '', 
+          last_name: e.last_name || '', 
+          username: e.username || `${e.first_name || ''}`.trim(), 
+          role: e.role || '' 
+        }));
+        
+        logger.log('👥 Transformed employees:', transformedEmployees.length, 'users');
+        setEmployees(transformedEmployees);
+      } else {
+        logger.error('Failed to load employees, status:', response.status);
       }
     } catch (error) {
       logger.error('Failed to load employees:', error);
     }
-  }, [aseCompanyId]);
+  }, [aseCompanyId, user]);
 
   // Load employees when the ASE company ID is resolved
   useEffect(() => {
@@ -246,28 +268,14 @@ export default function AdminASECustomers() {
                 call_status: 'answered',
               });
 
-        // "Converted" — count converted calls within the active date range and assignee filter
-        const convertedBaseParams = { ...baseParams };
-        delete convertedBaseParams.is_converted; // override with converted=true
-        delete convertedBaseParams.call_status;
-        const convertedPromise =
-          conversionFilter === 'not_converted'
-            ? Promise.resolve({ count: 0 })
-            : ASECustomerService.getCustomers({
-                ...convertedBaseParams,
-                is_converted: 'true',
-              });
-
-        const [todayCallsRes, answeredRes, convertedRes] = await Promise.all([
+        const [todayCallsRes, answeredRes] = await Promise.all([
           todayCallsPromise,
           answeredPromise,
-          convertedPromise,
         ]);
 
         setFilteredStats({
           todayCalls: todayCallsRes.count || 0,
           answered: answeredRes.count || 0,
-          converted: convertedRes.count || 0,
         });
       } catch (error) {
         logger.error('Error fetching filtered customer stats:', error);
@@ -338,22 +346,23 @@ export default function AdminASECustomers() {
     
     try {
       logger.log('📄 ASE Customers: Converting customer to lead:', convertCustomer.name);
+      
+      // Remove the customer from displayCustomers immediately (optimistic update)
+      setDisplayCustomers(prev => prev.filter(c => c.id !== convertCustomer.id));
+      setDisplayCount(prev => Math.max(0, prev - 1));
+      
       await convertToLead(convertCustomer.id, leadData);
       logger.log('✅ ASE Customers: Customer converted to lead successfully');
 
-      // Immediately update displayCustomers so "Converted" badge shows without a page refresh
-      setDisplayCustomers(prev =>
-        prev.map(c =>
-          c.id === convertCustomer.id
-            ? { ...c, is_converted: true }
-            : c
-        )
-      );
       setConvertCustomer(null);
       // Refresh the leads list so the new lead appears immediately
       fetchASELeads();
     } catch (error: unknown) {
       logger.error('❌ ASE Customers: Failed to convert customer to lead:', getErrorMessage(error));
+      // If conversion failed, refetch to restore the correct state
+      const res = await ASECustomerService.getCustomers(buildApiParams({ page: currentPage, page_size: 50 }));
+      setDisplayCustomers(res.results);
+      setDisplayCount(res.count || res.results.length);
       // Error toast is handled in the context
     }
   };
@@ -750,7 +759,7 @@ export default function AdminASECustomers() {
         <AnnouncementBanner userRole={resolvedUserRole} maxDisplay={2} />
         
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           <div className="glass-card p-3 md:p-4 rounded-xl">
             <div className="flex items-center gap-2">
               <PhoneIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
@@ -766,15 +775,6 @@ export default function AdminASECustomers() {
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Answered</p>
                 <p className="text-xl md:text-2xl font-bold text-green-600">{todayStats.answered}</p>
-              </div>
-            </div>
-          </div>
-          <div className="glass-card p-3 md:p-4 rounded-xl">
-            <div className="flex items-center gap-2">
-              <ArrowRightIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Converted</p>
-                <p className="text-xl md:text-2xl font-bold text-blue-600">{todayStats.converted}</p>
               </div>
             </div>
           </div>

@@ -770,6 +770,21 @@ class ApiClient {
     });
   }
 
+  async convertLeadToTask(leadId: number, taskData: {
+    title?: string;
+    description?: string;
+    priority?: string;
+    status?: string;
+    due_date?: string;
+    assigned_to_id?: string;
+    project_id?: string;
+  }) {
+    return this.request(`/leads/${leadId}/convert-to-task/`, {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    });
+  }
+
   async bulkDeleteLeads(leadIds: number[]) {
     return this.request('/leads/bulk_delete/', {
       method: 'POST',
@@ -791,8 +806,17 @@ class ApiClient {
     });
   }
 
-  async getAssignableUsers() {
-    return this.request('/leads/assignable_users/');
+  async getAssignableUsers(companyId?: number) {
+    // Add cache-busting timestamp to force fresh data
+    const timestamp = new Date().getTime();
+    let url = `/leads/assignable_users/?_t=${timestamp}`;
+    
+    // Add company parameter if provided (for multi-company admins)
+    if (companyId) {
+      url += `&company=${companyId}`;
+    }
+    
+    return this.request(url);
   }
 
   async bulkImportTasks(tasks: any[]) {
@@ -873,6 +897,13 @@ class ApiClient {
   async deleteTask(id: number) {
     return this.request(`/tasks/${id}/`, {
       method: 'DELETE',
+    });
+  }
+
+  async bulkDeleteTasks(taskIds: string[]) {
+    return this.request('/tasks/bulk_delete/', {
+      method: 'POST',
+      body: JSON.stringify({ task_ids: taskIds }),
     });
   }
 

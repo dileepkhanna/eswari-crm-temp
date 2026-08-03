@@ -227,6 +227,11 @@ class ASELead(models.Model):
     notes = models.TextField(blank=True, null=True, help_text="Internal notes and comments")
     communication_log = models.JSONField(default=list, help_text="Log of communications")
     
+    # Conversion tracking
+    is_disabled = models.BooleanField(default=False, help_text="Set to True when converted to task - hides from active lead lists")
+    converted_task_id = models.IntegerField(blank=True, null=True, help_text="ID of converted task")
+    converted_at = models.DateTimeField(blank=True, null=True, help_text="Date and time when the customer was converted to this lead")
+    
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -244,6 +249,8 @@ class ASELead(models.Model):
             models.Index(fields=['priority']),
             models.Index(fields=['company', 'status']),
             models.Index(fields=['company', 'created_at']),
+            models.Index(fields=['is_disabled']),
+            models.Index(fields=['converted_at']),
         ]
     
     def __str__(self):

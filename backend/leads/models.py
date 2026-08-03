@@ -69,6 +69,11 @@ class Lead(models.Model):
     description = models.TextField(blank=True, help_text="Lead description and notes")
     follow_up_date = models.DateTimeField(null=True, blank=True, help_text="Date and time for follow-up reminder")
     
+    # Conversion tracking
+    is_disabled = models.BooleanField(default=False, help_text="Set to True when converted to task - hides from active lead lists")
+    converted_task_id = models.IntegerField(blank=True, null=True, help_text="ID of converted task")
+    converted_at = models.DateTimeField(blank=True, null=True, help_text="Date and time when converted to task")
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -89,6 +94,8 @@ class Lead(models.Model):
             models.Index(fields=['company']),
             models.Index(fields=['company', 'created_at']),
             models.Index(fields=['company', 'source']),
+            models.Index(fields=['is_disabled']),  # For filtering active leads
+            models.Index(fields=['converted_at']),  # For conversion tracking
         ]
 
     def __str__(self):

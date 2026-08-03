@@ -90,6 +90,7 @@ class ASECustomer(models.Model):
     # Conversion tracking
     is_converted = models.BooleanField(default=False, help_text="Converted to lead")
     converted_lead_id = models.CharField(max_length=50, blank=True, null=True, help_text="ID of converted lead")
+    is_disabled = models.BooleanField(default=False, help_text="Set to True when converted to lead - hides from active lists")
     
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -107,6 +108,7 @@ class ASECustomer(models.Model):
             models.Index(fields=['company', 'call_status']),
             models.Index(fields=['company', 'created_at']),
             models.Index(fields=['is_converted']),
+            models.Index(fields=['is_disabled']),
         ]
     
     def __str__(self):
@@ -164,11 +166,13 @@ class CallLog(models.Model):
     custom_status = models.CharField(max_length=100, blank=True, null=True)
     notes = models.TextField(blank=True, null=True, help_text="Call notes (max 500 characters)")
     called_at = models.DateTimeField(default=timezone.now)
+    is_disabled = models.BooleanField(default=False, help_text="Set to True when converted to lead - hides from active lists")
 
     class Meta:
         ordering = ['-called_at']
         indexes = [
             models.Index(fields=['customer', 'called_at']),
+            models.Index(fields=['is_disabled']),
         ]
     
     def clean(self):

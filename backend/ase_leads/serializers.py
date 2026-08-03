@@ -3,6 +3,40 @@ from django.utils import timezone
 from .models import ASELead
 from .models.activity import ASELeadActivity
 from .models.task import ASELeadTask
+from .models.note import LeadNote
+from .models.task_note import TaskNote
+
+
+class LeadNoteSerializer(serializers.ModelSerializer):
+    """Serializer for LeadNote model"""
+    author_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LeadNote
+        fields = ['id', 'lead', 'author', 'author_name', 'content', 'created_at']
+        read_only_fields = ['author', 'created_at']
+    
+    def get_author_name(self, obj):
+        if obj.author:
+            full_name = f"{obj.author.first_name} {obj.author.last_name}".strip()
+            return full_name or obj.author.username
+        return 'Unknown'
+
+
+class TaskNoteSerializer(serializers.ModelSerializer):
+    """Serializer for TaskNote model"""
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskNote
+        fields = ['id', 'task', 'note', 'created_by', 'created_by_name', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+    
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            full_name = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            return full_name or obj.created_by.username
+        return 'Unknown'
 
 
 class UserBasicSerializer(serializers.Serializer):
@@ -420,6 +454,11 @@ class ASELeadSerializer(serializers.ModelSerializer):
             'notes',
             'communication_log',
             
+            # Conversion tracking
+            'is_disabled',
+            'converted_task_id',
+            'converted_at',
+            
             # Metadata
             'created_at',
             'updated_at',
@@ -779,6 +818,7 @@ class ASELeadListSerializer(serializers.ModelSerializer):
             'contract_start_date',
             'estimated_project_value',
             'monthly_retainer',
+            'converted_at',
             'created_at',
 
             # ── Computed / read-only properties ──────────────────────────────
@@ -1068,9 +1108,9 @@ class ASELeadTaskSerializer(serializers.ModelSerializer):
         """
         Return the number of days until (or since) the task is due.
         Positive means days remaining; negative means overdue by that many days.
-        Returns None for completed or cancelled tasks.
+        Returns None for completed or cancelled tasks or tasks without a due date.
         """
-        if obj.status in ('completed', 'cancelled'):
+        if obj.status in ('completed', 'cancelled') or not obj.due_date:
             return None
         delta = obj.due_date - timezone.now()
         return delta.days
@@ -1121,6 +1161,9 @@ class ASELeadTaskSerializer(serializers.ModelSerializer):
             # Reminder
             'reminder_sent',
             'reminder_date',
+            
+            # Conversion tracking
+            'is_disabled',
             
             # Timestamps
             'created_at',
@@ -1246,9 +1289,9 @@ class ASELeadTaskListSerializer(serializers.ModelSerializer):
         """
         Return the number of days until (or since) the task is due.
         Positive = days remaining; negative = days overdue.
-        Returns None for completed or cancelled tasks.
+        Returns None for completed or cancelled tasks or tasks without a due date.
         """
-        if obj.status in ('completed', 'cancelled'):
+        if obj.status in ('completed', 'cancelled') or not obj.due_date:
             return None
         delta = obj.due_date - timezone.now()
         return delta.days

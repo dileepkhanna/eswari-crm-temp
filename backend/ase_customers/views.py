@@ -44,6 +44,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     filterset_fields = [
         'call_status',
         'is_converted',
+        'is_disabled',
     ]
     
     # Ordering fields
@@ -59,6 +60,11 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = ASECustomer.objects.select_related('company', 'assigned_to', 'created_by').all()
+        
+        # Filter out disabled records by default (unless explicitly requested)
+        show_disabled = self.request.query_params.get('show_disabled', 'false').lower()
+        if show_disabled != 'true':
+            qs = qs.filter(is_disabled=False)
 
         if user.is_superuser:
             # Superuser can see all — optionally scoped by ?company=
@@ -1225,6 +1231,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         # Import ASE Lead model and serializer
         from ase_leads.models import ASELead
         from ase_leads.serializers import ASELeadSerializer
+        from django.utils import timezone
         
         # Prepare lead data from customer and request data
         lead_data = {
@@ -1250,6 +1257,9 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             
             # Lead source
             'lead_source': 'customer_conversion',
+            
+            # Track when this was converted
+            'converted_at': timezone.now(),
         }
         
         # Only add email if customer has one and it looks like a valid email address
@@ -1291,10 +1301,38 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
             try:
                 lead = lead_serializer.save(created_by=request.user)
                 
-                # Update customer as converted
+                # Preserve the original creation date from the customer
+                # This ensures the lead shows the date when the call was first made
+                lead.created_at = customer.created_at
+                lead.save(update_fields=['created_at'])
+                logger.info(f"Set lead {lead.id} created_at to customer's original date: {customer.created_at}")
+                
+                # Copy notes from customer to lead
+                from .models import CustomerNote
+                from ase_leads.models.note import LeadNote
+                
+                # Get all customer notes
+                customer_notes = CustomerNote.objects.filter(customer=customer).order_by('created_at')
+                
+                # Copy each note to the lead
+                for customer_note in customer_notes:
+                    LeadNote.objects.create(
+                        lead=lead,
+                        author=customer_note.author,
+                        content=customer_note.content,
+                        created_at=customer_note.created_at,
+                    )
+                
+                logger.info(f"Copied {customer_notes.count()} notes from customer {customer.id} to lead {lead.id}")
+                
+                # Update customer as converted AND disabled
                 customer.is_converted = True
                 customer.converted_lead_id = str(lead.id)
+                customer.is_disabled = True  # Disable the customer record
                 customer.save()
+                
+                # Notify frontend via WebSocket that the customer was converted/disabled
+                notify_ase_data_changed('calls', 'updated', record_id=customer.id)
                 
                 return Response({
                     'success': True,

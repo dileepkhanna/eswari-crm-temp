@@ -279,7 +279,7 @@ export default function ASECustomerFormModal({
 
           {/* Follow-up Date (Scheduled Date) */}
           <div>
-            <Label htmlFor="scheduled_date">Follow-up Date</Label>
+            <Label htmlFor="scheduled_date">Follow-up Date (IST)</Label>
             <Input
               id="scheduled_date"
               type="datetime-local"
@@ -288,7 +288,20 @@ export default function ASECustomerFormModal({
                 try {
                   const date = new Date(formData.scheduled_date);
                   if (isNaN(date.getTime())) return '';
-                  return date.toISOString().slice(0, 16);
+                  
+                  // Convert UTC to IST (UTC+5:30) for display
+                  const istOffset = 5.5 * 60; // IST is UTC+5:30
+                  const localOffset = date.getTimezoneOffset(); // browser's offset in minutes
+                  const istDate = new Date(date.getTime() + (istOffset + localOffset) * 60 * 1000);
+                  
+                  // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+                  const year = istDate.getFullYear();
+                  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+                  const day = String(istDate.getDate()).padStart(2, '0');
+                  const hours = String(istDate.getHours()).padStart(2, '0');
+                  const minutes = String(istDate.getMinutes()).padStart(2, '0');
+                  
+                  return `${year}-${month}-${day}T${hours}:${minutes}`;
                 } catch {
                   return '';
                 }
@@ -299,15 +312,22 @@ export default function ASECustomerFormModal({
                   return;
                 }
                 try {
-                  const isoString = new Date(e.target.value).toISOString();
-                  setFormData(prev => ({ ...prev, scheduled_date: isoString }));
+                  // Parse the datetime-local value as IST
+                  const localDate = new Date(e.target.value);
+                  
+                  // Convert from IST to UTC
+                  const istOffset = 5.5 * 60; // IST is UTC+5:30 in minutes
+                  const localOffset = localDate.getTimezoneOffset(); // browser's offset
+                  const utcDate = new Date(localDate.getTime() - (istOffset + localOffset) * 60 * 1000);
+                  
+                  setFormData(prev => ({ ...prev, scheduled_date: utcDate.toISOString() }));
                 } catch {
                   // Invalid date, ignore
                 }
               }}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Set when you plan to follow up with this customer
+              Set when you plan to follow up with this customer (India Standard Time)
             </p>
           </div>
 

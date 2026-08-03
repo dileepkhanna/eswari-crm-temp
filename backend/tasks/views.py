@@ -164,3 +164,57 @@ class TaskViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
                 imported = len(created)
 
         return Response({'imported': imported, 'errors': errors}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'])
+    def bulk_delete(self, request):
+        """
+        Bulk delete tasks in a single DB transaction.
+        Expects: {"task_ids": ["id1", "id2", ...]}
+        Returns: {"deleted": N, "failed": N}
+        """
+        task_ids = request.data.get('task_ids', [])
+        if not isinstance(task_ids, list) or len(task_ids) == 0:
+            return Response({'error': 'No task IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        
+        # Get tasks that user has access to
+        base_queryset = Task.objects.select_related('company', 'assigned_to', 'created_by')
+        accessible_tasks = filter_by_user_access(
+            base_queryset,
+            user,
+            assigned_to_field='assigned_to',
+            created_by_field='created_by'
+        )
+        
+        # Filter by provided IDs
+        tasks_to_delete = accessible_tasks.filter(id__in=task_ids)
+        
+        deleted_count = 0
+        company_id = None
+        
+        with transaction.atomic():
+            # Get company_id before deletion for notification
+            if tasks_to_delete.exists():
+                company_id = tasks_to_delete.first().company_id
+            
+            deleted_count = tasks_to_delete.delete()[0]
+        
+        # Send real-time notification
+        if company_id:
+            notify_company(
+                company_id=company_id,
+                event_type='tasks_bulk_deleted',
+                data={
+                    'entity': 'tasks',
+                    'action': 'bulk_deleted',
+                    'count': deleted_count,
+                }
+            )
+        
+        failed_count = len(task_ids) - deleted_count
+        return Response({
+            'deleted': deleted_count,
+            'failed': failed_count,
+            'message': f'Successfully deleted {deleted_count} task(s)'
+        }, status=status.HTTP_200_OK)

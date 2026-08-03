@@ -214,23 +214,35 @@ export default function LeadList({
   const handleConvertToTaskSave = async (taskData: any) => {
     if (!convertingLead) return;
     try {
-      await addTask({
-        leadId: convertingLead.id,
-        lead: convertingLead,
-        status: taskData.status || 'in_progress',
+      // Use the proper convert-to-task endpoint instead of just creating a task
+      const convertData: any = {
+        title: `Task for ${convertingLead.name}`,
+        description: convertingLead.description || '',
         priority: taskData.priority || 'medium',
-        notes: taskData.notes || [],
-        attachments: [],
-        assignedTo: taskData.assignedTo || user?.id || 'unknown',
-        assignedProject: taskData.assignedProject,
-        nextActionDate: taskData.nextActionDate,
-      });
+        status: taskData.status || 'in_progress',
+        due_date: taskData.nextActionDate?.toISOString(),
+        assigned_to_id: taskData.assignedTo || user?.id,
+      };
+      
+      // Only include project_id if it's defined, not empty, and not 'none'
+      if (taskData.assignedProject && 
+          taskData.assignedProject !== 'none' && 
+          taskData.assignedProject !== '' &&
+          taskData.assignedProject !== null) {
+        convertData.project_id = taskData.assignedProject;
+      }
+      
+      await apiClient.convertLeadToTask(parseInt(convertingLead.id), convertData);
+      
       toast.success(`Lead "${convertingLead.name}" converted to task`, {
         description: 'You can now track this lead in the Tasks module.',
       });
       setConvertingLead(null);
-      setLastUpdateTime(new Date());
+      
+      // Refresh the data to remove the converted lead from the list
+      await refreshData();
     } catch (error) {
+      logger.error('Failed to convert lead to task:', error);
       toast.error('Failed to convert lead to task');
     }
   };
@@ -534,7 +546,15 @@ export default function LeadList({
                   </div>
                 </div>
               </div>
-              <LeadStatusChip status={lead.status} />
+              <div className="flex items-center gap-2">
+                <LeadStatusChip status={lead.status} />
+                {lead.is_converted && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                    <CheckSquare className="w-3 h-3" />
+                    Task
+                  </span>
+                )}
+              </div>
             </div>
             {canSeeAnyPhoneNumbers && (
               <div className="grid grid-cols-1 gap-1 text-xs mb-2">
@@ -675,30 +695,37 @@ export default function LeadList({
                   <p className="text-xs font-medium truncate max-w-[150px]">{getProjectNames(lead.assignedProjects, lead.assignedProject)}</p>
                 </TableCell>
                 <TableCell className="p-2">
-                  <Select value={lead.status} onValueChange={(value) => handleStatusChange(lead.id, value as Lead["status"])}>
-                    <SelectTrigger className={`w-28 h-7 border rounded-full px-2 text-xs font-medium flex items-center justify-between gap-1 ${
-                      lead.status === 'new' ? 'bg-green-100 border-green-300 text-green-700' :
-                      lead.status === 'hot' ? 'bg-red-100 border-red-300 text-red-700' :
-                      lead.status === 'warm' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
-                      lead.status === 'cold' ? 'bg-blue-100 border-blue-300 text-blue-700' :
-                      lead.status === 'not_interested' ? 'bg-gray-100 border-gray-300 text-gray-700' :
-                      lead.status === 'reminder' ? 'bg-purple-100 border-purple-300 text-purple-700' :
-                      'bg-gray-100 border-gray-300 text-gray-700'
-                    }`}>
-                      <span className="truncate">
-                        {lead.status === 'not_interested' ? 'Not Int.' :
-                         lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                  <div className="flex items-center gap-2">
+                    <Select value={lead.status} onValueChange={(value) => handleStatusChange(lead.id, value as Lead["status"])}>
+                      <SelectTrigger className={`w-28 h-7 border rounded-full px-2 text-xs font-medium flex items-center justify-between gap-1 ${
+                        lead.status === 'new' ? 'bg-green-100 border-green-300 text-green-700' :
+                        lead.status === 'hot' ? 'bg-red-100 border-red-300 text-red-700' :
+                        lead.status === 'warm' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
+                        lead.status === 'cold' ? 'bg-blue-100 border-blue-300 text-blue-700' :
+                        lead.status === 'not_interested' ? 'bg-gray-100 border-gray-300 text-gray-700' :
+                        lead.status === 'reminder' ? 'bg-purple-100 border-purple-300 text-purple-700' :
+                        'bg-gray-100 border-gray-300 text-gray-700'
+                      }`}>
+                        <span className="truncate">
+                          {lead.status === 'not_interested' ? 'Not Int.' :
+                           lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="hot">Hot</SelectItem>
+                        <SelectItem value="warm">Warm</SelectItem>
+                        <SelectItem value="cold">Cold</SelectItem>
+                        <SelectItem value="not_interested">Not Interested</SelectItem>
+                        <SelectItem value="reminder">Reminder</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {lead.is_converted && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" title={`Converted to task on ${lead.converted_at ? format(new Date(lead.converted_at), 'MMM dd, yyyy') : 'unknown date'}`}>
+                        <CheckSquare className="w-3 h-3" />
                       </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="hot">Hot</SelectItem>
-                      <SelectItem value="warm">Warm</SelectItem>
-                      <SelectItem value="cold">Cold</SelectItem>
-                      <SelectItem value="not_interested">Not Interested</SelectItem>
-                      <SelectItem value="reminder">Reminder</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="p-2">
                   {lead.assignedTo ? (

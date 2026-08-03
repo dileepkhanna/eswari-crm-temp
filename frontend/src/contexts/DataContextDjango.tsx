@@ -105,6 +105,10 @@ export const apiToLead = (apiLead: any): Lead => ({
   assignedProject: apiLead.assigned_project || '', // Keep for backward compatibility
   createdAt: new Date(apiLead.created_at),
   updatedAt: new Date(apiLead.updated_at),
+  // Conversion tracking
+  is_converted: apiLead.is_converted || false,
+  converted_task_id: apiLead.converted_task_id,
+  converted_at: apiLead.converted_at ? new Date(apiLead.converted_at) : undefined,
 });
 
 // Helper to convert Django API response to Project type
@@ -199,6 +203,17 @@ const apiToTask = (apiTask: any): Task => ({
   assignedProject: apiTask.project_detail?.id?.toString() || apiTask.project?.toString() || '',
   createdAt: new Date(apiTask.created_at),
   updatedAt: new Date(apiTask.updated_at),
+  createdBy: apiTask.created_by_detail?.id?.toString() || apiTask.created_by?.toString() || '',
+  createdByName: apiTask.created_by_detail
+    ? (`${apiTask.created_by_detail.first_name || ''} ${apiTask.created_by_detail.last_name || ''}`.trim() || apiTask.created_by_detail.username)
+    : undefined,
+  // Conversion tracking
+  converted_from_lead_id: apiTask.converted_from_lead_id,
+  converted_at: apiTask.converted_at ? new Date(apiTask.converted_at) : undefined,
+  converted_by: apiTask.converted_by_detail?.id?.toString() || apiTask.converted_by?.toString() || undefined,
+  converted_by_name: apiTask.converted_by_detail
+    ? (`${apiTask.converted_by_detail.first_name || ''} ${apiTask.converted_by_detail.last_name || ''}`.trim() || apiTask.converted_by_detail.username)
+    : undefined,
 });
 
 export function DataProvider({ children }: { children: React.ReactNode }) {

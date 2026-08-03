@@ -49,6 +49,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         'created_by',
         'has_website',
         'has_social_media',
+        'is_disabled',
     ]
 
     # Ordering fields
@@ -63,63 +64,121 @@ class ASELeadViewSet(viewsets.ModelViewSet):
     ]
     ordering = ['-created_at']
     def get_queryset(self):
+        """
+        Filter ASE leads based on user role and company.
+        - Superuser: Can see all or filter by company
+        - Admin: Can see all for their companies (multi-company support)
+        - HR: Can see all for their single company
+        - Employee/Staff: Can only see leads assigned to them or created by them
+        - Manager: Can see leads for their team
+        """
+        import logging
+        from django.db.models import Q
+        logger = logging.getLogger(__name__)
+        
         user = self.request.user
+        
+        # Log user details for debugging
+        logger.info(f"ASE Leads query - User: {user.email}, Role: {user.role}, Company: {user.company}")
+        
         qs = ASELead.objects.select_related('company', 'assigned_to', 'created_by').all()
+        
+        # Filter out disabled leads by default (unless explicitly requested)
+        show_disabled = self.request.query_params.get('show_disabled', 'false').lower()
+        if show_disabled != 'true':
+            qs = qs.filter(is_disabled=False)
+        
         # Role-based scoping
-        if user.is_superuser:
-            company_id = self.request.query_params.get('company')
-            if company_id:
-                qs = qs.filter(company_id=company_id)
-        elif user.role == 'admin':
-            company_id = self.request.query_params.get('company')
-            if company_id:
-                qs = qs.filter(company_id=company_id)
-            elif user.company:
-                # Scope to admin's own company to prevent cross-company data leakage
+        try:
+            if user.is_superuser:
+                company_id = self.request.query_params.get('company')
+                if company_id:
+                    qs = qs.filter(company_id=company_id)
+            elif user.role == 'admin':
+                company_id = self.request.query_params.get('company')
+                if company_id:
+                    qs = qs.filter(company_id=company_id)
+                elif user.company:
+                    # Scope to admin's own company to prevent cross-company data leakage
+                    qs = qs.filter(company=user.company)
+                else:
+                    logger.warning(f"Admin user {user.email} has no company")
+                    return qs.none()
+            elif user.role == 'hr':
+                if not user.company:
+                    logger.warning(f"HR user {user.email} has no company")
+                    return qs.none()
                 qs = qs.filter(company=user.company)
+            elif user.role in ['employee', 'staff']:
+                # Handle both 'employee' and 'staff' roles
+                if not user.company:
+                    logger.warning(f"Employee/Staff user {user.email} has no company")
+                    return qs.none()
+                qs = qs.filter(company=user.company).filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
+                logger.info(f"Employee {user.email} - filtered to assigned/created leads for company {user.company.name}")
+            elif user.role == 'manager':
+                if not user.company:
+                    logger.warning(f"Manager user {user.email} has no company")
+                    return qs.none()
+                qs = qs.filter(company=user.company)
+                employee_ids = list(
+                    user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
+                )
+                employee_ids.append(user.id)
+                qs = qs.filter(
+                    Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
+                ).distinct()
             else:
-                return qs.none()
-        elif user.role == 'hr':
-            if not user.company:
-                return qs.none()
-            qs = qs.filter(company=user.company)
-        elif not user.company:
-            return qs.none()
-        elif user.role == 'employee':
-            qs = qs.filter(company=user.company).filter(Q(assigned_to=user) | Q(created_by=user)).distinct()
-        elif user.role == 'manager':
-            qs = qs.filter(company=user.company)
-            employee_ids = list(
-                user.__class__.objects.filter(manager=user, company=user.company).values_list('id', flat=True)
-            )
-            employee_ids.append(user.id)
-            qs = qs.filter(
-                Q(assigned_to__id__in=employee_ids) | Q(created_by__id__in=employee_ids)
-            ).distinct()
-        else:
-            qs = qs.filter(company=user.company)
-        # Date filters
+                # Fallback for any other roles
+                if not user.company:
+                    logger.warning(f"User {user.email} with role {user.role} has no company")
+                    return qs.none()
+                qs = qs.filter(company=user.company)
+        except Exception as e:
+            logger.error(f"Error in get_queryset for user {user.email}: {str(e)}", exc_info=True)
+            raise
+        # Date filters - filter by converted_at (when customer was converted to lead)
+        # Also includes leads where converted_at is null (uses created_at)
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
         month = self.request.query_params.get('month')
+        
         if month:
             try:
                 year, mon = month.split('-')
-                qs = qs.filter(created_at__year=int(year), created_at__month=int(mon))
+                year, mon = int(year), int(mon)
+                # Filter by converted_at OR created_at if converted_at is null
+                qs = qs.filter(
+                    Q(converted_at__year=year, converted_at__month=mon) |
+                    Q(converted_at__isnull=True, created_at__year=year, created_at__month=mon)
+                )
             except (ValueError, IndexError):
                 pass
+                
         if date_from:
             from datetime import datetime
             try:
-                qs = qs.filter(created_at__date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
+                from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+                # Filter by converted_at OR created_at if converted_at is null
+                qs = qs.filter(
+                    Q(converted_at__date__gte=from_date) |
+                    Q(converted_at__isnull=True, created_at__date__gte=from_date)
+                )
             except ValueError:
                 pass
+                
         if date_to:
             from datetime import datetime
             try:
-                qs = qs.filter(created_at__date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
+                to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+                # Filter by converted_at OR created_at if converted_at is null
+                qs = qs.filter(
+                    Q(converted_at__date__lte=to_date) |
+                    Q(converted_at__isnull=True, created_at__date__lte=to_date)
+                )
             except ValueError:
                 pass
+                
         return qs
     def get_serializer_class(self):
         if self.action == 'list':
@@ -193,6 +252,57 @@ class ASELeadViewSet(viewsets.ModelViewSet):
 
         creator_ids = qs.values_list('created_by', flat=True).distinct()
         users = UserModel.objects.filter(id__in=creator_ids).values('id', 'first_name', 'last_name', 'username')
+        data = [
+            {
+                'id': u['id'],
+                'name': f"{u['first_name']} {u['last_name']}".strip() or u['username']
+            }
+            for u in users
+        ]
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def converters(self, request):
+        """
+        Return all unique converters (users who converted leads to tasks).
+        Gets users from ASELeadTask.created_by where task was created from an ASE lead.
+        No pagination — returns full list for filter dropdowns.
+        """
+        from accounts.models import User as UserModel
+        from ase_leads.models import ASELeadTask
+
+        user = request.user
+        
+        # Build base queryset for leads
+        lead_qs = ASELead.objects.all()
+
+        # Apply company filtering
+        if user.is_superuser:
+            company_id = request.query_params.get('company')
+            if company_id:
+                lead_qs = lead_qs.filter(company_id=company_id)
+        elif user.role in ['admin', 'hr']:
+            company_id = request.query_params.get('company')
+            if company_id:
+                lead_qs = lead_qs.filter(company_id=company_id)
+            elif user.company:
+                lead_qs = lead_qs.filter(company=user.company)
+            else:
+                lead_qs = lead_qs.none()
+        else:
+            lead_qs = self.get_queryset()
+
+        # Get lead IDs that have been converted (have converted_task_id)
+        converted_lead_ids = lead_qs.filter(
+            converted_task_id__isnull=False
+        ).values_list('converted_task_id', flat=True).distinct()
+
+        # Get users who created those tasks (they are the converters)
+        converter_ids = ASELeadTask.objects.filter(
+            id__in=converted_lead_ids
+        ).values_list('created_by', flat=True).distinct()
+
+        users = UserModel.objects.filter(id__in=converter_ids).values('id', 'first_name', 'last_name', 'username')
         data = [
             {
                 'id': u['id'],
@@ -625,3 +735,34 @@ class ASELeadViewSet(viewsets.ModelViewSet):
             notify_ase_data_changed('leads', 'bulk_deleted', extra={'count': count})
 
         return Response({'deleted_count': count}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get', 'post'])
+    def notes_history(self, request, pk=None):
+        """GET: list notes for a lead. POST: append a new note."""
+        from .models.note import LeadNote
+        from .serializers import LeadNoteSerializer
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        lead = self.get_object()
+        
+        if request.method == 'GET':
+            # Explicitly order by created_at descending to show all notes (newest first)
+            notes = LeadNote.objects.filter(lead=lead).select_related('author').order_by('-created_at')
+            logger.info(f"[notes_history GET] Lead {lead.id} ({lead.company_name}): Found {notes.count()} notes")
+            for note in notes[:5]:  # Log first 5 notes
+                logger.info(f"  - Note ID {note.id}: Created {note.created_at}, Author: {note.author.username if note.author else 'None'}")
+            serializer = LeadNoteSerializer(notes, many=True)
+            return Response(serializer.data)
+        
+        # POST: create new note
+        content = request.data.get('content', '').strip()
+        if not content:
+            return Response({'error': 'content is required'}, status=status.HTTP_400_BAD_REQUEST)
+        note = LeadNote.objects.create(
+            lead=lead,
+            author=request.user,
+            content=content,
+        )
+        logger.info(f"[notes_history POST] Created note ID {note.id} for lead {lead.id} ({lead.company_name}) by {request.user.username}")
+        return Response(LeadNoteSerializer(note).data, status=status.HTTP_201_CREATED)

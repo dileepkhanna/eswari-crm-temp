@@ -81,6 +81,7 @@ class Customer(models.Model):
     notes = models.TextField(blank=True, null=True)
     is_converted = models.BooleanField(default=False)
     converted_lead_id = models.CharField(max_length=50, blank=True, null=True)
+    is_disabled = models.BooleanField(default=False, help_text="Set to True when converted to lead - hides from active customer lists")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -99,6 +100,7 @@ class Customer(models.Model):
             models.Index(fields=['created_by']),
             models.Index(fields=['phone']),  # For search queries
             models.Index(fields=['name']),   # For search queries
+            models.Index(fields=['is_disabled']),  # For filtering active customers
         ]
         
     def __str__(self):

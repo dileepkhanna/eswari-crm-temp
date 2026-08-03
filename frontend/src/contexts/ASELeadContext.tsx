@@ -14,6 +14,7 @@ interface ASELeadContextType {
   loading: boolean;
   error: string | null;
   creators: { id: number; name: string }[];
+  converters: { id: number; name: string }[];
   
   // Pagination
   currentPage: number;
@@ -74,6 +75,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creators, setCreators] = useState<{ id: number; name: string }[]>([]);
+  const [converters, setConverters] = useState<{ id: number; name: string }[]>([]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -177,6 +179,16 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     }
   };
 
+  const fetchConverters = async () => {
+    try {
+      const companyId = aseCompanyId;
+      const data = await aseLeadService.getConverters(companyId);
+      setConverters(data);
+    } catch (err) {
+      logger.error('❌ ASE Leads: Failed to fetch converters:', err);
+    }
+  };
+
   const createLead = async (leadData: ASELeadFormData): Promise<ASELead | null> => {
     try {
       setLoading(true);
@@ -272,7 +284,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
   };
   
   const refreshData = async () => {
-    await Promise.all([fetchLeads(), fetchStats(), fetchCreators()]);
+    await Promise.all([fetchLeads(), fetchStats(), fetchCreators(), fetchConverters()]);
   };
   
   const clearFilters = () => {
@@ -314,6 +326,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     if (needsCompanyId && !aseCompanyId) return;
     fetchStats();
     fetchCreators();
+    fetchConverters();
   }, [aseCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Subscribe to WebSocket real-time updates for ASE leads
@@ -350,6 +363,7 @@ export function ASELeadProvider({ children }: ASELeadProviderProps) {
     loading,
     error,
     creators,
+    converters,
     
     // Pagination
     currentPage,

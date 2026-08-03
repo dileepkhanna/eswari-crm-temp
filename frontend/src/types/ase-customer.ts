@@ -181,6 +181,11 @@ export interface ASELead {
   notes?: string;
   communication_log: any[];
   
+  // Conversion tracking
+  is_disabled?: boolean;
+  converted_task_id?: number;
+  converted_at?: string;
+  
   // Metadata
   created_at: string;
   updated_at: string;
