@@ -678,7 +678,7 @@ def boe_assigned_list(request):
         qs = qs.filter(call_status=call_status_filter)
 
     # Calculate stats
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
@@ -1408,7 +1408,7 @@ def bre_dashboard_stats(request):
         })
 
     user = request.user
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
@@ -1540,7 +1540,7 @@ def cre_leads_list(request):
         qs = qs.filter(created_at__date__lte=date_to)
 
     # Stats
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 

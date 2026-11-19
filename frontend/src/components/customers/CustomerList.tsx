@@ -56,6 +56,7 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { toLocalDateString } from '@/lib/utils';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -182,9 +183,10 @@ function CustomerList({
 
   const filteredCustomers = useMemo(() => {
     // Pre-calculate date strings to avoid repeated Date object creation
-    const today = new Date().toDateString();
-    const filterDateStr = selectedDate ? new Date(selectedDate).toDateString() : null;
-    const isFilterToday = filterDateStr === today;
+    // selectedDate is a local YYYY-MM-DD string; build a local date so it isn't shifted by UTC parsing
+    const filterDateStr = selectedDate
+      ? (() => { const [y, m, d] = selectedDate.split('-').map(Number); return new Date(y, m - 1, d).toDateString(); })()
+      : null;
     
     return customers.filter(customer => {
       // Filter out deleted customers immediately
@@ -223,16 +225,10 @@ function CustomerList({
         (assigneeFilter === 'unassigned' && !customer.assignedTo) ||
         customer.assignedTo === assigneeFilter;
 
-      // Date filter - optimized with pre-calculated strings
+      // Date filter - matches on the upload date (created_at), not the call date
       let matchesDate = true;
       if (filterDateStr) {
-        if (customer.callDate) {
-          const callDateStr = customer.callDate.toDateString();
-          matchesDate = callDateStr === filterDateStr;
-        } else {
-          // If customer has no call date, include them only when viewing today
-          matchesDate = isFilterToday;
-        }
+        matchesDate = !!customer.createdAt && new Date(customer.createdAt).toDateString() === filterDateStr;
       }
 
       // Access control
@@ -538,7 +534,9 @@ function CustomerList({
     const yesterdayStr = yesterday.toDateString();
     
     // Pre-calculate selected date string
-    const selectedDateStr = selectedDate ? new Date(selectedDate).toDateString() : null;
+    const selectedDateStr = selectedDate
+      ? (() => { const [y, m, d] = selectedDate.split('-').map(Number); return new Date(y, m - 1, d).toDateString(); })()
+      : null;
     
     // Determine display date
     let displayDate = 'Today';
@@ -566,8 +564,8 @@ function CustomerList({
         converted++;
       }
       
-      // Count calls for the target date
-      if (customer.callDate && customer.callDate.toDateString() === targetDateStr) {
+      // Count calls uploaded on the target date (created_at)
+      if (customer.createdAt && new Date(customer.createdAt).toDateString() === targetDateStr) {
         todayCalls++;
         
         if (customer.callStatus === 'answered') {
@@ -582,7 +580,7 @@ function CustomerList({
     if (!selectedDateStr) {
       todayCalls = 0;
       for (const customer of customers) {
-        if (customer.callDate && customer.callDate.toDateString() === today) {
+        if (customer.createdAt && new Date(customer.createdAt).toDateString() === today) {
           todayCalls++;
         }
       }
@@ -759,9 +757,9 @@ function CustomerList({
                 </div>
 
                 <Button
-                  variant={selectedDate === new Date().toISOString().split('T')[0] ? 'default' : 'outline'}
+                  variant={selectedDate === toLocalDateString() ? 'default' : 'outline'}
                   onClick={() => {
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = toLocalDateString();
                     if (selectedDate === today) {
                       // If today is selected, don't clear - keep today as default
                       return;
@@ -905,7 +903,7 @@ function CustomerList({
                       onClick={() => handleSort('created_at')}
                     >
                       <div className="flex items-center gap-1">
-                        Last Call
+                        Added On
                         {sortField === 'created_at' && (
                           <span className="text-xs">
                             {sortDirection === 'asc' ? '↑' : '↓'}
@@ -1039,7 +1037,7 @@ function CustomerList({
                       )}
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {customer.callDate ? format(customer.callDate, 'MMM dd, HH:mm') : 'Never'}
+                          {customer.createdAt ? format(new Date(customer.createdAt), 'MMM dd, yyyy') : '-'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -1245,9 +1243,9 @@ function CustomerList({
                         )}
 
                         <div>
-                          <span className="text-sm text-muted-foreground">Last call: </span>
+                          <span className="text-sm text-muted-foreground">Added on: </span>
                           <span className="text-sm">
-                            {customer.callDate ? format(customer.callDate, 'MMM dd, HH:mm') : 'Never'}
+                            {customer.createdAt ? format(new Date(customer.createdAt), 'MMM dd, yyyy') : '-'}
                           </span>
                         </div>
 

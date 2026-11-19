@@ -97,7 +97,7 @@ def _calculate_bre_stats(user):
     - Performance metrics (qualification rate, avg research time, quality score)
     """
     company = user.company
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
@@ -219,7 +219,7 @@ def _calculate_boe_stats(user):
     - Performance metrics (contact rate, warm conversion, avg response time)
     """
     company = user.company
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
@@ -382,7 +382,7 @@ def _calculate_cre_stats(user):
     - Expected revenue
     """
     company = user.company
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
@@ -543,7 +543,7 @@ def _calculate_marketing_lead_stats(user):
     - Action items (leads needing assignment, proposals pending, high-value deals)
     """
     company = user.company
-    today = timezone.now().date()
+    today = timezone.localdate()
     month_start = today.replace(day=1)
 
     # ── Team-Wide Metrics (This Month) ────────────────────────────────────────

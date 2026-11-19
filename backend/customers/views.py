@@ -133,8 +133,7 @@ class CustomerViewSet(CompanyFilterMixin, viewsets.ModelViewSet):
         date_filter = self.request.query_params.get('date_filter', None)
         if date_filter:
             from django.utils import timezone
-            now = timezone.now()
-            today = now.date()
+            today = timezone.localdate()  # local (IST) date, not UTC
             
             if date_filter == 'overdue':
                 # Scheduled date is in the past AND status is pending

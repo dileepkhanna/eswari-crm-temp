@@ -43,6 +43,7 @@ import {
 import { toast } from 'sonner';
 import { apiClient, API_BASE_URL } from '@/lib/api';
 import TopBar from '@/components/layout/TopBar';
+import { toLocalDateString } from '@/lib/utils';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Types
@@ -193,19 +194,19 @@ export default function BREDashboard({ forceResearchView = false, hideTopBar = f
     setCurrentPage(1);
     const today = new Date();
     if (value === 'today') {
-      const d = today.toISOString().split('T')[0];
+      const d = toLocalDateString(today);
       setDateFrom(d);
       setDateTo(d);
     } else if (value === 'this_week') {
       const day = today.getDay();
       const monday = new Date(today);
       monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
-      setDateFrom(monday.toISOString().split('T')[0]);
-      setDateTo(today.toISOString().split('T')[0]);
+      setDateFrom(toLocalDateString(monday));
+      setDateTo(toLocalDateString(today));
     } else if (value === 'this_month') {
       const first = new Date(today.getFullYear(), today.getMonth(), 1);
-      setDateFrom(first.toISOString().split('T')[0]);
-      setDateTo(today.toISOString().split('T')[0]);
+      setDateFrom(toLocalDateString(first));
+      setDateTo(toLocalDateString(today));
     } else if (value === 'all') {
       setDateFrom('');
       setDateTo('');

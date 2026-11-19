@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { aseLeadService } from '@/services/ase-lead.service';
 
 import { logger } from '@/lib/logger';
+import { toLocalDateString } from '@/lib/utils';
 export default function AdminASELeads() {
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
@@ -560,7 +561,7 @@ export default function AdminASELeads() {
                       const now = new Date();
                       if (preset === 'This Month') {
                         setDateFromFilter(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
-                        setDateToFilter(now.toISOString().split('T')[0]);
+                        setDateToFilter(toLocalDateString(now));
                       } else if (preset === 'Last Month') {
                         const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                         const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -569,7 +570,7 @@ export default function AdminASELeads() {
                       } else {
                         const threeAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
                         setDateFromFilter(`${threeAgo.getFullYear()}-${String(threeAgo.getMonth() + 1).padStart(2, '0')}-01`);
-                        setDateToFilter(now.toISOString().split('T')[0]);
+                        setDateToFilter(toLocalDateString(now));
                       }
                     }}>{preset}</Button>
                   ))}
@@ -577,15 +578,15 @@ export default function AdminASELeads() {
                     <Button key={preset} variant="outline" size="sm" className="text-xs" onClick={() => {
                       const now = new Date();
                       if (preset === 'Today') {
-                        const today = now.toISOString().split('T')[0];
+                        const today = toLocalDateString(now);
                         setDateFromFilter(today);
                         setDateToFilter(today);
                       } else if (preset === 'This Week') {
                         const day = now.getDay();
                         const monday = new Date(now);
                         monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-                        setDateFromFilter(monday.toISOString().split('T')[0]);
-                        setDateToFilter(now.toISOString().split('T')[0]);
+                        setDateFromFilter(toLocalDateString(monday));
+                        setDateToFilter(toLocalDateString(now));
                       } else {
                         setDateFromFilter('');
                         setDateToFilter('');

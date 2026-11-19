@@ -42,7 +42,7 @@ def _get_period_start(period):
 
     Supported periods: today, week, month (default), quarter.
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     if period == 'today':
         return today
     elif period == 'week':

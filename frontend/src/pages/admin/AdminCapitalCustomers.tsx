@@ -288,14 +288,15 @@ export default function AdminCapitalCustomers() {
               <th className="text-left py-3 px-4">Call Status</th>
               <th className="text-left py-3 px-4">Interested In</th>
               <th className="text-left py-3 px-4">Assigned To</th>
+              <th className="text-left py-3 px-4">Added On</th>
               <th className="text-left py-3 px-4">Converted</th>
               <th className="text-left py-3 px-4">Actions</th>
             </tr></thead>
             <tbody>
               {loadingCustomers ? (
-                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No calls found</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No calls found</td></tr>
               ) : filtered.map(c => (
                 <tr key={c.id} className={`border-b hover:bg-muted/30 transition-colors ${selected.has(c.id) ? 'bg-primary/5' : ''}`}>
                   <td className="py-3 px-4"><input type="checkbox" className="rounded" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} /></td>
@@ -330,6 +331,9 @@ export default function AdminCapitalCustomers() {
                   </td>
                   <td className="py-3 px-4 text-xs text-muted-foreground" title={c.assigned_to_name || 'Unassigned'}>
                     {c.assigned_to_name ? c.assigned_to_name.split(' ')[0] : '—'}
+                  </td>
+                  <td className="py-3 px-4 text-xs text-muted-foreground">
+                    {c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '—'}
                   </td>
                   <td className="py-3 px-4">
                     {c.is_converted
@@ -414,6 +418,15 @@ export default function AdminCapitalCustomers() {
               {c.assigned_to_name && (
                 <div className="text-xs text-muted-foreground mb-3">
                   Assigned to: <span className="font-medium text-foreground">{c.assigned_to_name}</span>
+                </div>
+              )}
+
+              {/* Added on (upload date) */}
+              {c.created_at && (
+                <div className="text-xs text-muted-foreground mb-3">
+                  Added on: <span className="font-medium text-foreground">
+                    {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
+                  </span>
                 </div>
               )}
 

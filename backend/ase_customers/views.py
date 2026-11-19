@@ -393,7 +393,7 @@ class ASECustomerViewSet(viewsets.ModelViewSet):
         from .models import CallLog
         from accounts.models import User
 
-        now = timezone.now()
+        now = timezone.localtime()  # local (IST) time so "today" starts at local midnight
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         week_start = today_start - timezone.timedelta(days=now.weekday())  # Monday
 

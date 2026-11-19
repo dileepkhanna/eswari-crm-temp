@@ -41,3 +41,16 @@ export function formatCurrency(
 
   return formatted;
 }
+
+/**
+ * Format a Date as YYYY-MM-DD in the user's local timezone.
+ * Use this instead of `date.toISOString().split('T')[0]`, which returns the UTC
+ * date and is off by one day for IST users between 00:00 and 05:30, and for any
+ * Date created at local midnight (e.g. `new Date(y, m, 1)`).
+ */
+export function toLocalDateString(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

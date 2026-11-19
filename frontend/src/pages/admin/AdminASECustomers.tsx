@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { cn } from '@/lib/utils';
+import { cn, toLocalDateString } from '@/lib/utils';
 import TopBar from '@/components/layout/TopBar';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import { useAuth } from '@/contexts/AuthContextDjango';
@@ -241,7 +241,7 @@ export default function AdminASECustomers() {
         setLoadingStats(true);
         // baseParams already includes all active filters (date_from, date_to, assignee, etc.)
         const baseParams = buildApiParams({ page: 1, page_size: 1 });
-        const targetDate = selectedDate || new Date().toISOString().split('T')[0];
+        const targetDate = selectedDate || toLocalDateString();
 
         // "Today Calls" — count calls created on targetDate, within any active date range
         // Remove date_from/date_to when using single-day date filter to avoid conflict
@@ -782,7 +782,7 @@ export default function AdminASECustomers() {
             className="glass-card p-3 md:p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-orange-500 transition-all"
             onClick={() => {
               // Clear other filters and show today's scheduled follow-ups
-              const today = new Date().toISOString().split('T')[0];
+              const today = toLocalDateString();
               setSearchTerm('');
               setStatusFilter('all');
               setConversionFilter('all');
@@ -966,7 +966,7 @@ export default function AdminASECustomers() {
                       <th className="text-left p-2 font-medium text-xs text-muted-foreground">Services</th>
                       <th className="text-left p-2 font-medium text-xs text-muted-foreground">Status</th>
                       <th className="text-left p-2 font-medium text-xs text-muted-foreground">Assigned</th>
-                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Last Call</th>
+                      <th className="text-left p-2 font-medium text-xs text-muted-foreground">Added On</th>
                       <th className="text-left p-2 font-medium text-xs text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
@@ -1104,12 +1104,13 @@ export default function AdminASECustomers() {
                           </span>
                         </td>
                         
-                        {/* Last Call */}
+                        {/* Added On (upload date) */}
                         <td className="p-2">
                           <span className="text-xs text-muted-foreground">
                             {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', {
                               month: 'short',
-                              day: '2-digit'
+                              day: '2-digit',
+                              year: 'numeric'
                             }) : '-'}
                           </span>
                         </td>
@@ -1494,12 +1495,11 @@ export default function AdminASECustomers() {
                       <div className="flex items-center gap-1">
                         <CalendarIcon className="w-3 h-3" />
                         <span>
-                          {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', {
+                          Added on {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', {
                             month: 'short',
                             day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : 'Never'}
+                            year: 'numeric'
+                          }) : '-'}
                         </span>
                       </div>
                     </div>
@@ -1835,7 +1835,7 @@ export default function AdminASECustomers() {
                         if (preset === 'This Month') {
                           const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
                           setDateFromFilter(from);
-                          setDateToFilter(now.toISOString().split('T')[0]);
+                          setDateToFilter(toLocalDateString(now));
                           setMonthFilter(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
                         } else if (preset === 'Last Month') {
                           const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -1846,7 +1846,7 @@ export default function AdminASECustomers() {
                         } else if (preset === 'Last 3 Months') {
                           const threeAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
                           setDateFromFilter(`${threeAgo.getFullYear()}-${String(threeAgo.getMonth() + 1).padStart(2, '0')}-01`);
-                          setDateToFilter(now.toISOString().split('T')[0]);
+                          setDateToFilter(toLocalDateString(now));
                           setMonthFilter('all');
                         }
                         setSelectedDate('');
@@ -1864,7 +1864,7 @@ export default function AdminASECustomers() {
                       onClick={() => {
                         const now = new Date();
                         if (preset === 'Today') {
-                          const today = now.toISOString().split('T')[0];
+                          const today = toLocalDateString(now);
                           setDateFromFilter(today);
                           setDateToFilter(today);
                           setMonthFilter('all');
@@ -1872,8 +1872,8 @@ export default function AdminASECustomers() {
                           const day = now.getDay();
                           const monday = new Date(now);
                           monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-                          setDateFromFilter(monday.toISOString().split('T')[0]);
-                          setDateToFilter(now.toISOString().split('T')[0]);
+                          setDateFromFilter(toLocalDateString(monday));
+                          setDateToFilter(toLocalDateString(now));
                           setMonthFilter('all');
                         } else {
                           setDateFromFilter('');

@@ -407,7 +407,7 @@ class ASELeadViewSet(viewsets.ModelViewSet):
         """
         Get leads that need follow-up
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         queryset = self.get_queryset().filter(
             next_follow_up__date__lte=today
         ).exclude(
