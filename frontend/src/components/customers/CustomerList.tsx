@@ -103,7 +103,13 @@ function CustomerList({
   const [conversionFilter, setConversionFilter] = useState<string>('all'); // New: conversion status filter
   const [sortField, setSortField] = useState<'created_at' | 'call_status' | 'name'>('created_at'); // New: sort field
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc'); // New: sort direction
-  const [selectedDate, setSelectedDate] = useState<string>(''); // Default to all data
+  // Date filter (matches on upload date / created_at)
+  type DateMode = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'date' | 'month' | 'custom';
+  const [dateMode, setDateMode] = useState<DateMode>('all'); // Default to all data
+  const [selectedDate, setSelectedDate] = useState<string>(''); // YYYY-MM-DD, used when dateMode === 'date'
+  const [selectedMonth, setSelectedMonth] = useState<string>(''); // YYYY-MM, used when dateMode === 'month'
+  const [customFrom, setCustomFrom] = useState<string>(''); // YYYY-MM-DD, used when dateMode === 'custom'
+  const [customTo, setCustomTo] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false); // Show/hide date picker
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -181,12 +187,74 @@ function CustomerList({
     return Array.from(statusSet).sort();
   }, [customers]);
 
+  // Resolve the active date filter into an inclusive local YYYY-MM-DD range plus a display label.
+  const dateRange = useMemo((): { from: string; to: string; label: string } => {
+    const now = new Date();
+    const fmt = (d: Date) => format(d, 'MMM dd, yyyy');
+    const parseYmd = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+    switch (dateMode) {
+      case 'today': {
+        const t = toLocalDateString(now);
+        return { from: t, to: t, label: 'Today' };
+      }
+      case 'yesterday': {
+        const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        const s = toLocalDateString(y);
+        return { from: s, to: s, label: 'Yesterday' };
+      }
+      case 'this_week': {
+        const day = now.getDay();
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (day === 0 ? 6 : day - 1));
+        return { from: toLocalDateString(monday), to: toLocalDateString(now), label: 'This Week' };
+      }
+      case 'this_month': {
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { from: toLocalDateString(first), to: toLocalDateString(now), label: format(now, 'MMMM yyyy') };
+      }
+      case 'last_month': {
+        const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const last = new Date(now.getFullYear(), now.getMonth(), 0);
+        return { from: toLocalDateString(first), to: toLocalDateString(last), label: format(first, 'MMMM yyyy') };
+      }
+      case 'date':
+        return selectedDate
+          ? { from: selectedDate, to: selectedDate, label: fmt(parseYmd(selectedDate)) }
+          : { from: '', to: '', label: '' };
+      case 'month': {
+        if (!selectedMonth) return { from: '', to: '', label: '' };
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const first = new Date(y, m - 1, 1);
+        const last = new Date(y, m, 0);
+        return { from: toLocalDateString(first), to: toLocalDateString(last), label: format(first, 'MMMM yyyy') };
+      }
+      case 'custom': {
+        if (!customFrom && !customTo) return { from: '', to: '', label: '' };
+        // Swap if the user picked them in reverse order
+        let from = customFrom;
+        let to = customTo;
+        if (from && to && from > to) [from, to] = [to, from];
+        const label = from && to
+          ? (from === to ? fmt(parseYmd(from)) : `${format(parseYmd(from), 'MMM dd')} – ${fmt(parseYmd(to))}`)
+          : from ? `From ${fmt(parseYmd(from))}` : `Until ${fmt(parseYmd(to))}`;
+        return { from, to, label };
+      }
+      default:
+        return { from: '', to: '', label: '' };
+    }
+  }, [dateMode, selectedDate, selectedMonth, customFrom, customTo]);
+
+  const hasDateFilter = !!(dateRange.from || dateRange.to);
+
+  const clearDateFilter = useCallback(() => {
+    setDateMode('all');
+    setSelectedDate('');
+    setSelectedMonth('');
+    setCustomFrom('');
+    setCustomTo('');
+  }, []);
+
   const filteredCustomers = useMemo(() => {
-    // Pre-calculate date strings to avoid repeated Date object creation
-    // selectedDate is a local YYYY-MM-DD string; build a local date so it isn't shifted by UTC parsing
-    const filterDateStr = selectedDate
-      ? (() => { const [y, m, d] = selectedDate.split('-').map(Number); return new Date(y, m - 1, d).toDateString(); })()
-      : null;
+    const { from: rangeFrom, to: rangeTo } = dateRange;
     
     return customers.filter(customer => {
       // Filter out deleted customers immediately
@@ -225,10 +293,17 @@ function CustomerList({
         (assigneeFilter === 'unassigned' && !customer.assignedTo) ||
         customer.assignedTo === assigneeFilter;
 
-      // Date filter - matches on the upload date (created_at), not the call date
+      // Date filter - matches on the upload date (created_at), not the call date.
+      // Compare local YYYY-MM-DD strings (lexical order == date order), both ends inclusive.
       let matchesDate = true;
-      if (filterDateStr) {
-        matchesDate = !!customer.createdAt && new Date(customer.createdAt).toDateString() === filterDateStr;
+      if (rangeFrom || rangeTo) {
+        if (!customer.createdAt) {
+          matchesDate = false;
+        } else {
+          const createdYmd = toLocalDateString(new Date(customer.createdAt));
+          if (rangeFrom && createdYmd < rangeFrom) matchesDate = false;
+          if (rangeTo && createdYmd > rangeTo) matchesDate = false;
+        }
       }
 
       // Access control
@@ -241,7 +316,7 @@ function CustomerList({
 
       return matchesSearch && matchesStatus && matchesConversion && matchesAssignee && matchesDate && hasAccess;
     });
-  }, [customers, debouncedSearchQuery, statusFilter, conversionFilter, assigneeFilter, selectedDate, canManageAll, user, deletedCustomers]);
+  }, [customers, debouncedSearchQuery, statusFilter, conversionFilter, assigneeFilter, dateRange, canManageAll, user, deletedCustomers]);
 
   // Virtual scrolling for large lists
   const ITEMS_PER_PAGE = 50;
@@ -283,7 +358,7 @@ function CustomerList({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, statusFilter, conversionFilter, assigneeFilter, selectedDate, sortField, sortDirection]);
+  }, [debouncedSearchQuery, statusFilter, conversionFilter, assigneeFilter, dateRange, sortField, sortDirection]);
 
   // Handle sort column click - NEW
   const handleSort = useCallback((field: 'created_at' | 'call_status' | 'name') => {
@@ -528,46 +603,26 @@ function CustomerList({
   }, []);
 
   const todayStats = useMemo(() => {
-    const today = new Date().toDateString();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toDateString();
-    
-    // Pre-calculate selected date string
-    const selectedDateStr = selectedDate
-      ? (() => { const [y, m, d] = selectedDate.split('-').map(Number); return new Date(y, m - 1, d).toDateString(); })()
-      : null;
-    
-    // Determine display date
-    let displayDate = 'Today';
-    if (selectedDateStr) {
-      if (selectedDateStr === today) {
-        displayDate = 'Today';
-      } else if (selectedDateStr === yesterdayStr) {
-        displayDate = 'Yesterday';
-      } else {
-        displayDate = format(new Date(selectedDate), 'MMM dd');
-      }
-    }
-    
+    const todayYmd = toLocalDateString();
+    const isToday = (d?: Date | string) => !!d && toLocalDateString(new Date(d)) === todayYmd;
+
     // Single pass through customers to calculate all stats
     let todayCalls = 0;
     let answered = 0;
     let pending = 0;
     let converted = 0;
-    
-    const targetDateStr = selectedDateStr || today;
-    
+
     for (const customer of sortedCustomers) {
       // Count converted customers from sorted list
       if (customer.isConverted) {
         converted++;
       }
-      
-      // Count calls uploaded on the target date (created_at)
-      if (customer.createdAt && new Date(customer.createdAt).toDateString() === targetDateStr) {
+
+      // With a date filter, sortedCustomers is already limited to that range, so count every row.
+      // Without one, count only calls uploaded today (created_at).
+      if (hasDateFilter || isToday(customer.createdAt)) {
         todayCalls++;
-        
+
         if (customer.callStatus === 'answered') {
           answered++;
         } else if (customer.callStatus === 'pending') {
@@ -575,26 +630,26 @@ function CustomerList({
         }
       }
     }
-    
-    // If no specific date selected, count all today's calls from all customers
-    if (!selectedDateStr) {
+
+    // If no date filter is active, count all of today's calls from all customers
+    if (!hasDateFilter) {
       todayCalls = 0;
       for (const customer of customers) {
-        if (customer.createdAt && new Date(customer.createdAt).toDateString() === today) {
+        if (isToday(customer.createdAt)) {
           todayCalls++;
         }
       }
     }
-    
+
     return {
-      displayDate,
+      displayDate: hasDateFilter ? dateRange.label : 'Today',
       displayCount: sortedCustomers.length,
       todayCalls,
       answered,
       pending,
       converted,
     };
-  }, [sortedCustomers, selectedDate, customers]);
+  }, [sortedCustomers, dateRange, hasDateFilter, customers]);
 
   return (
     <div className="space-y-6">
@@ -630,7 +685,7 @@ function CustomerList({
               <div className="flex items-center gap-2">
                 <PhoneIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Today Calls</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{hasDateFilter ? `Calls · ${todayStats.displayDate}` : 'Today Calls'}</p>
                   <p className="text-xl md:text-2xl font-bold text-foreground">{todayStats.todayCalls}</p>
                 </div>
               </div>
@@ -703,53 +758,135 @@ function CustomerList({
                   <Button
                     variant="outline"
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="h-9 px-3 w-full sm:w-40 justify-start text-left font-normal"
+                    className={`h-9 pl-3 ${hasDateFilter ? 'pr-9' : 'pr-3'} w-full sm:w-52 justify-start text-left font-normal`}
                   >
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    {selectedDate ? format(new Date(selectedDate), 'MMM dd, yyyy') : 'Filter by date'}
+                    <CalendarIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">{hasDateFilter ? dateRange.label : 'Filter by date'}</span>
                   </Button>
                   
                   {showDatePicker && (
-                    <div className="absolute top-12 left-0 z-50 bg-white border rounded-lg shadow-lg p-3">
-                      <Input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => {
-                          setSelectedDate(e.target.value);
-                          setShowDatePicker(false);
-                        }}
-                        className="w-48"
-                        autoFocus
-                      />
-                      <div className="flex gap-2 mt-2">
+                    <div className="absolute top-12 left-0 z-50 w-72 bg-white dark:bg-popover border rounded-lg shadow-lg p-3 space-y-3">
+                      {/* Quick presets */}
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Quick select</p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {([
+                            ['today', 'Today'],
+                            ['yesterday', 'Yesterday'],
+                            ['this_week', 'This Week'],
+                            ['this_month', 'This Month'],
+                            ['last_month', 'Last Month'],
+                            ['all', 'All Time'],
+                          ] as const).map(([mode, label]) => (
+                            <Button
+                              key={mode}
+                              size="sm"
+                              variant={dateMode === mode ? 'default' : 'outline'}
+                              className="h-7 px-1 text-xs"
+                              onClick={() => {
+                                if (mode === 'all') clearDateFilter(); else setDateMode(mode);
+                                setShowDatePicker(false);
+                              }}
+                            >
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Specific date */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Specific date</label>
+                        <Input
+                          type="date"
+                          value={dateMode === 'date' ? selectedDate : ''}
+                          max={toLocalDateString()}
+                          onChange={(e) => {
+                            setSelectedDate(e.target.value);
+                            setDateMode(e.target.value ? 'date' : 'all');
+                            if (e.target.value) setShowDatePicker(false);
+                          }}
+                          className="h-8 mt-1 text-sm"
+                        />
+                      </div>
+
+                      {/* Month wise */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Month</label>
+                        <Input
+                          type="month"
+                          value={dateMode === 'month' ? selectedMonth : ''}
+                          max={toLocalDateString().slice(0, 7)}
+                          onChange={(e) => {
+                            setSelectedMonth(e.target.value);
+                            setDateMode(e.target.value ? 'month' : 'all');
+                            if (e.target.value) setShowDatePicker(false);
+                          }}
+                          className="h-8 mt-1 text-sm"
+                        />
+                      </div>
+
+                      {/* Custom range */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Custom range</label>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <Input
+                            type="date"
+                            aria-label="From date"
+                            value={dateMode === 'custom' ? customFrom : ''}
+                            max={toLocalDateString()}
+                            onChange={(e) => {
+                              setCustomFrom(e.target.value);
+                              if (dateMode !== 'custom') setCustomTo('');
+                              setDateMode('custom');
+                            }}
+                            className="h-8 text-xs px-2"
+                          />
+                          <Input
+                            type="date"
+                            aria-label="To date"
+                            value={dateMode === 'custom' ? customTo : ''}
+                            max={toLocalDateString()}
+                            onChange={(e) => {
+                              setCustomTo(e.target.value);
+                              if (dateMode !== 'custom') setCustomFrom('');
+                              setDateMode('custom');
+                            }}
+                            className="h-8 text-xs px-2"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-1 border-t">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            setSelectedDate('');
+                            clearDateFilter();
                             setShowDatePicker(false);
                           }}
-                          className="text-xs"
+                          className="text-xs flex-1"
                         >
                           Clear
                         </Button>
                         <Button
                           size="sm"
                           onClick={() => setShowDatePicker(false)}
-                          className="text-xs"
+                          className="text-xs flex-1"
                         >
-                          Close
+                          {dateMode === 'custom' ? 'Apply' : 'Close'}
                         </Button>
                       </div>
                     </div>
                   )}
                   
-                  {selectedDate && (
+                  {hasDateFilter && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-muted-foreground hover:text-foreground z-20"
-                      onClick={() => setSelectedDate('')}
+                      onClick={clearDateFilter}
+                      aria-label="Clear date filter"
                     >
                       <XIcon className="w-4 h-4" />
                     </Button>
@@ -757,16 +894,8 @@ function CustomerList({
                 </div>
 
                 <Button
-                  variant={selectedDate === toLocalDateString() ? 'default' : 'outline'}
-                  onClick={() => {
-                    const today = toLocalDateString();
-                    if (selectedDate === today) {
-                      // If today is selected, don't clear - keep today as default
-                      return;
-                    } else {
-                      setSelectedDate(today);
-                    }
-                  }}
+                  variant={dateMode === 'today' ? 'default' : 'outline'}
+                  onClick={() => setDateMode('today')}
                   className="h-9 px-4 w-full sm:w-auto flex-shrink-0"
                 >
                   Today

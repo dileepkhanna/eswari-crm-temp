@@ -241,19 +241,16 @@ export default function AdminASECustomers() {
         setLoadingStats(true);
         // baseParams already includes all active filters (date_from, date_to, assignee, etc.)
         const baseParams = buildApiParams({ page: 1, page_size: 1 });
-        const targetDate = selectedDate || toLocalDateString();
-
-        // "Today Calls" — count calls created on targetDate, within any active date range
-        // Remove date_from/date_to when using single-day date filter to avoid conflict
+        // "Today Calls" / period calls card:
+        // - With a date range (quick select, month or custom), count calls added within that range.
+        // - Otherwise count calls added on the selected single date, or today.
         const todayBaseParams = { ...baseParams };
-        delete todayBaseParams.date_from;
-        delete todayBaseParams.date_to;
-        delete todayBaseParams.call_status; // don't restrict by status for "Today Calls"
+        delete todayBaseParams.call_status; // don't restrict by status for this card
         delete todayBaseParams.is_converted;
-        const todayCallsPromise = ASECustomerService.getCustomers({
-          ...todayBaseParams,
-          date: targetDate,
-        });
+        if (!(dateFromFilter || dateToFilter)) {
+          todayBaseParams.date = selectedDate || toLocalDateString();
+        }
+        const todayCallsPromise = ASECustomerService.getCustomers(todayBaseParams);
 
         // "Answered" — count answered calls within the active date range and assignee filter
         // Don't conflict with existing call_status in baseParams
@@ -690,18 +687,26 @@ export default function AdminASECustomers() {
 
   // Derive labels for the count-only stat cards
   const todayStats = useMemo(() => {
-    const today = new Date().toDateString();
-    const selectedDateStr = selectedDate ? new Date(selectedDate).toDateString() : today;
-    
+    const todayYmd = toLocalDateString();
+    // Parse YYYY-MM-DD as a local date (new Date('YYYY-MM-DD') would parse as UTC)
+    const parseYmd = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+    const short = (s: string) => parseYmd(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
     let callsLabel = 'Today Calls';
-    if (dateFromFilter && dateToFilter) {
+    if (monthFilter !== 'all' && dateFromFilter && dateToFilter) {
+      callsLabel = parseYmd(`${monthFilter}-01`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + ' Calls';
+    } else if (dateFromFilter && dateToFilter) {
       if (dateFromFilter === dateToFilter) {
-        callsLabel = new Date(dateFromFilter).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' Calls';
+        callsLabel = dateFromFilter === todayYmd ? 'Today Calls' : `${short(dateFromFilter)} Calls`;
       } else {
-        callsLabel = 'Period Calls';
+        callsLabel = `${short(dateFromFilter)} – ${short(dateToFilter)} Calls`;
       }
-    } else if (selectedDateStr !== today) {
-      callsLabel = new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' Calls';
+    } else if (dateFromFilter) {
+      callsLabel = `Calls since ${short(dateFromFilter)}`;
+    } else if (dateToFilter) {
+      callsLabel = `Calls until ${short(dateToFilter)}`;
+    } else if (selectedDate && selectedDate !== todayYmd) {
+      callsLabel = `${short(selectedDate)} Calls`;
     }
 
     return {
@@ -709,7 +714,7 @@ export default function AdminASECustomers() {
       displayCount,
       ...filteredStats
     };
-  }, [displayCount, filteredStats, selectedDate, dateFromFilter, dateToFilter]);
+  }, [displayCount, filteredStats, selectedDate, dateFromFilter, dateToFilter, monthFilter]);
 
   const getCallStatusColor = (status: string) => {
     switch (status) {
